@@ -184,6 +184,9 @@ object KeyCode {
     const val QUICK_SETTINGS =            -10052 // 1.1.0: opens the quick settings panel of the keyboard (toolbar key); its own code, F12 is -10039 (KeyCodeTest keeps all codes unique)
     const val DPAD =                      -10054
     const val MEDIA_PANEL =               -10055 // opens the GIF and sticker panel of the keyboard (toolbar key MEDIA)
+    const val SELECT_MODE =               -10056 // the space bar selects until the key is pressed again (toolbar key SELECT_MODE)
+    const val NEXT_OCCURRENCE =           -10057 // adds the next occurrence of the selection or the word to the cursors (toolbar key)
+    const val CARET_BELOW =               -10058 // adds a cursor at the same column on the next line (toolbar key)
 
     // Valid in popups and for toolbar key long press only
     const val KEY_REPEAT =                -11000

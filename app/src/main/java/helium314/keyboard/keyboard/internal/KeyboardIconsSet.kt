@@ -144,6 +144,9 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.CLOSE_HISTORY -> R.drawable.ic_close
                     ToolbarKey.EMOJI -> R.drawable.sym_keyboard_smiley_holo
                     ToolbarKey.MEDIA -> R.drawable.sym_keyboard_smiley_holo
+                    ToolbarKey.SELECT_MODE -> R.drawable.ic_select
+                    ToolbarKey.NEXT_OCCURRENCE -> R.drawable.ic_next_occurrence
+                    ToolbarKey.CARET_BELOW -> R.drawable.ic_caret_below
                     ToolbarKey.LEFT -> R.drawable.ic_dpad_left
                     ToolbarKey.RIGHT -> R.drawable.ic_dpad_right
                     ToolbarKey.UP -> R.drawable.ic_dpad_up
@@ -209,6 +212,9 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.CLOSE_HISTORY -> R.drawable.ic_close
                     ToolbarKey.EMOJI -> R.drawable.sym_keyboard_smiley_lxx
                     ToolbarKey.MEDIA -> R.drawable.sym_keyboard_smiley_lxx
+                    ToolbarKey.SELECT_MODE -> R.drawable.ic_select
+                    ToolbarKey.NEXT_OCCURRENCE -> R.drawable.ic_next_occurrence
+                    ToolbarKey.CARET_BELOW -> R.drawable.ic_caret_below
                     ToolbarKey.LEFT -> R.drawable.ic_dpad_left
                     ToolbarKey.RIGHT -> R.drawable.ic_dpad_right
                     ToolbarKey.UP -> R.drawable.ic_dpad_up
@@ -274,6 +280,9 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.CLOSE_HISTORY -> R.drawable.ic_close_rounded
                     ToolbarKey.EMOJI -> R.drawable.sym_keyboard_smiley_rounded
                     ToolbarKey.MEDIA -> R.drawable.sym_keyboard_smiley_rounded
+                    ToolbarKey.SELECT_MODE -> R.drawable.ic_select_rounded
+                    ToolbarKey.NEXT_OCCURRENCE -> R.drawable.ic_next_occurrence
+                    ToolbarKey.CARET_BELOW -> R.drawable.ic_caret_below
                     ToolbarKey.LEFT -> R.drawable.ic_dpad_left_rounded
                     ToolbarKey.RIGHT -> R.drawable.ic_dpad_right_rounded
                     ToolbarKey.UP -> R.drawable.ic_dpad_up_rounded

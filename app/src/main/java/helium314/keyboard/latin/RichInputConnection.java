@@ -275,6 +275,19 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         return true;
     }
 
+    /**
+     * The text of the field as the editor gives it, asking for at most about {@code maxChars} characters; null when the editor gives
+     * none. The caller checks {@link ExtractedText#startOffset}: a text that does not start at 0 is only a part of the field.
+     */
+    @Nullable
+    public ExtractedText getExtractedText(final int maxChars) {
+        mIC = mParent.getCurrentInputConnection();
+        if (!isConnected()) return null;
+        final ExtractedTextRequest request = new ExtractedTextRequest();
+        request.hintMaxChars = maxChars;
+        return mIC.getExtractedText(request, 0);
+    }
+
     private void reloadCursorPosition() {
         if (!isConnected()) return;
         final ExtractedText et = mIC.getExtractedText(new ExtractedTextRequest(), 0);

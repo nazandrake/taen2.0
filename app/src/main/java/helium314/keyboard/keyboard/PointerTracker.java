@@ -31,6 +31,7 @@ import helium314.keyboard.keyboard.internal.TypingTimeRecorder;
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode;
 import helium314.keyboard.latin.R;
 import helium314.keyboard.latin.common.Constants;
+import helium314.keyboard.latin.navigation.SpaceSwipe2D;
 import helium314.keyboard.latin.common.CoordinateUtils;
 import helium314.keyboard.latin.common.InputPointers;
 import helium314.keyboard.latin.define.DebugFlags;
@@ -145,6 +146,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private long mStartTime;
     private boolean mInHorizontalSwipe = false;
     private boolean mInVerticalSwipe = false;
+    @Nullable private SpaceSwipe2D mSpaceSwipe2D;
 
     // true if keyboard layout has been changed.
     private boolean mKeyboardLayoutHasBeenChanged;
@@ -931,6 +933,22 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             // Touchpad mode
             mTouchpadHandler.enableTouchpadMove(x, y, sListener);
 
+            // Both directions move the cursor: steps across are characters, steps up and down are key rows
+            if (SpaceSwipe2D.isActive(sv.mSpaceSwipeHorizontal, sv.mSpaceSwipeVertical)) {
+                if (mSpaceSwipe2D == null)
+                    mSpaceSwipe2D = new SpaceSwipe2D(sPointerStep, Math.max(1, mKeyboard.mMostCommonKeyHeight + mKeyboard.mVerticalGap));
+                // a move of one step in any direction starts the swipe: no long press, and no space is typed at the end, even
+                // before a whole key row is reached
+                if (!mInHorizontalSwipe && (abs(dX) >= sPointerStep || abs(dY) >= sPointerStep)) {
+                    sTimerProxy.cancelKeyTimersOf(this);
+                    mInHorizontalSwipe = true;
+                }
+                final SpaceSwipe2D.Steps steps = mSpaceSwipe2D.onMove(dX, dY);
+                if (steps.getX() != 0) sListener.onHorizontalSpaceSwipe(steps.getX());
+                if (steps.getY() != 0) sListener.onVerticalSpaceSwipe(steps.getY());
+                return;
+            }
+
             // Vertical movement
             int stepsY = dY / sPointerStep;
             if (stepsY != 0 && abs(dX) < abs(dY) && !mInHorizontalSwipe) {
@@ -1082,6 +1100,7 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
             // Touchpad mode
             mTouchpadHandler.disableTouchpadMode();
 
+            mSpaceSwipe2D = null;
             if (mInHorizontalSwipe || mInVerticalSwipe) {
                 mInHorizontalSwipe = false;
                 mInVerticalSwipe = false;

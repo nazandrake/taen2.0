@@ -142,6 +142,9 @@ class ShadowInputMethodService {
         val editorActions = ArrayList<Int>()
         /** The key codes (KeyEvent.KEYCODE_*) of every key-down the keyboard sent to the field. */
         val keyDownCodes = ArrayList<Int>()
+        /** Every getExtractedText call the keyboard made, and whether the fake field answers with its text. */
+        var extractedTextCalls = 0
+        var extractedTextWithText = false
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -167,6 +170,8 @@ class ShadowInputMethodService {
             contentCommits.clear()
             editorActions.clear()
             keyDownCodes.clear()
+            extractedTextCalls = 0
+            extractedTextWithText = false
         }
     }
 
@@ -317,7 +322,9 @@ class ShadowInputMethodService {
         }
         // implementation is only to work with getTextBeforeCursorAndDetectLaggyConnection
         override fun getExtractedText(p0: ExtractedTextRequest?, p1: Int): ExtractedText {
+            extractedTextCalls++
             return ExtractedText().also {
+                if (extractedTextWithText) it.text = text
                 it.startOffset = 0
                 it.selectionStart = selectionStart
                 it.selectionEnd = selectionEnd

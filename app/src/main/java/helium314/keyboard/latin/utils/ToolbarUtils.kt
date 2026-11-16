@@ -93,6 +93,9 @@ fun getCodeForToolbarKey(key: ToolbarKey) = Settings.getInstance().getCustomTool
     FLOATING -> KeyCode.TOGGLE_FLOATING_WINDOW
     QUICK_SETTINGS -> KeyCode.QUICK_SETTINGS
     MEDIA -> KeyCode.MEDIA_PANEL
+    SELECT_MODE -> KeyCode.SELECT_MODE
+    NEXT_OCCURRENCE -> KeyCode.NEXT_OCCURRENCE
+    CARET_BELOW -> KeyCode.CARET_BELOW
 }
 
 fun getCodeForToolbarKeyLongClick(key: ToolbarKey) = Settings.getInstance().getCustomToolbarLongpressCode(key) ?: when (key) {
@@ -118,7 +121,7 @@ fun getCodeForToolbarKeyLongClick(key: ToolbarKey) = Settings.getInstance().getC
 enum class ToolbarKey {
     VOICE, CLIPBOARD, NUMPAD, DPAD, UNDO, REDO, SETTINGS, SELECT_ALL, SELECT_WORD, COPY, CUT, PASTE, ONE_HANDED, FLOATING, SPLIT,
     INCOGNITO, AUTOCORRECT, CLEAR_CLIPBOARD, CLOSE_HISTORY, EMOJI, LEFT, RIGHT, UP, DOWN, WORD_LEFT, WORD_RIGHT,
-    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, QUICK_SETTINGS, MEDIA
+    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, QUICK_SETTINGS, MEDIA, SELECT_MODE, NEXT_OCCURRENCE, CARET_BELOW
 }
 
 enum class ToolbarMode {
@@ -128,7 +131,7 @@ enum class ToolbarMode {
 val toolbarKeyStrings = entries.associateWithTo(EnumMap(ToolbarKey::class.java)) { it.toString().lowercase(Locale.US) }
 
 val defaultToolbarPref by lazy {
-    val default = listOf(SETTINGS, QUICK_SETTINGS, VOICE, CLIPBOARD, INCOGNITO, UNDO, REDO, SELECT_WORD, COPY, PASTE, LEFT, RIGHT) // incognito one tap away
+    val default = listOf(SETTINGS, QUICK_SETTINGS, VOICE, CLIPBOARD, INCOGNITO, UNDO, REDO, SELECT_WORD, SELECT_MODE, NEXT_OCCURRENCE, CARET_BELOW, COPY, PASTE, LEFT, RIGHT) // incognito one tap away
     val others = entries.filterNot { it in default || it == CLOSE_HISTORY }
     default.joinToString(Separators.ENTRY) { it.name + Separators.KV + true } + Separators.ENTRY +
             others.joinToString(Separators.ENTRY) { it.name + Separators.KV + false }

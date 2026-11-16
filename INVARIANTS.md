@@ -84,6 +84,14 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
 - **Emoji search and smart quotes.** CLDR names and keywords from `assets/emoji_search`; `EmojiSearchIndex`, `EmojiKeywordDictionary`
   and `SmartQuotes` have no file, network, log, preference or storage class (SourceRules). An emoji is never auto-corrected to.
 
+- **Space-bar navigation.** `SpaceSwipe2D` splits one swipe into character and key-row steps; `SpaceSelection` sends up and down
+  only in multi-line fields and selects with `setSelection(anchor, focus)` or shift and arrow keys; `MultiCursor` holds several
+  cursors in memory, reads the field text only when `PrivacyPolicy.Decision.fieldEditing` allows (no password or incognito field),
+  refuses a missing, partial or over-20 000-character text, writes one region in one batch edit after checking it is unchanged,
+  holds at most 100 cursors and drops everything at field change and screen lock (undo: two minutes). The navigation package has
+  no file, network, clipboard, log or preference class (SourceRules). Tests: `SpaceSwipe2DTest`, `SpaceSelectionTest`,
+  `MultiCursorTest`, `NavigationWiringTest`.
+
 ## App lock and self-destruct
 
 - **App lock.** PIN of 4 to 16 digits, Argon2id, record in the device-protected `security` store, never exported. The attempt is stored

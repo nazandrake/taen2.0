@@ -120,6 +120,12 @@ public interface KeyboardActionListener {
     void onUpWithDeletePointerActive();
     void resetMetaState();
 
+    /** The selection of the field changed (LatinIME.onUpdateSelection). */
+    void onSelectionChanged(int newSelStart, int newSelEnd);
+
+    /** The field lost the keyboard: what belongs to it is dropped. */
+    void onFieldFinished();
+
     KeyboardActionListener EMPTY_LISTENER = new Adapter();
 
     enum SwipeAction { NONE, MOVE_CURSOR, SWITCH_LANGUAGE, TOGGLE_NUMPAD, TOGGLE_DPAD, HIDE_KEYBOARD, TOUCHPAD_MODE }
@@ -176,5 +182,9 @@ public interface KeyboardActionListener {
         public void onUpWithDeletePointerActive() {}
         @Override
         public void resetMetaState() {}
+        @Override
+        public void onSelectionChanged(int newSelStart, int newSelEnd) {}
+        @Override
+        public void onFieldFinished() {}
     }
 }

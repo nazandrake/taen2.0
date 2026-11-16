@@ -1334,4 +1334,22 @@ New dictionary:
     <string name="emoji_hold_language">Language key</string>
     <string name="emoji_hold_none">None (popup menus stay)</string>
     <string name="quick_emoji_hold">Emoji on hold: %1$s</string>
+    <!-- Space-bar navigation: selection, line moves and several cursors -->
+    <string name="select_mode" tools:keep="@string/select_mode">Selection mode</string>
+    <string name="next_occurrence" tools:keep="@string/next_occurrence">Select next occurrence</string>
+    <string name="caret_below" tools:keep="@string/caret_below">Cursor on the next line</string>
+    <string name="nav_select_on">Selection mode on: the space bar selects</string>
+    <string name="nav_select_off">Selection mode off</string>
+    <string name="nav_ranges">%1$d of %2$d selected</string>
+    <string name="nav_all_selected">All %1$d are selected</string>
+    <string name="nav_lines">%1$d cursors</string>
+    <string name="nav_not_allowed">Not available in this field</string>
+    <string name="nav_no_text">This app does not share its text</string>
+    <string name="nav_partial_text">This app shares only part of its text</string>
+    <string name="nav_too_long">The text is too long (over 20 000 characters)</string>
+    <string name="nav_changed">The text changed; start again</string>
+    <string name="nav_too_many">At most 100 cursors</string>
+    <string name="nav_nothing">No word at the cursor</string>
+    <string name="nav_no_more_lines">No more lines below</string>
+    <string name="nav_undone">Multi-cursor edit undone</string>
 </resources>

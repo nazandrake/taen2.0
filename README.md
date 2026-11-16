@@ -22,6 +22,9 @@ Version 2.0.0 (versionCode 9). Android 11 and newer, 64-bit ARM. Application ID 
   the file before use (`BUILDING.md` section 8).
 - Optional downloads by choice (Settings > Downloads, the same browser download and checked install): dictionaries and a next-word model
   per language. The model only reorders suggestions from your dictionaries and never runs in password, incognito or no-learning fields.
+- Cursor navigation on the space bar: one swipe moves across characters and up and down lines; hold Shift with another finger,
+  or switch on the selection-mode toolbar key, to select. Toolbar keys add the next occurrence of a word (like Ctrl+G in an IDE)
+  or a cursor at the same column on the next line; typed text and backspace then edit every cursor at once.
 - Offline GIFs and stickers from your own pictures (metadata removed), emoji on a held key, a quick settings panel, templates and saved
   profiles of the settings, and an encrypted export.
 
@@ -66,6 +69,8 @@ Security reports: `SECURITY.md`.
 
 - Only English, Bulgarian and Bengali dictionaries are bundled; other languages need a dictionary file (Settings > Languages).
 - Voice typing and the next-word models are measured on one low-end reference phone and one desktop; other phones are not measured.
+- Line moves and selection by arrow keys depend on the app: some web and custom editors ignore them. Several cursors need an app
+  that shares its whole text (at most 20 000 characters) and are off in password and incognito fields (`PRIVACY.md`, "Cursor navigation").
 
 ## Upstream and credits
 

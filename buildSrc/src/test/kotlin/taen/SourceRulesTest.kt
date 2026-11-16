@@ -400,6 +400,24 @@ class SourceRulesTest {
         assertEquals(emptyList<String>(), native("src/utils/log_utils.cpp", "void LogUtils::logToJava(JNIEnv *const, const char *const, ...) {}"))
     }
 
+    // ---- Space-bar navigation: the navigation package never stores, logs, copies or sends field text ---------------------
+
+    private val multiCursor = "helium314/keyboard/latin/navigation/MultiCursor.kt"
+
+    @Test fun theNavigationPackageHasNoStorageLoggingClipboardOrNetwork() {
+        for (text in listOf("import java.io.File", "val f = java.io.FileOutputStream(p)", "Log.d(TAG, \"x\")", "println(text)", "val p = Privacy.prefs",
+            "ctx.getSharedPreferences(\"n\", 0)", "import java.net.Socket", "val c = ClipData.newPlainText(a, b)", "cm as ClipboardManager")) {
+            val found = problems(multiCursor, text).filter { it.startsWith("navigation:") }
+            assertEquals("$text: $found", 1, found.size)
+        }
+    }
+
+    @Test fun theNavigationRuleOnlyAppliesToThatPackageAndLetsOrdinaryCodeThrough() {
+        // positive controls: the same text elsewhere is no navigation problem; clean navigation code passes
+        assertTrue(problems("helium314/keyboard/latin/ClipboardHistoryManager.kt", "val c = ClipData.newPlainText(a, b)").none { it.startsWith("navigation:") })
+        assertEquals(emptyList<String>(), problems(multiCursor, "class FieldText(val text: CharSequence, val startOffset: Int)\nfun type(insert: String) = edit(insert)"))
+    }
+
     // ---- Glide typing: the gesture package never stores, logs or sends a gesture ----------------------------------------
 
     private val engine = "helium314/keyboard/latin/gesture/GlideEngine.kt"

@@ -27,6 +27,7 @@ import android.widget.TextView;
  * Test target of the Taen leak audit (tools/leak_audit). Three text fields, the one named by --es focus gets the keyboard:
  * normal (plain text), password (textPassword), nolearn (plain text with IME_FLAG_NO_PERSONALIZED_LEARNING).
  * --es copy TEXT [--ez sensitive true] [--ei delay MS]  puts TEXT on the clipboard MS (default 2000) after the field has focus (what the keyboard's clipboard capture sees)
+ * focus=multiline: a multi-line plain text field (the space-bar line moves, selection and several cursors are checked in it)
  * focus=image: a fourth field that announces image/gif, image/png, image/jpeg and image/webp (EditorInfo.contentMimeTypes) and, when the keyboard commits a picture,
  * reads the content URI and logs "image received: type=... bytes=N sha256=..." (the receiver of the picture check)
  * --ez read true                        reads the primary clip while in front and logs it (what another app can read)
@@ -50,6 +51,9 @@ public class FieldActivity extends Activity {
         EditText password = field("password", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD, 0);
         EditText nolearn = field("nolearn", InputType.TYPE_CLASS_TEXT, EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING);
         EditText autocorrect = field("autocorrect", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_AUTO_CORRECT, 0);
+        EditText multiline = field("multiline", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE, 0);
+        multiline.setSingleLine(false);
+        multiline.setMinLines(4);
         EditText image = new EditText(this) {
             @Override public InputConnection onCreateInputConnection(EditorInfo info) {
                 InputConnection ic = super.onCreateInputConnection(info);
@@ -70,9 +74,10 @@ public class FieldActivity extends Activity {
         root.addView(image);
         root.addView(password);
         root.addView(nolearn);
+        root.addView(multiline);
         setContentView(root);
         String focus = getIntent().getStringExtra("focus");
-        EditText target = "image".equals(focus) ? image : "password".equals(focus) ? password : "nolearn".equals(focus) ? nolearn : "autocorrect".equals(focus) ? autocorrect : normal;
+        EditText target = "image".equals(focus) ? image : "password".equals(focus) ? password : "nolearn".equals(focus) ? nolearn : "autocorrect".equals(focus) ? autocorrect : "multiline".equals(focus) ? multiline : normal;
         if (getIntent().getBooleanExtra("keyboard", true)) {
             target.requestFocus();
         } else {

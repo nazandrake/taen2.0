@@ -142,5 +142,6 @@ Changes from HeliBoard v4.2
 ---------------------------
 Taen is a modified version of HeliBoard v4.2 (GPL-3.0-only, section 5). Changes made 2026-10 to 2026-11 and later, as recorded in
 the history of this repository: no network permission; encrypted storage of all user data; app lock and self-destruct; incognito and
-anti-snooping rules; an open-source glide typing engine; on-device voice typing; optional pinned downloads; offline pictures; removal of gesture data gathering, of user-supplied native
+anti-snooping rules; an open-source glide typing engine; on-device voice typing; optional pinned downloads; offline pictures; cursor navigation,
+selection and several cursors on the space bar; removal of gesture data gathering, of user-supplied native
 libraries and of the HeliBoard name and icon. Files derived from AOSP keep their Apache-2.0 headers.

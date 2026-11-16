@@ -127,6 +127,18 @@ the recording indicator is the red pulsing voice key and the system's microphone
 Mutation check of the risk logic (`tools/voice/mutation_run.py`): 11 of 12 changed conditions make a test fail (gate without the password or lock test, permission before model, microphone not released before the engine, audio not cleared, text committed after a field change, held key not released, no hash check on import or load, partial wipe taking the model, F1); the survivor ("an oversize file is passed on") returns the same result by another path, so it is an equivalent mutant.
 The test audio is public read speech; the quality on the owner's own voice and on noisy rooms is not measured.
 
+## Cursor navigation
+
+The space bar moves the cursor across characters and, in multi-line fields, up and down lines (one arrow key per key-row height;
+a single-line field never gets an up or down key, which could move the focus to another view). Selection, "select next occurrence"
+and cursors on several lines work in memory only: the keyboard reads the field text when a key asks for it, keeps only the region
+between the first and the last cursor and the undo of the last edit (two minutes), and drops all of it when the field changes, the
+screen locks or you move the cursor yourself. Nothing of it is stored, logged, copied or learned. In password fields and incognito
+fields (`PrivacyPolicy`) these keys do nothing and the field text is not read. An edit is written in one batch only after checking
+that the region still holds what it held; a field that gives no text, only part of it, or more than 20 000 characters is not
+edited. Checks: `SpaceSwipe2DTest`, `SpaceSelectionTest`, `MultiCursorTest`, `NavigationWiringTest`, SourceRules (the navigation
+package has no file, network, clipboard, log or preference class).
+
 ## What a keyboard cannot protect against
 
 Taen sees what you type, so it can protect what it stores and shows, not what other software does with the same text.

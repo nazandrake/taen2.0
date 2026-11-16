@@ -38,6 +38,8 @@ object PrivacyPolicy {
         val keyPreviews: Boolean get() = !passwordField
         val clipboardSuggestion: Boolean get() = !passwordField
         val suggestionStrip: Boolean get() = !passwordField
+        /** The space bar may select, and the whole field text may be read for several cursors: not in a password or incognito field. */
+        val fieldEditing: Boolean get() = !passwordField && !incognito
     }
 
     /** The field asks for no personalized learning. Read in every input class: a number or phone field can ask for it too. */

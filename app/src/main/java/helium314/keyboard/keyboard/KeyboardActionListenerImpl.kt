@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.keyboard
 
+import android.os.SystemClock
 import android.text.InputType
 import android.util.SparseArray
 import android.view.KeyEvent
@@ -16,12 +17,22 @@ import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.AudioAndHapticFeedbackManager
 import helium314.keyboard.latin.EmojiAltPhysicalKeyDetector
 import helium314.keyboard.latin.LatinIME
+import helium314.keyboard.latin.R
 import helium314.keyboard.latin.RichInputMethodManager
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.common.InputPointers
+import helium314.keyboard.latin.common.StringUtils
 import helium314.keyboard.latin.common.combiningRange
 import helium314.keyboard.latin.common.moveStepsToCharCount
 import helium314.keyboard.latin.inputlogic.InputLogic
+import helium314.keyboard.latin.navigation.Arrow
+import helium314.keyboard.latin.navigation.CursorPort
+import helium314.keyboard.latin.navigation.FieldPort
+import helium314.keyboard.latin.navigation.FieldText
+import helium314.keyboard.latin.navigation.MultiCursor
+import helium314.keyboard.latin.navigation.MultiCursorResult
+import helium314.keyboard.latin.navigation.SpaceSelection
+import helium314.keyboard.latin.privacy.Privacy
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.RecapitalizeMode
 import helium314.keyboard.latin.utils.SubtypeSettings
@@ -45,7 +56,61 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     private var initialSubtype: InputMethodSubtype? = null
     private var subtypeSwitchCount = 0
 
+    // space-bar navigation: selection, line moves and several cursors (memory only, dropped with the field and at screen lock)
+    private var shiftHeld = false
+    private val spaceSelection = SpaceSelection(object : CursorPort {
+        override val selectionStart get() = connection.expectedSelectionStart
+        override val selectionEnd get() = connection.expectedSelectionEnd
+        override fun textBefore(n: Int) = connection.getTextBeforeCursor(n, 0)
+        override fun selectedText() = connection.getSelectedText(0)
+        override fun textAfter(n: Int) = connection.getTextAfterCursor(n, 0)
+        override fun setSelection(anchor: Int, focus: Int) {
+            inputLogic.finishInput()
+            connection.setSelection(anchor, focus)
+        }
+        override fun arrowKey(arrow: Arrow, select: Boolean) {
+            if (select) {
+                inputLogic.finishInput()
+                val code = when (arrow) {
+                    Arrow.LEFT -> KeyEvent.KEYCODE_DPAD_LEFT
+                    Arrow.RIGHT -> KeyEvent.KEYCODE_DPAD_RIGHT
+                    Arrow.UP -> KeyEvent.KEYCODE_DPAD_UP
+                    Arrow.DOWN -> KeyEvent.KEYCODE_DPAD_DOWN
+                }
+                inputLogic.sendDownUpKeyEventWithMetaState(code, KeyEvent.META_SHIFT_ON)
+            } else {
+                val code = when (arrow) {
+                    Arrow.LEFT -> KeyCode.ARROW_LEFT
+                    Arrow.RIGHT -> KeyCode.ARROW_RIGHT
+                    Arrow.UP -> KeyCode.ARROW_UP
+                    Arrow.DOWN -> KeyCode.ARROW_DOWN
+                }
+                onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+            }
+        }
+    })
+    private val multiCursor = MultiCursor(object : FieldPort {
+        override fun extractedText(maxChars: Int): FieldText? {
+            val extracted = connection.getExtractedText(maxChars) ?: return null
+            return FieldText(extracted.text ?: return null, extracted.startOffset)
+        }
+        override fun beginBatchEdit() = connection.beginBatchEdit()
+        override fun endBatchEdit() = connection.endBatchEdit()
+        override fun setSelection(start: Int, end: Int) {
+            connection.setSelection(start, end)
+        }
+        override fun commitText(text: CharSequence) = connection.commitText(text, 1)
+    }, { SystemClock.uptimeMillis() }, { settings.current.mPrivacy.fieldEditing })
+
+    init {
+        Privacy.onLock("navigation") {
+            multiCursor.forgetAll()
+            spaceSelection.sticky = false
+        }
+    }
+
     override fun onPressKey(primaryCode: Int, repeatCount: Int, pointerCount: Int, hapticEvent: HapticEvent) {
+        if (primaryCode == KeyCode.SHIFT) shiftHeld = true
         metaOnPressKey(primaryCode)
         keyboardSwitcher.onPressKey(primaryCode, pointerCount, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
         // we need to use LatinIME for handling of key-down audio and haptics
@@ -58,6 +123,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onReleaseKey(primaryCode: Int, withSliding: Boolean) {
+        if (primaryCode == KeyCode.SHIFT) shiftHeld = false
         metaOnReleaseKey(primaryCode)
         keyboardSwitcher.onReleaseKey(primaryCode, withSliding, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
     }
@@ -113,7 +179,12 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
                 keyboardSwitcher.toggleQuickPanel()
                 return
             }
+            KeyCode.SELECT_MODE -> return toggleSelectMode()
+            KeyCode.NEXT_OCCURRENCE -> return addCursor { multiCursor.addNextOccurrence(it.first, it.second) }
+            KeyCode.CARET_BELOW -> return addCursor { multiCursor.addCaretOnNextLine(it.first, it.second) }
+            KeyCode.UNDO -> if (multiCursor.hasUndo()) multiCursor.undoLastEdit()?.let { return showNavigationResult(it) }
         }
+        if (multiCursor.isActive && typeIntoCursors(primaryCode)) return
         if (Settings.getValues().mIsLocked && KeyCode.isIsBlockedWhenLocked(primaryCode))
             return
         val mkv = keyboardSwitcher.mainKeyboardView
@@ -128,7 +199,10 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         metaAfterCodeInput(primaryCode)
     }
 
-    override fun onTextInput(text: String?) = latinIME.onTextInput(text)
+    override fun onTextInput(text: String?) {
+        if (text != null && multiCursor.isActive) return showNavigationResult(multiCursor.type(text))
+        latinIME.onTextInput(text)
+    }
 
     override fun onStartBatchInput() = latinIME.onStartBatchInput()
 
@@ -161,7 +235,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onHorizontalSpaceSwipe(steps: Int): Boolean = when (Settings.getValues().mSpaceSwipeHorizontal) {
-        KeyboardActionListener.SwipeAction.MOVE_CURSOR -> onMoveCursorHorizontally(steps)
+        KeyboardActionListener.SwipeAction.MOVE_CURSOR -> if (isSelecting()) selectHorizontally(steps) else onMoveCursorHorizontally(steps)
         KeyboardActionListener.SwipeAction.SWITCH_LANGUAGE -> onLanguageSlide(steps)
         KeyboardActionListener.SwipeAction.TOGGLE_NUMPAD -> {
             toggleLayout(LayoutDirective.Utility.NUMPAD, latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
@@ -208,6 +282,69 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     override fun onEndSpaceSwipe() {
         initialSubtype = null
         subtypeSwitchCount = 0
+        if (!spaceSelection.sticky) spaceSelection.reset()
+    }
+
+    override fun onSelectionChanged(newSelStart: Int, newSelEnd: Int) {
+        multiCursor.onSelectionChanged(newSelStart, newSelEnd)
+    }
+
+    override fun onFieldFinished() {
+        multiCursor.forgetAll()
+        spaceSelection.sticky = false
+        shiftHeld = false
+    }
+
+    private fun isSelecting() = spaceSelection.isSelecting(shiftHeld) && settings.current.mPrivacy.fieldEditing
+
+    private fun selectHorizontally(rawSteps: Int): Boolean {
+        val steps = if (RichInputMethodManager.getInstance().currentSubtype.isRtlSubtype) -rawSteps else rawSteps
+        if (!spaceSelection.select(steps)) return false
+        if (steps < 0) gestureMoveBackHaptics() else gestureMoveForwardHaptics()
+        return true
+    }
+
+    private fun toggleSelectMode() {
+        if (!settings.current.mPrivacy.fieldEditing) return showNavigationResult(MultiCursorResult.Refused.NOT_ALLOWED)
+        spaceSelection.sticky = !spaceSelection.sticky
+        keyboardSwitcher.showToast(latinIME.getString(if (spaceSelection.sticky) R.string.nav_select_on else R.string.nav_select_off), true)
+    }
+
+    /** Adds a cursor with [add], given the current selection; nothing of the field is read in a password or incognito field. */
+    private fun addCursor(add: (Pair<Int, Int>) -> MultiCursorResult) {
+        if (!settings.current.mPrivacy.fieldEditing) return showNavigationResult(MultiCursorResult.Refused.NOT_ALLOWED)
+        inputLogic.finishInput()
+        showNavigationResult(add(connection.expectedSelectionStart to connection.expectedSelectionEnd))
+    }
+
+    /** Typed text and backspace go to every cursor; other keys (Enter, arrows, modifiers) are handled as usual. */
+    private fun typeIntoCursors(code: Int): Boolean {
+        val result = when {
+            code == KeyCode.DELETE -> multiCursor.deleteBackward()
+            code > 0 && code != Constants.CODE_ENTER -> multiCursor.type(StringUtils.newSingleCodePointString(code))
+            else -> return false
+        }
+        showNavigationResult(result)
+        return true
+    }
+
+    private fun showNavigationResult(result: MultiCursorResult) {
+        val text = when (result) {
+            MultiCursorResult.Written -> return
+            MultiCursorResult.Undone -> latinIME.getString(R.string.nav_undone)
+            is MultiCursorResult.Ranges -> latinIME.getString(R.string.nav_ranges, result.selected, result.total)
+            is MultiCursorResult.AllSelected -> latinIME.getString(R.string.nav_all_selected, result.count)
+            is MultiCursorResult.Lines -> latinIME.getString(R.string.nav_lines, result.carets)
+            MultiCursorResult.Refused.NOT_ALLOWED -> latinIME.getString(R.string.nav_not_allowed)
+            MultiCursorResult.Refused.NO_TEXT -> latinIME.getString(R.string.nav_no_text)
+            MultiCursorResult.Refused.PARTIAL_TEXT -> latinIME.getString(R.string.nav_partial_text)
+            MultiCursorResult.Refused.TOO_LONG -> latinIME.getString(R.string.nav_too_long)
+            MultiCursorResult.Refused.CHANGED -> latinIME.getString(R.string.nav_changed)
+            MultiCursorResult.Refused.TOO_MANY -> latinIME.getString(R.string.nav_too_many)
+            MultiCursorResult.Refused.NOTHING_TO_MATCH -> latinIME.getString(R.string.nav_nothing)
+            MultiCursorResult.Refused.NO_MORE_LINES -> latinIME.getString(R.string.nav_no_more_lines)
+        }
+        keyboardSwitcher.showToast(text, true)
     }
 
     override fun toggleLayout(layout: LayoutDirective.Utility, autoCapsFlags: Int, recapitalizeMode: RecapitalizeMode?) {
@@ -274,15 +411,13 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
 
     private fun onMoveCursorVertically(steps: Int): Boolean {
         if (steps == 0) return false
-        val code = if (steps < 0) {
-            gestureMoveBackHaptics()
-            KeyCode.ARROW_UP
-        } else {
-            gestureMoveForwardHaptics()
-            KeyCode.ARROW_DOWN
+        val inputType = settings.current.mInputAttributes.mInputType
+        val multiLine = inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT
+                && inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
+        if (multiLine) {
+            if (steps < 0) gestureMoveBackHaptics() else gestureMoveForwardHaptics()
         }
-        onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
-        return true
+        return spaceSelection.moveLines(steps, multiLine, isSelecting())
     }
 
     private fun onMoveCursorHorizontally(rawSteps: Int): Boolean {
