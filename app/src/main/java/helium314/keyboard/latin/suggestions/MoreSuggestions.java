@@ -65,7 +65,6 @@ public final class MoreSuggestions extends Keyboard {
                 } else {
                     word = suggestedWords.getLabel(index);
                 }
-                // TODO: Should take care of text x-scaling.
                 mWidths[index] = (int)(TypefaceUtils.getStringWidth(word, paint) + padding);
                 final int numColumn = index - rowStartIndex + 1;
                 final int columnWidth =
@@ -251,7 +250,6 @@ public final class MoreSuggestions extends Keyboard {
         public Drawable getIcon(final KeyboardIconsSet iconSet, final int alpha) {
             // KeyboardIconsSet and alpha are unused. Use the icon that has been passed to the
             // constructor.
-            // TODO: Drawable itself should have an alpha value.
             mIcon.setAlpha(128);
             return mIcon;
         }

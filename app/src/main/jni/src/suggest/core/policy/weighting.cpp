@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -110,12 +111,10 @@ static inline void profile(const CorrectionType correctionType, DicNode *const n
         return weighting->getOmissionCost(parentDicNode, dicNode);
     case CT_ADDITIONAL_PROXIMITY:
         // only used for typing
-        // TODO: Quit calling getMatchedCost().
         return weighting->getAdditionalProximityCost()
                 + weighting->getMatchedCost(traverseSession, dicNode, inputStateG);
     case CT_SUBSTITUTION:
         // only used for typing
-        // TODO: Quit calling getMatchedCost().
         return weighting->getSubstitutionCost()
                 + weighting->getMatchedCost(traverseSession, dicNode, inputStateG);
     case CT_NEW_WORD_SPACE_OMISSION:

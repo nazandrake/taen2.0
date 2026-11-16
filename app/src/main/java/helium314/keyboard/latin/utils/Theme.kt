@@ -22,7 +22,6 @@ fun Theme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit
         if (dark) dynamicDarkColorScheme(LocalContext.current)
         else dynamicLightColorScheme(LocalContext.current)
     } else {
-        // todo (later): more colors
         if (dark) darkColorScheme(
             primary = colorResource(R.color.accent),
         )
@@ -37,7 +36,6 @@ fun Theme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit
             titleMedium = material3.titleMedium.copy(fontWeight = FontWeight.Bold),
             titleSmall = material3.titleSmall.copy(fontWeight = FontWeight.Bold)
         ),
-        //shapes = Shapes(),
         content = content
     )
 }

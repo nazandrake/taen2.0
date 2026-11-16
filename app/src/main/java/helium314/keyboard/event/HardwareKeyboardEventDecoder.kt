@@ -18,7 +18,6 @@ import helium314.keyboard.latin.common.Constants
  * can be dead keys, they can be meta keys like shift or ctrl... This does not deal with
  * 10-key like keyboards; a different decoder is used for this.
  */
-// TODO: get the layout for this hardware keyboard
 class HardwareKeyboardEventDecoder(val mDeviceId: Int) : HardwareEventDecoder {
     override fun decodeHardwareKey(keyEvent: KeyEvent): Event {
         // KeyEvent#getUnicodeChar() does not exactly returns a unicode char, but rather a value
@@ -49,7 +48,7 @@ class HardwareKeyboardEventDecoder(val mDeviceId: Int) : HardwareEventDecoder {
                 // Shift key is being pressed, this should send a CODE_SHIFT_ENTER and let
                 // Latin IME decide what to do with it.
                 if (keyEvent.isShiftPressed) {
-                    Event.createHardwareKeypressEvent(Event.NOT_A_CODE_POINT, // todo: maybe remove, see also related comment in input logic
+                    Event.createHardwareKeypressEvent(Event.NOT_A_CODE_POINT,
                             KeyCode.SHIFT_ENTER, 0, null, isKeyRepeat)
                 } else Event.createHardwareKeypressEvent(Constants.CODE_ENTER, keyCode, metaState, null, isKeyRepeat)
             } else Event.createHardwareKeypressEvent(codePointAndFlags, keyCode, metaState, null, isKeyRepeat)
@@ -57,8 +56,6 @@ class HardwareKeyboardEventDecoder(val mDeviceId: Int) : HardwareEventDecoder {
             // that can be committed right away, taking into account the current state.
         } else if (isDpadDirection(keyCode)) {
             Event.createHardwareKeypressEvent(codePointAndFlags, keyCode, metaState, null, isKeyRepeat)
-//        } else if (KeyEvent.isModifierKey(keyCode)) {
-//            todo: we could synchronize meta state across HW and SW keyboard, but that's more work for little benefit (especially with shift & caps lock)
         } else {
             Event.notHandledEvent
         }

@@ -64,7 +64,6 @@ fun hasLetterBeforeLastSpaceBeforeCursor(text: CharSequence): Boolean {
 }
 
 /** get the complete emoji at end of [text], considering that emojis can be joined with ZWJ resulting in different emojis */
-// todo: this is now only used for tests, do we actually need it?
 fun getFullEmojiAtEnd(text: CharSequence): String {
     val lastGrapheme = text.toString().lastGrapheme
     return if (isEmoji(lastGrapheme)) lastGrapheme else ""
@@ -86,12 +85,11 @@ fun endsWithWordCodepoint(text: String, spacingAndPunctuations: SpacingAndPunctu
     return codePoint != Constants.NOT_A_CODE && spacingAndPunctuations.isWordCodePoint(codePoint)
 }
 
-// todo: simplify... maybe compare with original code?
-// todo: this breaks at e.g. э́, but should not
+// This breaks at e.g. э́, but should not
 fun getTouchedWordRange(before: CharSequence, after: CharSequence, script: String, spacingAndPunctuations: SpacingAndPunctuations): TextRange {
     // Going backward, find the first breaking point (separator)
     var startIndexInBefore = before.length
-    var endIndexInAfter = -1 // todo: clarify why might we want to set it when checking before
+    var endIndexInAfter = -1
     loopOverCodePointsBackwards(before) { codePoint, cpLength ->
         if (!isPartOfCompositionForScript(codePoint, spacingAndPunctuations, script)) {
             if (Character.isWhitespace(codePoint) || !spacingAndPunctuations.mCurrentLanguageHasSpaces)

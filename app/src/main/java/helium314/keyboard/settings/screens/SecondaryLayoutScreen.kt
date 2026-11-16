@@ -49,7 +49,7 @@ fun createLayoutSettings(context: Context) = LayoutType.entries.filter { it != L
         val prefs = ctx.prefs()
         val b = (ctx.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
         if ((b?.value ?: 0) < 0)
-            Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+            Log.v("recompose", "preference changed")
         var showDialog by rememberSaveable { mutableStateOf(false) }
         val currentLayout = Settings.readDefaultLayoutName(layoutType, prefs)
         val displayName = if (LayoutUtilsCustom.isCustomLayout(currentLayout)) LayoutUtilsCustom.getDisplayName(currentLayout)

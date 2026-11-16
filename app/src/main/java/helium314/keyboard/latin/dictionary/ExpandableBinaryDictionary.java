@@ -805,7 +805,6 @@ abstract public class ExpandableBinaryDictionary extends Dictionary {
             }
             int token = 0;
             do {
-                // TODO: We need a new API that returns *new* un-synced data.
                 final BinaryDictionary.GetNextWordPropertyResult nextWordPropertyResult =
                         binaryDictionary.getNextWordProperty(token);
                 final WordProperty wordProperty = nextWordPropertyResult.mWordProperty;
@@ -817,7 +816,6 @@ abstract public class ExpandableBinaryDictionary extends Dictionary {
             } while (token != 0);
             result.set(wordPropertyList.toArray(new WordProperty[0]));
         });
-        // TODO: Figure out the best timeout duration for this API.
         return result.get(DEFAULT_WORD_PROPERTIES_FOR_SYNC, TIMEOUT_FOR_READ_OPS_IN_MILLISECONDS);
     }
 }

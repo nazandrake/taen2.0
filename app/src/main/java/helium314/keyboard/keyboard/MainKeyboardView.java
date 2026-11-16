@@ -106,13 +106,11 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     private final KeyPreviewChoreographer mKeyPreviewChoreographer;
 
     // More keys keyboard
-    private final Paint mBackgroundDimAlphaPaint = new Paint(); // todo: not used at all
     private final View mPopupKeysKeyboardContainer;
     private final View mPopupKeysKeyboardForActionContainer;
     private final WeakHashMap<Key, Keyboard> mPopupKeysKeyboardCache = new WeakHashMap<>();
     private final boolean mConfigShowPopupKeysKeyboardAtTouchedPoint;
     // More keys panel (used by both popup keys keyboard and more suggestions view)
-    // TODO: Consider extending to support multiple popup keys panels
     private PopupKeysPanel mPopupKeysPanel;
 
     // Gesture floating preview text
@@ -160,10 +158,6 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
                 && !forceNonDistinctMultitouch;
         mNonDistinctMultitouchHelper = hasDistinctMultitouch ? null : new NonDistinctMultitouchHelper();
 
-        final int backgroundDimAlpha = mainKeyboardViewAttr.getInt(
-                R.styleable.MainKeyboardView_backgroundDimAlpha, 0);
-        mBackgroundDimAlphaPaint.setColor(Color.BLACK);
-        mBackgroundDimAlphaPaint.setAlpha(backgroundDimAlpha);
         mLanguageOnSpacebarTextRatio = mainKeyboardViewAttr.getFraction(
                 R.styleable.MainKeyboardView_languageOnSpacebarTextRatio, 1, 1, 1.0f)
                 * Settings.getValues().mFontSizeMultiplier;
@@ -231,7 +225,6 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
 
     private ObjectAnimator loadObjectAnimator(final int resId, final Object target) {
         if (resId == 0) {
-            // TODO: Stop returning null.
             return null;
         }
         final ObjectAnimator animator = (ObjectAnimator)AnimatorInflater.loadAnimator(
@@ -245,7 +238,6 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     private static void cancelAndStartAnimators(final ObjectAnimator animatorToCancel,
             final ObjectAnimator animatorToStart) {
         if (animatorToCancel == null || animatorToStart == null) {
-            // TODO: Stop using null as a no-operation animator.
             return;
         }
         float startFraction = 0.0f;
@@ -284,12 +276,10 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         PointerTracker.setKeyboardActionListener(listener);
     }
 
-    // TODO: We should reconsider which coordinate system should be used to represent keyboard event.
     public int getKeyX(final int x) {
         return Constants.isValidCoordinate(x) ? mKeyDetector.getTouchX(x) : x;
     }
 
-    // TODO: We should reconsider which coordinate system should be used to represent keyboard event.
     public int getKeyY(final int y) {
         return Constants.isValidCoordinate(y) ? mKeyDetector.getTouchY(y) : y;
     }

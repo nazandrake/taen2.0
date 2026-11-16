@@ -38,7 +38,6 @@ public class UserHistoryDictionary extends ExpandableBinaryDictionary {
     // native dictionary lives in memory and is never written to a file.
     private final LearnedStorage mStorage;
 
-    // TODO: Make this constructor private
     UserHistoryDictionary(final Context context, final Locale locale) {
         super(context, getUserHistoryDictName(NAME, locale, null), locale, Dictionary.TYPE_USER_HISTORY, null);
         final File legacyFile = getDictFile(context, getUserHistoryDictName(NAME, locale, null), null);

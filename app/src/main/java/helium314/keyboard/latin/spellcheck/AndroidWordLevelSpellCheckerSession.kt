@@ -170,7 +170,6 @@ abstract class AndroidWordLevelSpellCheckerSession(private val mService: Android
                 composer.restartCombining("hangul")
             val codePoints = StringUtils.toCodePointArray(text)
             composer.setComposingWord(codePoints, keyboard.getCoordinates(codePoints))
-            // TODO: Don't gather suggestions if the limit is <= 0 unless necessary
             val suggestionResults = mService
                 .getSuggestionResults(locale, composer.composedDataSnapshot, ngramContext, keyboard)
             val result = getResult(capitalizeType, locale, suggestionsLimit, mService.recommendedThreshold, text, suggestionResults)
@@ -256,7 +255,6 @@ abstract class AndroidWordLevelSpellCheckerSession(private val mService: Android
         private val quotesEndRegex = "$QUOTES_REGEX$".toRegex()
 
         private val scriptToPunctuationRegexMap: MutableMap<String?, Regex> = TreeMap<String?, Regex>().apply {
-            // TODO: add other non-English language specific punctuation later.
             this[ScriptUtils.SCRIPT_ARMENIAN] = "([\\u0028\\u0029\\u0027\\u2026\\u055E\\u055C\\u055B\\u055D\\u058A\\u2015\\u00AB\\u00BB\\u002C\\u0589\\u2024])".toRegex()
         }
 
@@ -279,7 +277,6 @@ abstract class AndroidWordLevelSpellCheckerSession(private val mService: Android
                 return if (isLetterPartOfScript(text.codePointAt(0), script)) Checkabiliy.TOO_SHORT
                 else Checkabiliy.TOO_MANY_NON_LETTERS
 
-            // TODO: check if an equivalent processing can't be done more quickly with a compiled regexp.
             // Filter by first letter
             val firstCodePoint = text.codePointAt(0)
             // Filter out words that don't start with a letter or an apostrophe
@@ -301,7 +298,6 @@ abstract class AndroidWordLevelSpellCheckerSession(private val mService: Android
                 // If the string contains a period, native returns strange suggestions (it seems
                 // to return suggestions for everything up to the period only and to ignore the
                 // rest), so we suppress lookup if there is a period.
-                // TODO: investigate why native returns these suggestions and remove this code.
                 if (Constants.CODE_PERIOD == codePoint) {
                     return Checkabiliy.CONTAINS_PERIOD
                 }
@@ -348,7 +344,6 @@ abstract class AndroidWordLevelSpellCheckerSession(private val mService: Android
 
     private enum class Checkabiliy { CHECKABLE, TOO_MANY_NON_LETTERS, CONTAINS_PERIOD, EMAIL_OR_URL, FIRST_LETTER_UNCHECKABLE, TOO_SHORT }
 
-    // todo: this is unused...
     protected class SuggestionsParams(val mSuggestions: Array<String?>?, val mFlags: Int)
 
     protected class SuggestionsCache {

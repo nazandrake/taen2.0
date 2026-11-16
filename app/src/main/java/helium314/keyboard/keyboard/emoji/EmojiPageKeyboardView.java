@@ -90,7 +90,6 @@ public final class EmojiPageKeyboardView extends KeyboardView implements
     private final boolean mConfigShowPopupKeysKeyboardAtTouchedPoint;
     private final ViewGroup mPopupKeysPlacerView;
     // More keys panel (used by popup keys keyboard view)
-    // TODO: Consider extending to support multiple popup keys panels
     private PopupKeysPanel mPopupKeysPanel;
 
     public EmojiPageKeyboardView(final Context context, final AttributeSet attrs) {

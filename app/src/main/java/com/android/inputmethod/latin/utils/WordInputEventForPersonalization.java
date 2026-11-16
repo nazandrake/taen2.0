@@ -64,7 +64,6 @@ public final class WordInputEventForPersonalization {
                     Log.d(TAG, "--- not looksValidForDictionaryInsertion");
                 }
                 // Sentence terminator found. Split.
-                // TODO: Detect whether the context is beginning-of-sentence.
                 ngramContext = NgramContext.EMPTY_PREV_WORDS_INFO;
                 continue;
             }

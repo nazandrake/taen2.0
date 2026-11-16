@@ -1,4 +1,5 @@
 # Copyright (C) 2011 The Android Open Source Project
+# modified
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,7 +35,7 @@ LOCAL_CFLAGS += -Wall -Wextra -Weffc++ -Wformat=2 -Wcast-qual -Wcast-align \
 # To suppress compiler warnings for unused variables/functions used for debug features etc.
 LOCAL_CFLAGS += -Wno-unused-parameter -Wno-unused-function
 
-# HACK: -mstackrealign is required for x86 builds running on pre-KitKat devices to avoid crashes
+# -mstackrealign is required for x86 builds running on pre-KitKat devices to avoid crashes
 # with SSE instructions.
 ifeq ($(TARGET_ARCH), x86)
     LOCAL_CFLAGS += -mstackrealign

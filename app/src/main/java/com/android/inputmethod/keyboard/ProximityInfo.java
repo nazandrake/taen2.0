@@ -39,7 +39,6 @@ public class ProximityInfo {
     private final int mGridSize;
     private final int mCellWidth;
     private final int mCellHeight;
-    // TODO: Find a proper name for mKeyboardMinWidth
     private final int mKeyboardMinWidth;
     private final int mKeyboardHeight;
     private final int mMostCommonKeyWidth;
@@ -83,7 +82,6 @@ public class ProximityInfo {
         JniUtils.loadNativeLibrary();
     }
 
-    // TODO: Stop passing proximityCharsArray
     private static native long setProximityInfoNative(int displayWidth, int displayHeight,
             int gridWidth, int gridHeight, int mostCommonKeyWidth, int mostCommonKeyHeight,
             int[] proximityCharsArray, int keyCount, int[] keyXCoordinates, int[] keyYCoordinates,
@@ -209,7 +207,6 @@ public class ProximityInfo {
             }
         }
 
-        // TODO: Stop passing proximityCharsArray
         return setProximityInfoNative(mKeyboardMinWidth, mKeyboardHeight, mGridWidth, mGridHeight,
                 mMostCommonKeyWidth, mMostCommonKeyHeight, proximityCharsArray, keyCount,
                 keyXCoordinates, keyYCoordinates, keyWidths, keyHeights, keyCharCodes,

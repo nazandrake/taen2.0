@@ -14,8 +14,6 @@ import java.util.HashMap;
  * <p>
  * All the methods in this class are static.
  * <p>
- * TODO: Move this file to makedict/internal.
- * TODO: Rename this class to DictDecoderUtils.
  */
 public final class BinaryDictDecoderUtils {
     private BinaryDictDecoderUtils() {

@@ -166,7 +166,6 @@ public class GestureFloatingTextDrawingPreview extends AbstractDrawingPreview {
 
         mPreviewTextX = (int)(rectX + hPad + textWidth / 2.0f);
         mPreviewTextY = (int)(rectY + vPad) + textHeight;
-        // TODO: Should narrow the invalidate region.
         invalidateDrawingView();
     }
 }

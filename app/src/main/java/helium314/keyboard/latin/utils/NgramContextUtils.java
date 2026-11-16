@@ -37,9 +37,8 @@ public final class NgramContextUtils {
     // (n = 2) "abc def|" -> beginning-of-sentence, abc
     // (n = 2) "abc def |" -> beginning-of-sentence, abc
     // (n = 2) "abc 'def|" -> empty. The context is different from "abc def", but we cannot
-    // represent this situation using NgramContext. See TODO in the method.
-    // TODO: The next example's result should be "abc, def". This have to be fixed before we
-    // retrieve the prior context of Beginning-of-Sentence.
+    // represent this situation using NgramContext.
+    // Known limitation: the next example's result should be "abc, def".
     // (n = 2) "abc def. |" -> beginning-of-sentence, abc
     // (n = 2) "abc def . |" -> abc, def
     // (n = 2) "abc|" -> beginning-of-sentence
@@ -66,7 +65,6 @@ public final class NgramContextUtils {
                     final char firstChar = wordFollowingTheNthPrevWord.charAt(0);
                     if (spacingAndPunctuations.isWordConnector(firstChar)) {
                         // The word following the focused word is starting with a word connector.
-                        // TODO: Return meaningful context for this case.
                         break;
                     }
                 }
@@ -91,7 +89,6 @@ public final class NgramContextUtils {
                 break;
             }
             // If ends in a word separator or connector, the context is unclear.
-            // TODO: Return meaningful context for this case.
             if (spacingAndPunctuations.isWordSeparator(lastChar)
                     || spacingAndPunctuations.isWordConnector(lastChar)) {
                 break;

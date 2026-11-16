@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,7 +62,6 @@ bool Ver4PatriciaTrieNodeWriter::markPtNodeAsDeleted(
     }
 }
 
-// TODO: Quit using bigramLinkedNodePos.
 bool Ver4PatriciaTrieNodeWriter::markPtNodeAsMoved(
         const PtNodeParams *const toBeUpdatedPtNodeParams,
         const int movedPos, const int bigramLinkedNodePos) {
@@ -138,7 +138,6 @@ bool Ver4PatriciaTrieNodeWriter::updatePtNodeUnigramProperty(
         const PtNodeParams *const toBeUpdatedPtNodeParams,
         const UnigramProperty *const unigramProperty) {
     // Update probability and historical information.
-    // TODO: Update other information in the unigram property.
     if (!toBeUpdatedPtNodeParams->isTerminal()) {
         return false;
     }
@@ -202,7 +201,6 @@ bool Ver4PatriciaTrieNodeWriter::writeNewTerminalPtNodeAndAdvancePosition(
             terminalId, &probabilityEntryOfUnigramProperty);
 }
 
-// TODO: Support counting ngram entries.
 bool Ver4PatriciaTrieNodeWriter::addNgramEntry(const WordIdArrayView prevWordIds, const int wordId,
         const NgramProperty *const ngramProperty, bool *const outAddedNewBigram) {
     LanguageModelDictContent *const languageModelDictContent =
@@ -229,7 +227,6 @@ bool Ver4PatriciaTrieNodeWriter::removeNgramEntry(const WordIdArrayView prevWord
     return languageModelDictContent->removeNgramProbabilityEntry(prevWordIds, wordId);
 }
 
-// TODO: Remove when we stop supporting v402 format.
 bool Ver4PatriciaTrieNodeWriter::updateAllBigramEntriesAndDeleteUselessEntries(
             const PtNodeParams *const sourcePtNodeParams, int *const outBigramEntryCount) {
     // Do nothing.

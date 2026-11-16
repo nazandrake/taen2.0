@@ -387,9 +387,6 @@ class SuggestTest {
         // the suggestions are for the normal word without ', and then the ' is attached
         // this has weird effects, because there are suggestions where the ' does not fit
         //  e.g. for emoji suggestions and languages where ' isn't used in words
-        // todo: improve the situation on this!
-        //  disable for shortcuts?
-        //  maybe also could be removed from word connectors for a bunch of languages
 
         tapTypingSuggestions = suggestionResults(listOf(
             suggestion("ab", 1000),
@@ -541,7 +538,6 @@ class SuggestTest {
         val result3 = getSuggestedWords(true, "", CapsMode.MANUAL)
         // mWillAutoCorrect is true on phone, because after glide typing is done, the result is set as typed word
         // when pressing shift to capitalize it, autocorrect will only work if the typed word changes when capitalized. this does not work without typed word
-        //assert(result3.mWillAutoCorrect)
         assertEquals("but", result3.typedWordInfo.mWord)
         assertEquals(listOf("But", "Buy", "Bit", "😢", "Butter"), result3.mSuggestedWordInfoList.map { it.mWord })
     }
@@ -669,7 +665,7 @@ class SuggestTest {
         return suggest.shouldBeAutoCorrected(
             StringUtils.getTrailingSingleQuotesCount(word),
             word,
-            suggestionsContainer.firstOrNull(), // todo: get from suggestions? mostly it's just removing the typed word, right?
+            suggestionsContainer.firstOrNull(),
             { firstSuggestionForEmpty to typedWordSuggestionForEmpty },
             true, // doesn't make sense otherwise
             WordComposer.getComposerForTest(false),

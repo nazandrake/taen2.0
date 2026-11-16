@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -143,9 +144,7 @@ class ProximityInfoState {
         return mIsContinuousSuggestionPossible;
     }
 
-    // TODO: Rename s/Length/NormalizedSquaredLength/
     float getPointToKeyByIdLength(const int inputIndex, const int keyId) const;
-    // TODO: Rename s/Length/NormalizedSquaredLength/
     float getPointToKeyLength(const int inputIndex, const int codePoint) const;
 
     ProximityType getProximityType(const int index, const int codePoint,

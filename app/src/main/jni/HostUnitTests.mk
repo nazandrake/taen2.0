@@ -1,4 +1,5 @@
 # Copyright (C) 2014 The Android Open Source Project
+# modified
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,9 +16,9 @@
 # Host build is never supported in unbundled (NDK/tapas) build
 ifeq (,$(TARGET_BUILD_APPS))
 
-# HACK: Temporarily disable host tool build on Mac until the build system is ready for C++11.
+# Temporarily disable host tool build on Mac until the build system is ready for C++11.
 LATINIME_HOST_OSNAME := $(shell uname -s)
-ifneq ($(LATINIME_HOST_OSNAME), Darwin) # TODO: Remove this
+ifneq ($(LATINIME_HOST_OSNAME), Darwin)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -54,7 +55,7 @@ include $(BUILD_HOST_NATIVE_TEST)
 
 include $(LOCAL_PATH)/CleanupNativeFileList.mk
 
-endif # Darwin - TODO: Remove this
+endif # Darwin
 
 endif # TARGET_BUILD_APPS
 

@@ -64,8 +64,6 @@ final class DynamicGridKeyboard extends Keyboard {
     private DynamicGridKeyboard(SharedPreferences prefs, Keyboard templateKeyboard,
             int maxCount, boolean isRecents, int width, boolean fixedRowCount) {
         super(templateKeyboard);
-        // todo: would be better to keep them final and not require width, but how to properly set width of the template keyboard?
-        //  an alternative would be to always create the templateKeyboard with full width
         final int paddingWidth = mOccupiedWidth - mBaseWidth;
         mBaseWidth = width - paddingWidth;
         mOccupiedWidth = width;
@@ -321,7 +319,6 @@ final class DynamicGridKeyboard extends Keyboard {
     @NonNull
     @Override
     public List<Key> getNearestKeys(final int x, final int y) {
-        // TODO: Calculate the nearest key index in mGridKeys from x and y.
         return getSortedKeys();
     }
 

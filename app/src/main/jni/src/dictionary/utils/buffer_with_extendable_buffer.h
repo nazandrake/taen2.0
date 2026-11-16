@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,7 +61,6 @@ class BufferWithExtendableBuffer {
         return position >= static_cast<int>(mOriginalBuffer.size());
     }
 
-    // TODO: Resolve the issue that the address can be changed when the vector is resized.
     // CAVEAT!: Be careful about array out of bound access with buffers
     AK_FORCE_INLINE const uint8_t *getBuffer(const bool usesAdditionalBuffer) const {
         if (usesAdditionalBuffer) {

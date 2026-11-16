@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +31,6 @@ namespace latinime {
 namespace backward {
 namespace v402 {
 
-// TODO: Create PtConstants under the pt_common and move some constant values there.
 // Note that there are corresponding definitions in FormatSpec.java.
 class Ver4DictConstants {
  public:

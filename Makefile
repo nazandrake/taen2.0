@@ -27,7 +27,7 @@ help:
 	@echo "verify-repro  two clean builds of HEAD in separate directories; the unsigned APK hashes must match"
 	@echo "keygen        create a signing key outside the repo (~/.config/taen/release.p12)"
 	@echo "sign          sign dist/taen-$(VERSION)-unsigned.apk -> dist/taen-$(VERSION)-signed.apk"
-	@echo "hooks         enable .githooks/pre-push"
+	@echo "hooks         enable githooks/ (public check on commit, build gate and reproducibility on push)"
 	@echo "container     build the pinned build image (podman or docker)"
 	@echo "container-build  release build of HEAD inside the image -> dist/"
 	@echo "container-verify-repro  verify-repro inside the image"
@@ -103,7 +103,7 @@ sign:
 	cd dist && sha256sum taen-$(VERSION)-signed.apk | tee -a SHA256SUMS
 
 hooks:
-	git config core.hooksPath .githooks
+	scripts/setup-hooks
 
 container:
 	@test -n "$(ENGINE)" || { echo "install podman or docker"; exit 2; }

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +43,6 @@ ErrorTypeUtils::ErrorType TypingWeighting::getErrorType(const CorrectionType cor
                 const int nodeCodePoint = dicNode->getNodeCodePoint();
                 const int keyIndex = traverseSession->getProximityInfo()->getKeyIndexOf(
                         primaryCodePoint);
-                // TODO: Check whether the input code point is on the keyboard.
                 if (primaryCodePoint == nodeCodePoint) {
                     // Node code point is same as original code point on the keyboard.
                     return ErrorTypeUtils::NOT_AN_ERROR;
@@ -78,7 +78,6 @@ ErrorTypeUtils::ErrorType TypingWeighting::getErrorType(const CorrectionType cor
             }
             break;
         case CT_ADDITIONAL_PROXIMITY:
-            // TODO: Change to EDIT_CORRECTION.
             return ErrorTypeUtils::PROXIMITY_CORRECTION;
         case CT_OMISSION:
             if (parentDicNode->canBeIntentionalOmission()) {
@@ -88,7 +87,6 @@ ErrorTypeUtils::ErrorType TypingWeighting::getErrorType(const CorrectionType cor
             }
             break;
         case CT_SUBSTITUTION:
-            // TODO: Quit settng PROXIMITY_CORRECTION.
             return ErrorTypeUtils::EDIT_CORRECTION | ErrorTypeUtils::PROXIMITY_CORRECTION;
         case CT_INSERTION:
         case CT_TERMINAL_INSERTION:

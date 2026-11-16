@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +18,6 @@
 #include "suggest/policyimpl/typing/scoring_params.h"
 
 namespace latinime {
-// TODO: RENAME all
 const float ScoringParams::MAX_SPATIAL_DISTANCE = 1.0f;
 const int ScoringParams::THRESHOLD_NEXT_WORD_PROBABILITY = 40;
 const int ScoringParams::THRESHOLD_NEXT_WORD_PROBABILITY_FOR_CAPPED = 120;
@@ -29,7 +29,6 @@ const float ScoringParams::CASE_ERROR_PENALTY_FOR_EXACT_MATCH = 0.01f;
 const float ScoringParams::ACCENT_ERROR_PENALTY_FOR_EXACT_MATCH = 0.02f;
 const float ScoringParams::DIGRAPH_PENALTY_FOR_EXACT_MATCH = 0.03f;
 
-// TODO: Unlimit max cache dic node size
 const int ScoringParams::MAX_CACHE_DIC_NODE_SIZE = 170;
 const int ScoringParams::MAX_CACHE_DIC_NODE_SIZE_FOR_SINGLE_POINT = 310;
 const int ScoringParams::MAX_CACHE_DIC_NODE_SIZE_FOR_LOW_PROBABILITY_LOCALE = 50;

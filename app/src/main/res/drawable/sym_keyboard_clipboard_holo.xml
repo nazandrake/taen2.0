@@ -4,7 +4,6 @@
     modified
     SPDX-License-Identifier: Apache-2.0
 -->
-<!-- TODO: create "sym_keyboard_clipboard_lxx" as a vector image, use it and change the size in the code to be able to delete this file -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:height="32dp"
     android:width="32dp"

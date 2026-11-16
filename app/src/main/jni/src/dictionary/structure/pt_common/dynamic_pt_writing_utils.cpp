@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,11 +57,6 @@ const int DynamicPtWritingUtils::NODE_FLAG_FIELD_SIZE = 1;
         int *const arraySizeFieldPos) {
     // Currently, all array size field to be created has LARGE_PTNODE_ARRAY_SIZE_FIELD_SIZE to
     // simplify updating process.
-    // TODO: Use SMALL_PTNODE_ARRAY_SIZE_FIELD_SIZE for small arrays.
-    /*if (arraySize <= MAX_PTNODE_ARRAY_SIZE_TO_USE_SMALL_SIZE_FIELD) {
-        return buffer->writeUintAndAdvancePosition(arraySize, SMALL_PTNODE_ARRAY_SIZE_FIELD_SIZE,
-                arraySizeFieldPos);
-    } else */
     if (arraySize <= MAX_PTNODE_ARRAY_SIZE) {
         uint32_t data = arraySize | LARGE_PTNODE_ARRAY_SIZE_FIELD_SIZE_FLAG;
         return buffer->writeUintAndAdvancePosition(data, LARGE_PTNODE_ARRAY_SIZE_FIELD_SIZE,

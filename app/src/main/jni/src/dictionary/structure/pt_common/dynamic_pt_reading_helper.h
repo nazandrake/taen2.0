@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -247,7 +248,6 @@ class DynamicPtReadingHelper {
     static const int MAX_PT_NODE_ARRAY_COUNT_TO_AVOID_INFINITE_LOOP;
     static const size_t MAX_READING_STATE_STACK_SIZE;
 
-    // TODO: Introduce error code to track what caused the error.
     bool mIsError;
     PtNodeReadingState mReadingState;
     const PtNodeReader *const mPtNodeReader;

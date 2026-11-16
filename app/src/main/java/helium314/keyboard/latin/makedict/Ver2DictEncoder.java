@@ -63,7 +63,6 @@ public class Ver2DictEncoder implements DictEncoder {
         }
     }
 
-    // todo: what is this? makes dictionary file larger
     private static CodePointTable makeCodePointTable(FusionDictionary dict) {
         HashMap<Integer, Integer> codePointOccurrenceCounts = new HashMap<>();
         for (WordProperty word : dict) {

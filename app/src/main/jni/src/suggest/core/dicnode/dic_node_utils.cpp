@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,7 +80,6 @@ namespace latinime {
                     && (wordAttributes.isBlacklisted() || wordAttributes.isNotAWord()))) {
         return static_cast<float>(MAX_VALUE_FOR_WEIGHTING);
     }
-    // TODO: This equation to calculate the improbability looks unreasonable.  Investigate this.
     const float cost = static_cast<float>(MAX_PROBABILITY - wordAttributes.getProbability())
             / static_cast<float>(MAX_PROBABILITY);
     return cost;

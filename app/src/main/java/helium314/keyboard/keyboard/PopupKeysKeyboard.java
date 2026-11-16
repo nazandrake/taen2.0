@@ -266,8 +266,7 @@ public final class PopupKeysKeyboard extends Keyboard {
             mParams.mId = keyboard.mId;
             readAttributes(keyboard.mPopupKeysTemplate);
 
-            // TODO: Popup keys keyboard's vertical gap is currently calculated heuristically.
-            // Should revise the algorithm.
+            // the vertical gap of the popup keys keyboard is a heuristic
             mParams.mVerticalGap = keyboard.mVerticalGap / 2;
             // This {@link PopupKeysKeyboard} is invoked from the <code>key</code>.
             mParentKey = key;

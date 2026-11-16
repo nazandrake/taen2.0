@@ -80,7 +80,7 @@ fun ColorThemePickerDialog(
     val prefs = ctx.prefs()
     val b = (LocalContext.current.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
-        Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+        Log.v("recompose", "preference changed")
 
     val defaultColors = KeyboardTheme.getAvailableDefaultColors(prefs, isNight)
 
@@ -172,7 +172,7 @@ fun ColorThemePickerDialog(
         )
     }
     if (errorDialog)
-        InfoDialog(stringResource(R.string.file_read_error)) { errorDialog = false } // todo: text (not always a file)
+        InfoDialog(stringResource(R.string.file_read_error)) { errorDialog = false }
 }
 
 @Composable

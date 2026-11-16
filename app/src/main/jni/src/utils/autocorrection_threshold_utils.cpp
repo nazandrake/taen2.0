@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,8 +40,6 @@ const int AutocorrectionThresholdUtils::FULL_WORD_MULTIPLIER = 2;
 // In dictionary.cpp, getSuggestion() method,
 // When USE_SUGGEST_INTERFACE_FOR_TYPING is true:
 //
-//   // TODO: Revise the following logic thoroughly by referring to the logic
-//   // marked as "Otherwise" below.
 //   SUGGEST_INTERFACE_OUTPUT_SCALE was multiplied to the original suggestion scores to convert
 //   them to integers.
 //     score = (int)((original score) * SUGGEST_INTERFACE_OUTPUT_SCALE)
@@ -92,7 +91,6 @@ const int AutocorrectionThresholdUtils::FULL_WORD_MULTIPLIER = 2;
     // add a weight based on edit distance.
     const float weight = 1.0f - static_cast<float>(distance) / static_cast<float>(afterLength);
 
-    // TODO: Revise the following logic thoroughly by referring to...
     if (true /* USE_SUGGEST_INTERFACE_FOR_TYPING */) {
         return (static_cast<float>(score) / SUGGEST_INTERFACE_OUTPUT_SCALE) * weight;
     }

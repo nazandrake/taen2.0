@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,12 +44,10 @@ class DynamicPtUpdatingHelper {
             const CodePointArrayView wordCodePoints, const UnigramProperty *const unigramProperty,
             bool *const outAddedNewUnigram);
 
-    // TODO: Remove after stopping supporting v402.
     // Add an n-gram entry.
     bool addNgramEntry(const PtNodePosArrayView prevWordsPtNodePos, const int wordPos,
             const NgramProperty *const ngramProperty, bool *const outAddedNewEntry);
 
-    // TODO: Remove after stopping supporting v402.
     // Remove an n-gram entry.
     bool removeNgramEntry(const PtNodePosArrayView prevWordsPtNodePos, const int wordPos);
 

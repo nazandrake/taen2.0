@@ -45,7 +45,7 @@ interface AbstractKeyData {
      * @return The computed string for the key data object. Note: some objects may return an empty string here, meaning
      *  it is always required to check for the string's length before attempting to directly retrieve the first char.
      */
-    fun asString(isForDisplay: Boolean): String // todo: remove it? not used at all (better only later, maybe useful for getting display label in some languages)
+    fun asString(isForDisplay: Boolean): String
 }
 
 /**
@@ -299,8 +299,6 @@ class CharWidthSelector(
 ) : AbstractKeyData {
     override fun compute(params: KeyboardParams, isPopup: Boolean): KeyData? {
         throw UnsupportedOperationException("char_width_selector not (yet) supported")
-//        val data = if (params.halfWidth) { half } else { full }
-//        return data?.compute(params)
     }
 
     override fun asString(isForDisplay: Boolean): String {
@@ -332,8 +330,6 @@ class KanaSelector(
 ) : AbstractKeyData {
     override fun compute(params: KeyboardParams, isPopup: Boolean): KeyData? {
         throw UnsupportedOperationException("kana_selector not (yet) supported")
-//        val data = if (evaluator.state.isKanaKata) { kata } else { hira }
-//        return data.compute(evaluator)
     }
 
     override fun asString(isForDisplay: Boolean): String {

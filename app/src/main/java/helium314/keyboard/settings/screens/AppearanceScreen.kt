@@ -54,7 +54,7 @@ fun AppearanceScreen(
     val prefs = ctx.prefs()
     val b = (LocalContext.current.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
-        Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+        Log.v("recompose", "preference changed")
     val dayNightMode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && prefs.getBoolean(Settings.PREF_THEME_DAY_NIGHT, Defaults.PREF_THEME_DAY_NIGHT)
     val items = listOf(
         R.string.settings_screen_theme,
@@ -128,7 +128,7 @@ fun createAppearanceSettings(context: Context) = listOf(
         val ctx = LocalContext.current
         val b = (ctx.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
         if ((b?.value ?: 0) < 0)
-            Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+            Log.v("recompose", "preference changed")
         val items = KeyboardTheme.STYLES.map { it.getStringResourceOrName("style_name_", ctx) to it }
         ListPreference(
             setting,
@@ -159,7 +159,7 @@ fun createAppearanceSettings(context: Context) = listOf(
         val prefs = ctx.prefs()
         val b = (ctx.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
         if ((b?.value ?: 0) < 0)
-            Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+            Log.v("recompose", "preference changed")
         var showDialog by rememberSaveable { mutableStateOf(false) }
         Preference(
             name = setting.title,
@@ -179,7 +179,7 @@ fun createAppearanceSettings(context: Context) = listOf(
         val b = (ctx.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
         val prefs = ctx.prefs()
         if ((b?.value ?: 0) < 0)
-            Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+            Log.v("recompose", "preference changed")
         var showDialog by rememberSaveable { mutableStateOf(false) }
         Preference(
             name = setting.title,

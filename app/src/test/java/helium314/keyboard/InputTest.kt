@@ -15,7 +15,6 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-// todo: expand with swipe & touch stuff
 @RunWith(RobolectricTestRunner::class)
 @Config(shadows = [
     ShadowInputMethodService::class,
@@ -66,7 +65,7 @@ class InputTest {
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
         touchKey(KeyCode.SHIFT, MotionEvent.ACTION_UP)
 
-        // need to set event time to prevent mTouchNoiseThresholdTime thing triggering (todo: should be done automatically in the test)
+        // need to set event time to prevent mTouchNoiseThresholdTime thing triggering
         touchKey(KeyCode.SHIFT, MotionEvent.ACTION_DOWN, 50L)
         touchKey(KeyCode.SHIFT, MotionEvent.ACTION_UP, 50L)
         assertEquals(KeyboardElement.ALPHABET, keyboardSwitcher.keyboard?.mId?.element)
@@ -90,7 +89,7 @@ class InputTest {
         val key = kb.getKey(code)!!
         val x = key.x + key.height / 2
         val y = key.y + key.width / 2
-        val me = MotionEvent.obtain( // todo: there are many more parameters, also related to pointers
+        val me = MotionEvent.obtain(
             0L,
             eventTime,
             action,

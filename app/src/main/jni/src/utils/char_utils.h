@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,7 +51,6 @@ class CharUtils {
     }
 
     static AK_FORCE_INLINE bool isIntentionalOmissionCodePoint(const int codePoint) {
-        // TODO: Do not hardcode here
         return codePoint == KEYCODE_SINGLE_QUOTE || codePoint == KEYCODE_HYPHEN_MINUS;
     }
     static AK_FORCE_INLINE int getCodePointCount(const int arraySize, const int *const codePoints) {

@@ -113,7 +113,6 @@ public final class KeyVisualAttributes {
         mPreviewTextRatio = ResourceUtils.getFraction(keyAttr,
                 R.styleable.Keyboard_Key_keyPreviewTextRatio);
 
-        // todo: check what colors do, and if irrelevant and no plan to use -> remove here and from attr
         final Colors colors = Settings.getValues().mColors;
         mTextColor = colors.get(ColorType.KEY_TEXT);
         // when? -> isShiftedLetterActivated, which is a label flag

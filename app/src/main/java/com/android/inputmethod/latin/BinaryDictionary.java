@@ -40,7 +40,6 @@ import java.util.Map;
 /**
  * Implements a static, compacted, binary dictionary of standard words.
  */
-// TODO: All methods which should be locked need to have a suffix "Locked".
 public final class BinaryDictionary extends Dictionary {
     private static final String TAG = BinaryDictionary.class.getSimpleName();
 
@@ -85,8 +84,6 @@ public final class BinaryDictionary extends Dictionary {
 
     private final SparseArray<DicTraverseSession> mDicTraverseSessions = new SparseArray<>();
 
-    // TODO: There should be a way to remove used DicTraverseSession objects from
-    // {@code mDicTraverseSessions}.
     private DicTraverseSession getTraverseSession(final int traverseSessionId) {
         synchronized(mDicTraverseSessions) {
             DicTraverseSession traverseSession = mDicTraverseSessions.get(traverseSessionId);
@@ -224,14 +221,12 @@ public final class BinaryDictionary extends Dictionary {
     private static native boolean migrateNative(long dict, String dictFilePath,
             long newFormatVersion);
 
-    // TODO: Move native dict into session
     private void loadDictionary(final String path, final long startOffset,
             final long length, final boolean isUpdatable) {
         mHasUpdated = false;
         mNativeDict = openNative(path, startOffset, length, isUpdatable);
     }
 
-    // TODO: Check isCorrupted() for main dictionaries.
     public boolean isCorrupted() {
         if (!isValidDictionary()) {
             return false;
@@ -239,7 +234,6 @@ public final class BinaryDictionary extends Dictionary {
         if (!isCorruptedNative(mNativeDict)) {
             return false;
         }
-        // TODO: Record the corruption.
         Log.e(TAG, "BinaryDictionary is corrupted.");
         Log.e(TAG, "locale");
         Log.e(TAG, "dict size");
@@ -340,7 +334,6 @@ public final class BinaryDictionary extends Dictionary {
                     this /* sourceDict */,
                     session.mSpaceIndices[j] /* indexOfTouchPointOfSecondWord */,
                     session.mOutputAutoCommitFirstWordConfidence[0]);
-                info.mOriginalScore = session.mOutputScores[j]; // no locale weight!
                 suggestions.add(info);
             }
         }
@@ -755,7 +748,6 @@ public final class BinaryDictionary extends Dictionary {
         return mDictFileHash;
     }
 
-    // TODO: Manage BinaryDictionary instances without using WeakReference or something.
     @Override
     protected void finalize() throws Throwable {
         try {

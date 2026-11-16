@@ -44,7 +44,7 @@ fun NewDictionaryDialog(
     cachedFile: File,
     mainLocale: Locale?
 ) {
-    val (error, header) = remember { checkDict(cachedFile) } // todo: this should be done on in background, dict conversion can be slow
+    val (error, header) = remember { checkDict(cachedFile) }
     if (error != null) {
         InfoDialog(stringResource(error), onDismissRequest)
         cachedFile.delete()

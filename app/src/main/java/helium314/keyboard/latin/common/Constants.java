@@ -125,8 +125,6 @@ public final class Constants {
          * {@link android.text.TextUtils#CAP_MODE_WORDS}, and
          * {@link android.text.TextUtils#CAP_MODE_SENTENCES}.
          */
-        // TODO: Straighten this out. It's bizarre to have to use android.text.TextUtils.CAP_MODE_*
-        // except for OFF that is in Constants.TextUtils.
         public static final int CAP_MODE_OFF = 0;
 
         private TextUtils() {
@@ -136,7 +134,6 @@ public final class Constants {
 
     public static final int NOT_A_CODE = -1;
     public static final int NOT_A_CURSOR_POSITION = -1;
-    // TODO: replace the following constants with state in InputTransaction?
     public static final int NOT_A_COORDINATE = -1;
     public static final int SUGGESTION_STRIP_COORDINATE = -2;
     public static final int EXTERNAL_KEYBOARD_COORDINATE = -4;
@@ -151,7 +148,6 @@ public final class Constants {
 
     // Key events coming any faster than this are long-presses.
     public static final int LONG_PRESS_MILLISECONDS = 200;
-    // TODO: Set this value appropriately.
     public static final int GET_SUGGESTED_WORDS_TIMEOUT = BuildConfig.DEBUG ? 500 : 200; // debug build is slow, and timeout is annoying for testing
     // How many continuous deletes at which to start deleting at a higher speed.
     public static final int DELETE_ACCELERATE_AT = 20;

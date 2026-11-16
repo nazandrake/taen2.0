@@ -312,7 +312,6 @@ public class XmlDictInputOutput {
         for (WordProperty wordProperty : dict) {
             wordPropertiesInDict.add(wordProperty);
         }
-        // TODO: use an XMLSerializer if this gets big
         destination.write("<wordlist format=\"2\"");
         for (String key : dict.mOptions.mAttributes.keySet()) {
             String value = dict.mOptions.mAttributes.get(key);

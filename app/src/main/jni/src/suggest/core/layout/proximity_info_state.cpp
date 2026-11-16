@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +39,6 @@ int ProximityInfoState::getPrimaryOriginalCodePointAt(const int index) const {
     return mProximityInfo->getOriginalCodePointOf(keyIndex);
 }
 
-// TODO: Remove the dependency of "isGeometric"
 void ProximityInfoState::initInputParams(const int pointerId, const float maxPointToKeyLength,
         const ProximityInfo *proximityInfo, const int *const inputCodes, const int inputSize,
         const int *const xCoordinates, const int *const yCoordinates, const int *const times,

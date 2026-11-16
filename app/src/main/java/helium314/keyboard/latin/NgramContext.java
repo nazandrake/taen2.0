@@ -47,7 +47,6 @@ public class NgramContext {
 
         // This is an empty char sequence when mIsBeginningOfSentence is true.
         public final CharSequence mWord;
-        // TODO: Have sentence separator.
         // Whether the current context is beginning of sentence or not. This is true when composing
         // at the beginning of an input field or composing a word after a sentence separator.
         public final boolean mIsBeginningOfSentence;
@@ -188,7 +187,6 @@ public class NgramContext {
     }
 
     // n is 1-indexed.
-    // TODO: Remove
     public CharSequence getNthPrevWord(final int n) {
         if (n <= 0 || n > mPrevWordsCount) {
             return null;

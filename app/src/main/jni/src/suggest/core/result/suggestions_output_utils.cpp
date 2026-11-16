@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,11 +57,9 @@ const int SuggestionsOutputUtils::MIN_LEN_FOR_MULTI_WORD_AUTOCORRECT = 16;
             weightOfLangModelVsSpatialModelToOutputSuggestions);
     // Force autocorrection for obvious long multi-word suggestions when the top suggestion is
     // a long multiple words suggestion.
-    // TODO: Implement a smarter auto-commit method for handling multi-word suggestions.
     const bool forceCommitMultiWords = scoringPolicy->autoCorrectsToMultiWordSuggestionIfTop()
             && (traverseSession->getInputSize() >= MIN_LEN_FOR_MULTI_WORD_AUTOCORRECT
                     && !terminals.empty() && terminals.front().hasMultipleWords());
-    // TODO: have partial commit work even with multiple pointers.
     const bool outputSecondWordFirstLetterInputIndex =
             traverseSession->isOnlyOnePointerUsed(0 /* pointerId */);
     const bool boostExactMatches = traverseSession->getDictionaryStructurePolicy()->
@@ -92,7 +91,7 @@ const int SuggestionsOutputUtils::MIN_LEN_FOR_MULTI_WORD_AUTOCORRECT = 16;
     //
     // 1) At the end of a search, in which case terminalDicNode will point to the last DicNode
     //    of the search, and isLastWord will be true.
-    //                    "fuck"
+    //                    "<word>"
     //                        |
     //                        \ terminalDicNode (isLastWord=true, currentWordExactMatch=true)
     //    In this case, if the current word is an exact match, we will always let the word
@@ -102,17 +101,17 @@ const int SuggestionsOutputUtils::MIN_LEN_FOR_MULTI_WORD_AUTOCORRECT = 16;
     //    to start a new search at root, to try to match the rest of the input. In this case,
     //    terminalDicNode will point to the terminal node we just hit, and isLastWord will be
     //    false.
-    //                    "fuckvthis"
+    //                    "<word>vthis"
     //                        |
     //                        \ terminalDicNode (isLastWord=false, currentWordExactMatch=true)
     //
-    // In this case, we should NOT allow the match through (correcting "fuckthis" to "fuck this"
+    // In this case, we should NOT allow the match through (correcting "<word>this" to "<word> this"
     // when offensive words are blocked would be a bad idea).
     //
     // In the case of a multi-word correction where the offensive word is typed last (eg.
-    // for the input "allfuck"), this function will be called with isLastWord==true, but
+    // for the input "all<word>"), this function will be called with isLastWord==true, but
     // currentWordExactMatch==false. So we are OK in this case as well.
-    //                    "allfuck"
+    //                    "all<word>"
     //                           |
     //                           \ terminalDicNode (isLastWord=true, currentWordExactMatch=false)
     if (isLastWord && currentWordExactMatch) {
@@ -144,7 +143,6 @@ const int SuggestionsOutputUtils::MIN_LEN_FOR_MULTI_WORD_AUTOCORRECT = 16;
     const bool isExactMatchWithIntentionalOmission =
             ErrorTypeUtils::isExactMatchWithIntentionalOmission(
                     terminalDicNode->getContainedErrorTypes());
-    // TODO: Decide whether the word should be auto-corrected or not here.
     const bool isAppropriateForAutoCorrection = !ErrorTypeUtils::isMissingExplicitAccent(
             terminalDicNode->getContainedErrorTypes());
     const int outputTypeFlags =
@@ -161,7 +159,6 @@ const int SuggestionsOutputUtils::MIN_LEN_FOR_MULTI_WORD_AUTOCORRECT = 16;
             terminalDicNode, wordAttributes, true /* isLastWord */);
 
     // Increase output score of top typing suggestion to ensure autocorrection.
-    // TODO: Better integration with java side autocorrection logic.
     const int finalScore = scoringPolicy->calculateFinalScore(
             compoundDistance, traverseSession->getInputSize(),
             terminalDicNode->getContainedErrorTypes(),
@@ -185,7 +182,6 @@ const int SuggestionsOutputUtils::MIN_LEN_FOR_MULTI_WORD_AUTOCORRECT = 16;
 
     // Output shortcuts.
     // Shortcut is not supported for multiple words suggestions.
-    // TODO: Check shortcuts during traversal for multiple words suggestions.
     if (!terminalDicNode->hasMultipleWords()) {
         BinaryDictionaryShortcutIterator shortcutIt =
                 traverseSession->getDictionaryStructurePolicy()->getShortcutIterator(

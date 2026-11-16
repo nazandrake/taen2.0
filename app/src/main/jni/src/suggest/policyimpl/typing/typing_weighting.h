@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -169,7 +170,6 @@ class TypingWeighting : public Weighting {
         // The auto completion starts when the input index is same as the input size
         const bool firstCompletion = dicNode->getInputIndex(0)
                 == traverseSession->getInputSize();
-        // TODO: Change the cost for the first completion for the gesture?
         const float cost = firstCompletion ? ScoringParams::COST_FIRST_COMPLETION
                 : ScoringParams::COST_COMPLETION;
         return cost;
@@ -185,7 +185,6 @@ class TypingWeighting : public Weighting {
         const int inputIndex = dicNode->getInputIndex(0);
         const int inputSize = traverseSession->getInputSize();
         ASSERT(inputIndex < inputSize);
-        // TODO: Implement more efficient logic
         return  ScoringParams::TERMINAL_INSERTION_COST * (inputSize - inputIndex);
     }
 

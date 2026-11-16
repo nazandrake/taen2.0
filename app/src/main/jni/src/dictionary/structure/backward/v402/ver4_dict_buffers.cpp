@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +45,6 @@ namespace v402 {
         AKLOGE("The header buffer must be valid to open ver4 dict buffers.");
         return Ver4DictBuffersPtr(nullptr);
     }
-    // TODO: take only dictDirPath, and open both header and trie files in the constructor below
     const bool isUpdatable = headerBuffer->isUpdatable();
     return Ver4DictBuffersPtr(new Ver4DictBuffers(dictPath, std::move(headerBuffer), isUpdatable,
             formatVersion));

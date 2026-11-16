@@ -169,8 +169,6 @@ class InputLogicTest {
         assertEquals("\uD83E\uDD70", text)
     }
 
-    // todo: make it work, but it might not be that simple because adding is done in combiner
-    //  https://github.com/HeliBorg/HeliBoard/issues/214
     @Test fun insertLetterIntoWordHangulFails() {
         if (BuildConfig.BUILD_TYPE == "runTests") return
         latinIME.switchToSubtype(SubtypeSettings.getResourceSubtypesForLocale("ko".constructLocale()).first())
@@ -353,8 +351,8 @@ class InputLogicTest {
         latinIME.prefs().edit { putBoolean(Settings.PREF_AUTOSPACE_AFTER_PUNCTUATION, true) }
         chainInput("mail@example.com")
         assertEquals("mail@example.com", text)
-        assertEquals("mail@example", lastAddedWord) // todo: do we want this? not really nice, but don't want to be too aggressive with URL detection disabled
-        assertEquals("com", composingText) // todo: maybe this should still see the whole address as a single word? or don't be too aggressive?
+        assertEquals("mail@example", lastAddedWord)
+        assertEquals("com", composingText)
         setText("")
         lastAddedWord = ""
         latinIME.prefs().edit { putBoolean(Settings.PREF_URL_DETECTION, true) }
@@ -459,8 +457,6 @@ class InputLogicTest {
         functionalKeyPress(KeyCode.DELETE)
         functionalKeyPress(KeyCode.DELETE)
         functionalKeyPress(KeyCode.DELETE) // delete com
-        // todo: do we really want no composing text?
-        //  probably not... try not to break composing
         assertEquals("", composingText)
         chainInput("net")
         assertEquals("example.net", composingText)
@@ -472,12 +468,9 @@ class InputLogicTest {
         setCursorPosition(18) // after .com
         functionalKeyPress(KeyCode.DELETE)
         functionalKeyPress(KeyCode.DELETE) // delete om
-        // todo: this is a weird difference to deleting the full TLD (see urlProperlySelected)
-        //  what do we want here? (probably consistency)
         assertEquals("example.c/here", composingText)
         chainInput("z")
-        assertEquals("", composingText) // todo: this is a weird difference to deleting the full TLD
-//        assertEquals("example.cz", composingText) // fails, but probably would be better than above
+        assertEquals("", composingText)
     }
 
     @Test fun dontCommitPartialUrlBeforeFirstPeriod() {
@@ -514,7 +507,7 @@ class InputLogicTest {
     @Test fun `no intermediate commit in URL field with protocol`() {
         setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         chainInput("http://bla.com/img.jpg")
-        assertEquals("http", lastAddedWord) // todo: somehow avoid?
+        assertEquals("http", lastAddedWord)
         assertEquals("http://bla.com/img.jpg", text)
         assertEquals("bla.com/img.jpg", composingText)
     }
@@ -523,7 +516,7 @@ class InputLogicTest {
         latinIME.prefs().edit { putBoolean(Settings.PREF_URL_DETECTION, true) }
         setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         chainInput("http://bla.com/img.jpg")
-        assertEquals("http", lastAddedWord) // todo: somehow avoid?
+        assertEquals("http", lastAddedWord)
         assertEquals("http://bla.com/img.jpg", text)
         assertEquals("bla.com/img.jpg", composingText)
     }
@@ -813,8 +806,6 @@ class InputLogicTest {
         functionalKeyPress(KeyCode.DELETE)
         assertEquals("", text)
 
-        // todo: now we want some way to disable delete-all on backspace, either per setting or something else
-        //  need to avoid getting into the mWordComposer.isBatchMode() part of handleBackspaceEvent
     }
 
     @Test fun timestamp() {

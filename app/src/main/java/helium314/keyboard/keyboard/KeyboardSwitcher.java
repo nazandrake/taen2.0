@@ -200,8 +200,6 @@ public final class KeyboardSwitcher {
         return null;
     }
 
-    // TODO: Remove this method. Come up with a more comprehensive way to reset the keyboard layout
-    // when a keyboard layout set doesn't get reloaded in LatinIME.onStartInputViewInternal().
     public void resetKeyboardStateToAlphabet() {
         mState.onResetKeyboardStateToAlphabet(mLatinIME.getCurrentAutoCapsState(), mLatinIME.getCurrentRecapitalizeState());
     }
@@ -795,7 +793,6 @@ public final class KeyboardSwitcher {
             // Make {@link MainKeyboardView} visible and hide {@link EmojiPalettesView}.
             SettingsValues currentSettingsValues = Settings.getValues();
             setMainKeyboardFrame(currentSettingsValues, toggleState);
-            // TODO: pass this object to setKeyboard instead of getting the current values.
             MainKeyboardView keyboardView = mKeyboardView;
             Keyboard oldKeyboard = keyboardView.getKeyboard();
             Keyboard newKeyboard = mKeyboardLayoutSet.getKeyboard(keyboardElement);

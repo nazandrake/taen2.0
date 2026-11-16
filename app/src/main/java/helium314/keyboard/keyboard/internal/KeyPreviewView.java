@@ -56,7 +56,6 @@ public class KeyPreviewView extends TextView {
         setTextSize(TypedValue.COMPLEX_UNIT_PX, key.selectPreviewTextSize(drawParams)
                 * Settings.getValues().mFontSizeMultiplier);
         KeyboardTypeface.applyToTextView(this, key.getPreviewLabel(), key.selectPreviewTypeface(drawParams));
-        // TODO Should take care of temporaryShiftLabel here.
         setTextAndScaleX(key.getPreviewLabel());
     }
 
@@ -70,8 +69,6 @@ public class KeyPreviewView extends TextView {
             sNoScaleXTextSet.add(text);
             return;
         }
-        // TODO: Override {@link #setBackground(Drawable)} that is supported from API 16 and
-        // calculate maximum text width.
         final Drawable background = getBackground();
         if (background == null) {
             return;

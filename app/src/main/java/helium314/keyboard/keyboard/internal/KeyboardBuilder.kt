@@ -76,7 +76,6 @@ open class KeyboardBuilder<KP : KeyboardParams>(protected val mContext: Context,
         sv.mPopupKeyHintOrder.forEach { if (it in sv.mPopupKeyOrder) mParams.mPopupKeyHintOrder.add(it) }
     }
 
-    // todo: remnant of old parser, replace it if reasonably simple
     protected fun readAttributes(@XmlRes xmlId: Int) {
         val parser = mResources.getXml(xmlId)
         while (parser.eventType != XmlPullParser.END_DOCUMENT) {

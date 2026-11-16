@@ -176,7 +176,6 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         }
         toolbarContainer.doOnNextLayout {
             // set min with of the toolbar so the weight of the toolbar keys actually does something
-            // todo: results in requestLayout() improperly called by android.widget.LinearLayout during layout: running second layout pass
             toolbar.minimumWidth = toolbarContainer.width
         }
 

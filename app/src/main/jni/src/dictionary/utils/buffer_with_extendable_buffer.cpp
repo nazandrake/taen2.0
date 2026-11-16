@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +21,6 @@ namespace latinime {
 
 const size_t BufferWithExtendableBuffer::DEFAULT_MAX_ADDITIONAL_BUFFER_SIZE = 1024 * 1024;
 const int BufferWithExtendableBuffer::NEAR_BUFFER_LIMIT_THRESHOLD_PERCENTILE = 90;
-// TODO: Needs to allocate larger memory corresponding to the current vector size.
 const size_t BufferWithExtendableBuffer::EXTEND_ADDITIONAL_BUFFER_SIZE_STEP = 128 * 1024;
 
 uint32_t BufferWithExtendableBuffer::readUint(const int size, const int pos) const {

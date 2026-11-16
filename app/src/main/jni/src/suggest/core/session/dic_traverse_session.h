@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,7 +64,6 @@ class DicTraverseSession {
 
     void init(const Dictionary *dictionary, const NgramContext *const ngramContext,
             const SuggestOptions *const suggestOptions);
-    // TODO: Remove and merge into init
     void setupForGetSuggestions(const ProximityInfo *pInfo, const int *inputCodePoints,
             const int inputSize, const int *const inputXs, const int *const inputYs,
             const int *const times, const int *const pointerIds, const float maxSpatialDistance,
@@ -115,9 +115,6 @@ class DicTraverseSession {
             const int pointerId = dicNode->getInputIndex(i);
             proximityType = mProximityInfoStates[i].getProximityTypeG(pointerId, childCodePoint);
             ASSERT(proximityType == UNRELATED_CHAR || proximityType == MATCH_CHAR);
-            // TODO: Make this more generic
-            // Currently we assume there are only two types here -- UNRELATED_CHAR
-            // and MATCH_CHAR
             if (proximityType != UNRELATED_CHAR) {
                 return proximityType;
             }
@@ -132,7 +129,6 @@ class DicTraverseSession {
     /**
      * Returns whether or not it is possible to continue suggestion from the previous search.
      */
-    // TODO: Remove. No need to check once the session is fully implemented.
     bool isContinuousSuggestionPossible() const {
         if (!mDicNodesCache.hasCachedDicNodesForContinuousSuggestion()) {
             return false;

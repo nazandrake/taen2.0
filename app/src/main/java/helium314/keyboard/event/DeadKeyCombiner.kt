@@ -104,14 +104,6 @@ class DeadKeyCombiner : Combiner {
             addCombining('\u030C'.code, ACCENT_CARON)
             // U+030D: COMBINING VERTICAL LINE ABOVE
             addCombining('\u030D'.code, ACCENT_VERTICAL_LINE_ABOVE)
-            // U+030E: COMBINING DOUBLE VERTICAL LINE ABOVE
-            //addCombining('\u030E', ACCENT_DOUBLE_VERTICAL_LINE_ABOVE);
-            // U+030F: COMBINING DOUBLE GRAVE ACCENT
-            //addCombining('\u030F', ACCENT_DOUBLE_GRAVE);
-            // U+0310: COMBINING CANDRABINDU
-            //addCombining('\u0310', ACCENT_CANDRABINDU);
-            // U+0311: COMBINING INVERTED BREVE
-            //addCombining('\u0311', ACCENT_INVERTED_BREVE);
             // U+0312: COMBINING TURNED COMMA ABOVE
             addCombining('\u0312'.code, ACCENT_TURNED_COMMA_ABOVE)
             // U+0313: COMBINING COMMA ABOVE
@@ -124,8 +116,6 @@ class DeadKeyCombiner : Combiner {
             addCombining('\u031B'.code, ACCENT_HORN)
             // U+0323: COMBINING DOT BELOW
             addCombining('\u0323'.code, ACCENT_DOT_BELOW)
-            // U+0326: COMBINING COMMA BELOW
-            //addCombining('\u0326', ACCENT_COMMA_BELOW);
             // U+0327: COMBINING CEDILLA
             addCombining('\u0327'.code, ACCENT_CEDILLA)
             // U+0328: COMBINING OGONEK
@@ -136,12 +126,6 @@ class DeadKeyCombiner : Combiner {
             addCombining('\u0331'.code, ACCENT_MACRON_BELOW)
             // U+0335: COMBINING SHORT STROKE OVERLAY
             addCombining('\u0335'.code, ACCENT_STROKE)
-            // U+0342: COMBINING GREEK PERISPOMENI
-            //addCombining('\u0342', ACCENT_PERISPOMENI);
-            // U+0344: COMBINING GREEK DIALYTIKA TONOS
-            //addCombining('\u0344', ACCENT_DIALYTIKA_TONOS);
-            // U+0345: COMBINING GREEK YPOGEGRAMMENI
-            //addCombining('\u0345', ACCENT_YPOGEGRAMMENI);
             // One-way mappings to equivalent preferred accents.
             // U+0340: COMBINING GRAVE TONE MARK
             sCombiningToAccent.append('\u0340'.code, ACCENT_GRAVE)
@@ -191,7 +175,6 @@ class DeadKeyCombiner : Combiner {
         }
     }
 
-    // TODO: make this a list of events instead
     val mDeadSequence = StringBuilder()
 
     override fun processEvent(previousEvents: ArrayList<Event>?, event: Event): Event {

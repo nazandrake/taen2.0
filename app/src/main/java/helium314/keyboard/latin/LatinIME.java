@@ -138,7 +138,6 @@ public class LatinIME extends InputMethodService implements
             DictionaryFacilitatorProvider.getDictionaryFacilitator(false);
     final InputLogic mInputLogic = new InputLogic(this, this, mDictionaryFacilitator);
 
-    // TODO: Move these {@link View}s to {@link KeyboardSwitcher}.
     private View mInputView;
     private InsetsOutlineProvider mInsetsUpdater;
     private SuggestionStripView mSuggestionStripView;
@@ -701,7 +700,6 @@ public class LatinIME extends InputMethodService implements
      *
      * @param locale the locale
      */
-    // TODO: make sure the current settings always have the right locales, and read from them.
     private void resetDictionaryFacilitator(@NonNull final Locale locale) {
         final SettingsValues settingsValues = mSettings.getCurrent();
         try {
@@ -769,8 +767,6 @@ public class LatinIME extends InputMethodService implements
         if (settingsValues.mHasHardwareKeyboard != Settings.readHasHardwareKeyboard(conf)) {
             // If the state of having a hardware keyboard changed, then we want to reload the
             // settings to adjust for that.
-            // TODO: we should probably do this unconditionally here, rather than only when we
-            // have a change in hardware keyboard configuration.
             loadSettings();
             if (isImeSuppressedByHardwareKeyboard()) {
                 // We call cleanupInternalStateForFinishInput() because it's the right thing to do;
@@ -987,7 +983,6 @@ public class LatinIME extends InputMethodService implements
 
             resetDictionaryFacilitatorIfNecessary();
 
-            // TODO[IL]: Can the following be moved to InputLogic#startInput?
             if (!mInputLogic.mConnection.resetCachesUponCursorMoveAndReturnSuccess(
                     editorInfo.initialSelStart, editorInfo.initialSelEnd,
                     false /* shouldFinishComposition */)) {
@@ -1024,8 +1019,6 @@ public class LatinIME extends InputMethodService implements
                 switcher.saveKeyboardState();
             }
         } else if (restarting) {
-            // TODO: Come up with a more comprehensive way to reset the keyboard layout when
-            // a keyboard layout set doesn't get reloaded in this method.
             switcher.resetKeyboardStateToAlphabet();
             // In apps like Talk, we come here when the text is sent and the field gets emptied and
             // we need to re-evaluate the shift state, but not the whole layout which would be
@@ -1127,7 +1120,6 @@ public class LatinIME extends InputMethodService implements
                 composingSpanStart, composingSpanEnd, settingsValues)) {
             // we don't want to update a manually set shift state if selection changed towards one side
             // because this may end the manual shift, which is unwanted in case of shift + arrow keys for changing selection
-            // todo: this is not fully implemented yet, and maybe should be behind a setting
             if (mKeyboardSwitcher.getKeyboard() != null && mKeyboardSwitcher.getKeyboard().mId.getElement().isAlphabetShiftedManually()
                 && ((oldSelEnd == newSelEnd && oldSelStart != newSelStart) || (oldSelEnd != newSelEnd && oldSelStart == newSelStart)))
                 return;
@@ -1332,10 +1324,8 @@ public class LatinIME extends InputMethodService implements
         // Reread resource value here, because this method is called by the framework as needed.
         final boolean isFullscreenModeAllowed = Settings.readFullscreenModeAllowed(getResources());
         if (super.onEvaluateFullscreenMode() && isFullscreenModeAllowed) {
-            // TODO: Remove this hack. Actually we should not really assume NO_EXTRACT_UI
-            // implies NO_FULLSCREEN. However, the framework mistakenly does.  i.e. NO_EXTRACT_UI
-            // without NO_FULLSCREEN doesn't work as expected. Because of this we need this
-            // hack for now.  Let's get rid of this once the framework gets fixed.
+            // NO_EXTRACT_UI is treated as NO_FULLSCREEN, as the framework does: NO_EXTRACT_UI without
+            // NO_FULLSCREEN does not work as expected
             final EditorInfo ei = getCurrentInputEditorInfo();
             if (ei == null) return false;
             final boolean noExtractUi = (ei.imeOptions & EditorInfo.IME_FLAG_NO_EXTRACT_UI) != 0;
@@ -1488,7 +1478,6 @@ public class LatinIME extends InputMethodService implements
 
     private void commitTextInput(@Nullable String rawText, final boolean restartSuggestionsOnWord) {
         if (rawText == null) return;
-        // TODO: have the keyboard pass the correct key code when we need it.
         Event event = Event.createSoftwareTextEvent(rawText, KeyCode.MULTIPLE_CODE_POINTS, null);
         InputTransaction completeInputTransaction = mInputLogic.onTextInput(mSettings.getCurrent(),
             event, mKeyboardSwitcher.getKeyboardCapsMode(), mHandler);
@@ -1547,7 +1536,6 @@ public class LatinIME extends InputMethodService implements
     private void setSuggestedWords(final SuggestedWords suggestedWords) {
         final SettingsValues currentSettingsValues = mSettings.getCurrent();
         mInputLogic.setSuggestedWords(suggestedWords);
-        // TODO: Modify this when we support suggestions with hard keyboard
         if (!hasSuggestionStripView()) {
             return;
         }
@@ -1727,8 +1715,6 @@ public class LatinIME extends InputMethodService implements
                     return;
                 break;
             }
-            // TODO: Use event time that the last feedback has been generated instead of relying on
-            // a repeat count to thin out feedback.
             if (repeatCount % PERIOD_FOR_AUDIO_AND_HAPTIC_FEEDBACK_IN_KEY_REPEAT == 0) {
                 return;
             }
@@ -1755,10 +1741,7 @@ public class LatinIME extends InputMethodService implements
         return super.onKeyUp(keyCode, keyEvent);
     }
 
-    // onKeyDown and onKeyUp are the main events we are interested in. There are two more events
-    // related to handling of hardware key events that we may want to implement in the future:
-    // boolean onKeyLongPress(final int keyCode, final KeyEvent event);
-    // boolean onKeyMultiple(final int keyCode, final int count, final KeyEvent event);
+    // onKeyDown and onKeyUp are the hardware key events handled here; onKeyLongPress and onKeyMultiple are not.
 
     // receive ringer mode change.
     private final BroadcastReceiver mRingerModeChangeReceiver = new BroadcastReceiver() {

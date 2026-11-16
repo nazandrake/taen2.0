@@ -44,7 +44,7 @@ fun PreferencesScreen(
     val prefs = LocalContext.current.prefs()
     val b = (LocalContext.current.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
-        Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+        Log.v("recompose", "preference changed")
     val clipboardHistoryEnabled = prefs.getBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, Defaults.PREF_ENABLE_CLIPBOARD_HISTORY)
     val items = listOf(
         R.string.settings_category_input,

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +81,6 @@ int PatriciaTriePolicy::getCodePointsAndReturnCodePointCount(const int wordId,
  * outUnigramProbability: a pointer to an int to write the probability into.
  * Return value : the code point count, of 0 if the word was not found.
  */
-// TODO: Split this function to be more readable
 int PatriciaTriePolicy::getCodePointsAndProbabilityAndReturnCodePointCount(
         const int wordId, const int maxCodePointCount, int *const outCodePoints,
         int *const outUnigramProbability) const {

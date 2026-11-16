@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +47,6 @@ class ForgettingCurveUtils {
     static bool needsToDecay(const bool mindsBlockByDecay, const EntryCounts &entryCounters,
             const HeaderPolicy *const headerPolicy);
 
-    // TODO: Improve probability computation method and remove this.
     static int getProbabilityBiasForNgram(const int n) {
         return (n - 1) * MULTIPLIER_TWO_IN_PROBABILITY_SCALE;
     }

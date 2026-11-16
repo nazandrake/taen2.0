@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +46,6 @@ class ErrorTypeUtils {
     // Completion
     static const ErrorType COMPLETION;
     // New word
-    // TODO: Remove.
     // A new word error should be an edit correction error or a proximity correction error.
     static const ErrorType NEW_WORD;
 

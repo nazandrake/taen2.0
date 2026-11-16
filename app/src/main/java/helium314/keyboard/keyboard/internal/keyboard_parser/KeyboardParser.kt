@@ -38,7 +38,6 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
     private val defaultLabelFlags = when {
         params.mId.element.isAlphabet -> params.mLocaleKeyboardInfos.labelFlags
         // reproduce the no-hints in symbol layouts
-        // todo: add setting? or put it in TextKeyData to happen only if no label flags specified explicitly?
         params.mId.element.isAlphaOrSymbol -> Key.LABEL_FLAGS_DISABLE_HINT_LABEL
         else -> 0
     }
@@ -46,7 +45,6 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
     fun parseLayout(): ArrayList<ArrayList<KeyParams>> {
         params.readAttributes(context, null)
 
-        // todo: maybe determine layoutType earlier, and to less stuff based on elementId
         val layoutType = when (params.mId.element) {
             KeyboardElement.SYMBOLS -> LayoutType.SYMBOLS
             KeyboardElement.SYMBOLS_SHIFTED -> LayoutType.MORE_SYMBOLS

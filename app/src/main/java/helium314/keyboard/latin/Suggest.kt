@@ -49,7 +49,6 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         mAutoCorrectionThreshold = threshold
     }
 
-    // todo: remove when InputLogic is ready
     interface OnGetSuggestedWordsCallback {
         fun onGetSuggestedWords(suggestedWords: SuggestedWords?)
     }
@@ -153,7 +152,6 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
 
     // returns [allowsToBeAutoCorrected, hasAutoCorrection]
     // public for testing
-    // todo: now we can do better tests, maybe make it private again and test via getSuggestedWords (and simplify if possible)
     fun shouldBeAutoCorrected(
         trailingSingleQuotesCount: Int,
         typedWordString: String,
@@ -190,7 +188,7 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             allowsToBeAutoCorrected = when {
                 firstSuggestionInContainer.mScore > scoreLimit -> true // suggestion has good score, allow
                 first == null -> false // no autocorrect if first suggestion unknown in this ngram context
-                typed == null -> true // allow autocorrect if typed word not known in this ngram context, todo: this may be too aggressive
+                typed == null -> true // allow autocorrect if typed word not known in this ngram context
                 else -> first.mScore - typed.mScore > 20 // autocorrect if suggested word has clearly higher score for empty word suggestions
             }
         } else {
@@ -205,7 +203,7 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             || suggestionResults.isEmpty() // If we don't have suggestion results, we can't evaluate the first suggestion for auto-correction
             // An emoji (suggested for a keyword) is something to pick, never an automatic replacement of the typed word
             || (firstSuggestionInContainer ?: suggestionResults.first()).isEmoji
-            || wordComposer.hasDigits() // If the word has digits, we never auto-correct because it's likely the word was type with a lot of care // todo: but what if user touched the number row?
+            || wordComposer.hasDigits() // If the word has digits, we never auto-correct because it's likely the word was typed with a lot of care
             || (wordComposer.isMostlyCaps && !wordComposer.isAllUpperCase) // If the word is mostly caps, we never auto-correct because this is almost certainly intentional
             || wordComposer.isResumed // We never auto-correct when suggestions are resumed because it would be unexpected
             // If we don't have a main dictionary, we never want to auto-correct. The reason
@@ -214,7 +212,6 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             // the user types in English with no dictionary and has a "Will" in their contact
             // list, "will" would always auto-correct to "Will" which is unwanted. Hence, no
             // main dict => no auto-correct. Also, it would probably get obnoxious quickly.
-            // TODO: now that we have personalization, we may want to re-evaluate this decision
             || !mDictionaryFacilitator.hasAtLeastOneInitializedMainDictionary()
         ) {
             hasAutoCorrection = false
@@ -226,7 +223,6 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             }
             if (!AutoCorrectionUtils.suggestionExceedsThreshold(firstSuggestion, consideredWord, mAutoCorrectionThreshold)) {
                 // Score is too low for autocorrect
-                // todo: maybe also do something here depending on ngram context?
                 return true to false
             }
             // We have a high score, so we need to check if this suggestion is in the correct
@@ -300,7 +296,6 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         capitalizeAndAddTrailingSingleQuotes(suggestionsContainer, capsMode, 0, locale)
 
         // For some reason some suggestions with MIN_VALUE are making their way here.
-        // TODO: Find a more robust way to detect distracters.
         for (i in suggestionsContainer.indices.reversed()) {
             if (suggestionsContainer[i].mScore < SUPPRESS_SUGGEST_THRESHOLD) {
                 suggestionsContainer.removeAt(i)
@@ -367,7 +362,6 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
         private const val SUPPRESS_SUGGEST_THRESHOLD = -2000000000
 
         private const val MAXIMUM_AUTO_CORRECT_LENGTH_FOR_GERMAN = 12
-        // TODO: should we add Finnish here?
         private val sLanguageToMaximumAutoCorrectionWithSpaceLength = hashMapOf(Locale.GERMAN.language to MAXIMUM_AUTO_CORRECT_LENGTH_FOR_GERMAN)
 
         private fun capitalizeAndAddTrailingSingleQuotes(
@@ -475,7 +469,7 @@ class Suggest(private val mDictionaryFacilitator: DictionaryFacilitator) {
             if (capsMode == CapsMode.MANUAL || capsMode == CapsMode.MANUAL_LOCKED)
                 return capsMode
             // we have some auto-mode which we ignore
-            // instead we determine mode from the typed word (that's how it was done for a long time, todo: maybe adjust if necessary?)
+            // instead we determine mode from the typed word (that's how it was done for a long time)
             if (wordComposer.isAllUpperCase && !wordComposer.isResumed) return CapsMode.MANUAL_LOCKED
             if (wordComposer.isOrWillBeOnlyFirstCharCapitalized) return CapsMode.MANUAL
             return CapsMode.OFF

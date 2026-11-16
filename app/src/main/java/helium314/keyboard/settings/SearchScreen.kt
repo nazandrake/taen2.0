@@ -92,16 +92,6 @@ fun SearchSettingsScreen(
                     // so for now: just use "normal" Column
                     //  even though it takes up to ~50% longer to load it's much better UX
                     //  and the missing appear animations could be added
-    //                LazyColumn {
-    //                    items(prefs.filterNotNull(), key = { it }) {
-    //                        Box(Modifier.animateItem()) {
-    //                            if (it is Int)
-    //                                PreferenceCategory(stringResource(it))
-    //                            else
-    //                                SettingsActivity.settingsContainer[it]!!.Preference()
-    //                        }
-    //                    }
-    //                }
                 }
             }
         },

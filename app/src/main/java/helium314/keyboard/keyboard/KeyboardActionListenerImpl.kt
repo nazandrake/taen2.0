@@ -77,7 +77,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             return false
 
         val event: Event
-        if (settings.current.mLocale.language == "ko") { // todo: this does not appear to be the right place
+        if (settings.current.mLocale.language == "ko") {
             val subtype = keyboardSwitcher.keyboard?.mId?.subtype ?: RichInputMethodManager.getInstance().currentSubtype
             event = HangulEventDecoder.decodeHardwareKeyEvent(subtype, keyEvent) {
                 getHardwareKeyEventDecoder(keyEvent.deviceId).decodeHardwareKey(keyEvent)
@@ -89,7 +89,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         if (event.isHandled) {
             inputLogic.onCodeInput(
                 settings.current, event,
-                keyboardSwitcher.getKeyboardCapsMode(), // TODO: this is not necessarily correct for a hardware keyboard right now
+                keyboardSwitcher.getKeyboardCapsMode(), // This is not necessarily correct for a hardware keyboard right now
                 keyboardSwitcher.getCurrentKeyboardScript(),
                 latinIME.mHandler
             )
@@ -119,15 +119,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         val mkv = keyboardSwitcher.mainKeyboardView
 
         // checking if the character is a combining accent
-        val event = if (primaryCode in combiningRange) { // todo: should this be done later, maybe in inputLogic?
+        val event = if (primaryCode in combiningRange) {
             Event.createSoftwareDeadEvent(primaryCode, 0, metaState, mkv.getKeyX(x), mkv.getKeyY(y), null)
         } else {
-            // todo:
-            //  setting meta shift should only be done for arrow and similar cursor movement keys
-            //  should only be enabled once it works more reliably (currently depends on app for some reason)
-//            if (mkv.keyboard?.mId?.isAlphabetShiftedManually == true)
-//                Event.createSoftwareKeypressEvent(primaryCode, metaState or KeyEvent.META_SHIFT_ON, mkv.getKeyX(x), mkv.getKeyY(y), isKeyRepeat)
-//            else Event.createSoftwareKeypressEvent(primaryCode, metaState, mkv.getKeyX(x), mkv.getKeyY(y), isKeyRepeat)
             Event.createSoftwareKeypressEvent(primaryCode, metaState, mkv.getKeyX(x), mkv.getKeyY(y), isKeyRepeat)
         }
         latinIME.onEvent(event)
@@ -335,7 +329,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         // the shortcut below causes issues due to horrible handling of text fields by Firefox and forks
         // issues:
         //  * setSelection "will cause the editor to call onUpdateSelection", see: https://developer.android.com/reference/android/view/inputmethod/InputConnection#setSelection(int,%20int)
-        //     but Firefox is simply not doing this within the same word... WTF?
+        //     but Firefox does not do this within the same word
         //     https://github.com/HeliBorg/HeliBoard/issues/1139#issuecomment-2588169384
         //  * inputType is NOT of variant InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT (variant appears to always be 0)
         //     -> this is "fixed" now using AppWorkarounds.adjustInputType
@@ -376,7 +370,6 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     private fun getHardwareKeyEventDecoder(deviceId: Int): HardwareEventDecoder {
         hardwareEventDecoders.get(deviceId)?.let { return it }
 
-        // TODO: create the decoder according to the specification
         val newDecoder = HardwareKeyboardEventDecoder(deviceId)
         hardwareEventDecoders.put(deviceId, newDecoder)
         return newDecoder
@@ -391,17 +384,13 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     // long press on meta key also ends meta so popups are handled properly
     // sliding from a meta key to some other words too, though this was not intended (and there are no sliding key input graphics)
 
-    // todo: move meta state tracking to KeyboardState? seems more suitable, also for handling sliding input
-    //  but the issue is that meta state is used in Event to determine whether it's a functional Event (does not add a character)
-    //  (and also it's in the hardware keyEvents which are handled by onKeyUp/Down, but that should be manageable)
-
     /** actual Android metaState like in KeyEvent */
     private var metaState = 0
 
     /** keeps track of the state of meta keys by (HeliBoard) KeyCodes */
     private val metaPressStates = SparseArray<MetaPressState>(4)
 
-    // todo: lock and non-lock versions interact badly: when any of them is released, the meta state is removed
+    // Lock and non-lock versions interact badly: when any of them is released, the meta state is removed
     //  this is not wanted, especially because the state of the other key is not affected (still looks pressed)
     private fun metaOnPressKey(primaryCode: Int) {
         val metaCode = primaryCode.toMetaState() ?: return

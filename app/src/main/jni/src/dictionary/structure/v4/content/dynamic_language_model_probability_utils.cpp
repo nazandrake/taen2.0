@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2014, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +25,6 @@ const int DynamicLanguageModelProbabilityUtils::ASSUMED_MIN_COUNTS[] = {8192, 2,
 // Encoded backoff weights.
 // Note that we give positive values for trigrams and quadgrams that means the weight is more than
 // 1.
-// TODO: Apply backoff for main dictionaries and quit giving a positive backoff weight.
 const int DynamicLanguageModelProbabilityUtils::ENCODED_BACKOFF_WEIGHTS[] = {-32, -4, 2, 8};
 
 // This value is used to remove too old entries from the dictionary.

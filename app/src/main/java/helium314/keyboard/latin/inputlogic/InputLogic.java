@@ -89,13 +89,11 @@ public final class InputLogic {
     private static final char INLINE_EMOJI_SEARCH_MARKER = ':';
     private static final int[] EMPTY_CODE_POINTS = new int[0];
 
-    // TODO : Remove this member when we can.
     final LatinIME mLatinIME;
     private final SuggestionStripViewAccessor mSuggestionStripViewAccessor;
 
     @NonNull private final InputLogicHandler mInputLogicHandler;
 
-    // TODO : make all these fields private as soon as possible.
     // Current space state of the input method. This can be any of the above constants.
     private int mSpaceState;
     // Never null
@@ -112,14 +110,11 @@ public final class InputLogic {
 
     private int mDeleteCount;
     private long mLastKeyTime;
-    // todo: this is not used, so either remove it or do something with it
     public final TreeSet<Long> mCurrentlyPressedHardwareKeys = new TreeSet<>();
 
     // Keeps track of most recently inserted text (multi-character key) for reverting
     private String mEnteredText;
 
-    // TODO: This boolean is persistent state and causes large side effects at unexpected times.
-    // Find a way to remove it for readability.
     private boolean mIsAutoCorrectionIndicatorOn;
     private long mDoubleSpacePeriodCountdownStart;
 
@@ -320,10 +315,6 @@ public final class InputLogic {
         }
         mJustRevertedACommit = false;
 
-        // TODO: We should not need the following branch. We should be able to take the same
-        // code path as for other kinds, use commitChosenWord, and do everything normally. We will
-        // however need to reset the suggestion strip right away, because we know we can't take
-        // the risk of calling commitCompletion twice because we don't know how the app will react.
         if (suggestionInfo.isKindOf(SuggestedWordInfo.KIND_APP_DEFINED)) {
             mSuggestedWords = SuggestedWords.getEmptyInstance();
             mSuggestionStripViewAccessor.setNeutralSuggestionStrip();
@@ -391,10 +382,6 @@ public final class InputLogic {
             return expectCursorMove;
         }
 
-        // TODO: the following is probably better done in resetEntireInputState().
-        // it should only happen when the cursor moved, and the very purpose of the
-        // test below is to narrow down whether this happened or not. Likewise with
-        // the call to updateShiftState.
         // We set this to NONE because after a cursor move, we don't want the space
         // state-related special processing to kick in.
         mSpaceState = SpaceState.NONE;
@@ -489,12 +476,9 @@ public final class InputLogic {
         mLastKeyTime = inputTransaction.getTimestamp();
         mConnection.beginBatchEdit();
         if (!mWordComposer.isComposingWord()) {
-            // TODO: is this useful? It doesn't look like it should be done here, but rather after
-            // a word is committed.
             mIsAutoCorrectionIndicatorOn = false;
         }
 
-        // TODO: Consolidate the double-space period timer, mLastKeyTime, and the space state.
         if (processedEvent.getCodePoint() != Constants.CODE_SPACE) {
             cancelDoubleSpacePeriodCountdown();
         }
@@ -575,7 +559,6 @@ public final class InputLogic {
             // autoCapsState is 0 (off), 0x1000, 0x2000, 0x4000 or a combination
             // old CapsMode was 0 (off), 1, 3, 5, 7
             // meaning both were incompatible, and the check was just returning whether both were 0
-            // todo: maybe adjust this?
             boolean autoShiftHasBeenOverridden =
                 (keyboardSwitcher.getKeyboardCapsMode() == CapsMode.OFF) != (getCurrentAutoCapsState(settingsValues) == 0);
             if (settingsValues.mAutospaceBeforeGestureTyping)
@@ -624,8 +607,6 @@ public final class InputLogic {
                 SuggestedWords.getEmptyInstance(), true /* dismissGestureFloatingPreviewText */);
     }
 
-    // TODO: on the long term, this method should become private, but it will be difficult.
-    // Especially, how do we deal with InputMethodService.onDisplayCompletions?
     public void setSuggestedWords(final SuggestedWords suggestedWords) {
         if (!suggestedWords.isEmpty()) {
             final SuggestedWordInfo suggestedWordInfo;
@@ -645,10 +626,6 @@ public final class InputLogic {
         if (mIsAutoCorrectionIndicatorOn != newAutoCorrectionIndicator && mWordComposer.isComposingWord()) {
             mIsAutoCorrectionIndicatorOn = newAutoCorrectionIndicator;
             final CharSequence textWithUnderline = getTextWithUnderline(mWordComposer.getTypedWord());
-            // TODO: when called from an updateSuggestionStrip() call that results from a posted
-            // message, this is called outside any batch edit. Potentially, this may result in some
-            // janky flickering of the screen, although the display speed makes it unlikely in
-            // the practice.
             setComposingTextInternal(textWithUnderline, 1);
         }
     }
@@ -759,7 +736,6 @@ public final class InputLogic {
                 paste(mLatinIME.getCurrentInputEditorInfo().packageName);
                 break;
             case KeyCode.SHIFT_ENTER:
-                // todo: try using sendDownUpKeyEventWithMetaState() and remove the key code maybe
                 final Event tmpEvent = Event.createSoftwareKeypressEvent(Constants.CODE_ENTER,
                         keyCode, 0, event.getX(), event.getY(), event.isKeyRepeat());
                 handleNonSpecialCharacterEvent(tmpEvent, inputTransaction, handler);
@@ -1046,10 +1022,6 @@ public final class InputLogic {
     private void handleNonSeparatorEvent(final Event event, final SettingsValues settingsValues,
             final InputTransaction inputTransaction) {
         final int codePoint = event.getCodePoint();
-        // TODO: refactor this method to stop flipping isComposingWord around all the time, and
-        // make it shorter (possibly cut into several pieces). Also factor
-        // handleNonSpecialCharacterEvent which has the same name as other handle* methods but is
-        // not the same.
         boolean isComposingWord = mWordComposer.isComposingWord();
         mWordComposer.unsetBatchMode(); // relevant in case we continue a batch word with normal typing
 
@@ -1068,8 +1040,6 @@ public final class InputLogic {
             isComposingWord = true;
             restartSuggestions(range);
         }
-        // TODO: remove isWordConnector() and use isUsuallyFollowedBySpace() instead.
-        // See onStartBatchInput() to see how to do it.
         if (SpaceState.PHANTOM == inputTransaction.getSpaceState()
                 && !settingsValues.isWordConnector(codePoint)
                 && !settingsValues.isUsuallyFollowedBySpace(codePoint) // only relevant in rare cases
@@ -1110,8 +1080,6 @@ public final class InputLogic {
         // NOTE: If the InputConnection is slow, we skip the text-after-cursor check since it
         // can incur a very expensive getTextAfterCursor() lookup, potentially making the
         // keyboard UI slow and non-responsive.
-        // TODO: Cache the text after the cursor so we don't need to go to the InputConnection
-        // each time. We are already doing this for getTextBeforeCursor().
                 (!settingsValues.mSpacingAndPunctuations.mCurrentLanguageHasSpaces
                         || !mConnection.isCursorTouchingWord(settingsValues.mSpacingAndPunctuations,
                                 !mConnection.hasSlowInputConnection() /* checkTextAfter */)
@@ -1146,7 +1114,6 @@ public final class InputLogic {
                     && codePoint >= '0' && codePoint <= '9') {
                 // weird issue when committing text: https://github.com/HeliBorg/HeliBoard/issues/585
                 // but at the same time we don't always want to do it for numbers because it might interfere with url detection
-                // todo: consider always using sendDownUpKeyEvent for non-text-inputType
                 sendDownUpKeyEvent(codePoint - '0' + KeyEvent.KEYCODE_0);
             } else {
                 mConnection.commitCodePoint(codePoint);
@@ -1354,7 +1321,7 @@ public final class InputLogic {
                 }
                 return;
             }
-            // todo: this is currently disabled, as it causes inconsistencies with textInput, depending whether the end
+            // This is currently disabled, as it causes inconsistencies with textInput, depending whether the end
             //  is part of a word (where we start composing) or not (where we end in code below)
             //  see https://github.com/HeliBorg/HeliBoard/issues/1019
             //  with better emoji detection on backspace (getFullEmojiAtEnd), this functionality might not be necessary
@@ -1437,7 +1404,7 @@ public final class InputLogic {
                 } else {
                     final int codePointBeforeCursor = mConnection.getCodePointBeforeCursor();
                     if (codePointBeforeCursor == Constants.NOT_A_CODE) {
-                        // HACK for backward compatibility with broken apps that haven't realized
+                        // For backward compatibility with broken apps that haven't realized
                         // yet that hardware keyboards are not the only way of inputting text.
                         // Nothing to delete before the cursor. We should not do anything, but many
                         // broken apps expect something to happen in this case so that they can
@@ -1450,7 +1417,6 @@ public final class InputLogic {
                                 == InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT)
                             sendDownUpKeyEvent(KeyEvent.KEYCODE_DEL);
                         else mConnection.deleteTextBeforeCursor(1);
-                        // TODO: Add a new StatsUtils method onBackspaceWhenNoText()
                         return;
                     }
                     int lengthToDelete = mConnection.getCharCountToDeleteBeforeCursor();
@@ -1502,15 +1468,11 @@ public final class InputLogic {
     boolean unlearnWordBeingDeleted(
             final SettingsValues settingsValues, final String currentKeyboardScript) {
         if (mConnection.hasSlowInputConnection()) {
-            // TODO: Refactor unlearning so that it does not incur any extra calls
-            // to the InputConnection. That way it can still be performed on a slow
-            // InputConnection.
             Log.w(TAG, "Skipping unlearning due to slow InputConnection.");
             return false;
         }
         // If we just started backspacing to delete a previous word (but have not
         // entered the composing state yet), unlearn the word.
-        // TODO: Consider tracking whether or not this word was typed by the user.
         if (!mConnection.isCursorFollowedByWordCharacter(settingsValues.mSpacingAndPunctuations)) {
             final String wordBeingDeleted = getWordAtCursor(settingsValues, currentKeyboardScript);
             if (!TextUtils.isEmpty(wordBeingDeleted)) {
@@ -1667,8 +1629,6 @@ public final class InputLogic {
      * @return whether it's fine to apply the transformation after this code point.
      */
     private static boolean canBeFollowedByDoubleSpacePeriod(final int codePoint) {
-        // TODO: This should probably be a blacklist rather than a whitelist.
-        // TODO: This should probably be language-dependant...
         return Character.isLetterOrDigit(codePoint)
                 || codePoint == Constants.CODE_SINGLE_QUOTE
                 || codePoint == Constants.CODE_DOUBLE_QUOTE
@@ -1841,11 +1801,7 @@ public final class InputLogic {
      * @param settingsValues the current values of the settings.
      */
     public void restartSuggestionsOnWordTouchedByCursor(final SettingsValues settingsValues,
-            // TODO: remove this argument, put it into settingsValues
             final String currentKeyboardScript) {
-        // HACK: We may want to special-case some apps that exhibit bad behavior in case of
-        // recorrection. This is a temporary, stopgap measure that will be removed later.
-        // TODO: remove this.
         if (!settingsValues.mSpacingAndPunctuations.mCurrentLanguageHasSpaces
                 // If no suggestions are requested, don't try restarting suggestions.
                 || !settingsValues.needsToLookupSuggestions()
@@ -1977,7 +1933,6 @@ public final class InputLogic {
         final boolean usePhantomSpace = separatorString.equals(Constants.STRING_SPACE);
         // We want java chars, not codepoints for the following.
         final int separatorLength = separatorString.length();
-        // TODO: should we check our saved separator against the actual contents of the text view?
         final int deleteLength = cancelLength + separatorLength;
         if (DebugFlags.DEBUG_ENABLED) {
             if (mWordComposer.isComposingWord()) {
@@ -2209,7 +2164,6 @@ public final class InputLogic {
      * @param newSelEnd the new selection end, in java characters.
      * @param clearSuggestionStrip whether this method should clear the suggestion strip.
      */
-    // TODO: how is this different from startInput ?!
     private void resetEntireInputState(final int newSelStart, final int newSelEnd,
             final boolean clearSuggestionStrip) {
         final boolean shouldFinishComposition = mWordComposer.isComposingWord();
@@ -2282,9 +2236,7 @@ public final class InputLogic {
      * @param text the text on which to maybe apply the span.
      * @return the same text, with the auto-correction underline span if that's appropriate.
      */
-    // TODO: Shouldn't this go in some *Utils class instead?
     private CharSequence getTextWithUnderline(final String text) {
-        // TODO: Locale should be determined based on context and the text given.
         return mIsAutoCorrectionIndicatorOn
                 ? SuggestionSpanUtilsKt.getTextWithAutoCorrectionIndicatorUnderline(
                         mLatinIME, text, getDictionaryFacilitatorLocale())
@@ -2340,7 +2292,6 @@ public final class InputLogic {
                 && !(mConnection.getCodePointBeforeCursor() == Constants.CODE_PERIOD && mConnection.wordBeforeCursorMayBeEmail())
         ) {
             mConnection.commitCodePoint(Constants.CODE_SPACE);
-            // todo: why not remove phantom space state?
         }
     }
 
@@ -2528,10 +2479,6 @@ public final class InputLogic {
             Log.d(TAG, "commitChosenWord : ms to run performAdditionToUserHistoryDictionary");
             startTimeMillis = SystemClock.elapsedRealtime();
         }
-        // TODO: figure out here if this is an auto-correct or if the best word is actually
-        // what user typed. Note: currently this is done much later in
-        // LastComposedWord#didCommitTypedWord by string equality of the remembered
-        // strings.
         mLastComposedWord = mWordComposer.commitWord(commitType, chosenWord, separatorString, ngramContext);
         if (DebugFlags.DEBUG_ENABLED) {
             long runTimeMillis = SystemClock.elapsedRealtime() - startTimeMillis;
@@ -2633,7 +2580,6 @@ public final class InputLogic {
      * <p>Currently using this method is optional and you can still directly call
      * {@link RichInputConnection#setComposingText(CharSequence, int)}, but it is recommended to
      * use this method whenever possible.<p>
-     * <p>TODO: Should we move this mechanism to {@link RichInputConnection}?</p>
      *
      * @param newComposingText the composing text to be set
      * @param newCursorPosition the new cursor position
@@ -2648,10 +2594,9 @@ public final class InputLogic {
      * Equivalent to {@link #setComposingTextInternal(CharSequence, int)} except that this method
      * allows to set {@link BackgroundColorSpan} to the composing text with the given color.
      *
-     * <p>TODO: Currently the background color is exclusive with the black underline, which is
+     * <p>Currently the background color is exclusive with the black underline, which is
      * automatically added by the framework. We need to change the framework if we need to have both
      * of them at the same time.</p>
-     * <p>TODO: Should we move this method to {@link RichInputConnection}?</p>
      *
      * @param newComposingText the composing text to be set
      * @param newCursorPosition the new cursor position
@@ -2697,8 +2642,6 @@ public final class InputLogic {
      * @see RichInputConnection#getExpectedSelectionEnd()
      * @return The expected index in Java chars of the first char of the composing span.
      */
-    // TODO: try and see if we can get rid of this method. Ideally the users of this class should
-    // never need to know this.
     public int getComposingStart() {
         if (!mConnection.isCursorPositionKnown() || mConnection.hasSelection()) {
             return -1;
@@ -2712,8 +2655,6 @@ public final class InputLogic {
      * @see #getComposingStart()
      * @return The expected length of the composing span.
      */
-    // TODO: try and see if we can get rid of this method. Ideally the users of this class should
-    // never need to know this.
     public int getComposingLength() {
         return mWordComposer.size();
     }

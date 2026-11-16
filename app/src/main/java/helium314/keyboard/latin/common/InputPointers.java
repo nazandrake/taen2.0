@@ -8,7 +8,7 @@ package helium314.keyboard.latin.common;
 
 import androidx.annotation.NonNull;
 
-// TODO: This class is not thread-safe.
+// This class is not thread-safe.
 public final class InputPointers {
     private static final boolean DEBUG_TIME = false;
 

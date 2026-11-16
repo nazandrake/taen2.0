@@ -135,8 +135,6 @@ class RichInputMethodManager private constructor() {
         }
     }
 
-    // todo: is shortcutIme only voice input, or can it be something else?
-    //  if always voice input, rename it and other things like mHasShortcutKey
     private fun updateShortcutIme() {
         if (DEBUG) {
             val old = shortcuts.joinToString("; ") { "${it.imi.id}: ${it.subtype.locale()}, ${it.subtype.mode}" }
@@ -149,7 +147,6 @@ class RichInputMethodManager private constructor() {
         LanguageOnSpacebarUtils.onSubtypeChanged(richSubtype, implicitlyEnabledSubtype, systemLocale)
         LanguageOnSpacebarUtils.setEnabledSubtypes(SubtypeSettings.getEnabledSubtypes(true))
 
-        // TODO: Update an icon for shortcut IME
         shortcuts = inputMethodManager.shortcutInputMethodsAndSubtypes.entries.flatMap { (imi, subtypes) ->
             subtypes.map { Shortcut(imi, it) }
         }

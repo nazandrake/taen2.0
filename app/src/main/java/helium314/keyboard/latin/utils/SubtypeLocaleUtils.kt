@@ -48,9 +48,6 @@ object SubtypeLocaleUtils {
     private fun initLocked(context: Context) {
         resources = context.resources
 
-        // todo: layout names are currently translatable in subtype_no_language_* but not the default names
-        //  just remove the separate "alphabet (<layout>)" strings and have a single "alphabet (%s)"?
-        //  or rather use the same style as for languages and only have "alphabet"
         val predefinedLayouts = resources.getStringArray(R.array.predefined_layouts)
         val layoutDisplayNames = resources.getStringArray(R.array.predefined_layout_display_names)
         for (i in predefinedLayouts.indices) {
@@ -65,8 +62,6 @@ object SubtypeLocaleUtils {
         }
     }
 
-    // see SubtypeUtilsAdditional.getAdditionalExtraValues, currently not needed
-    //fun isExceptionalLocale(locale: Locale) = exceptionalLocaleDisplayedInRootLocale.containsKey(locale.toLanguageTag())
 
     /** Usually the [locale], but Locale.ROOT for exceptionalLocaleDisplayedInRootLocale, and system locale for NO_LANGUAGE */
     private fun getDisplayLocaleOfSubtypeLocale(locale: Locale): Locale {

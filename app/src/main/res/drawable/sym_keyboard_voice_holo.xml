@@ -3,7 +3,6 @@
     modified
     SPDX-License-Identifier: Apache-2.0
 -->
-<!-- TODO: use "sym_keyboard_voice_lxx" and change the size in code to delete it -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:height="32dp"
     android:width="32dp"

@@ -33,7 +33,7 @@ fun GestureTypingScreen(
     val prefs = LocalContext.current.prefs()
     val b = (LocalContext.current.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
-        Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+        Log.v("recompose", "preference changed")
     val gestureFloatingPreviewEnabled = prefs.getBoolean(Settings.PREF_GESTURE_FLOATING_PREVIEW_TEXT, Defaults.PREF_GESTURE_FLOATING_PREVIEW_TEXT)
     val gestureEnabled = prefs.getBoolean(Settings.PREF_GESTURE_INPUT, Defaults.PREF_GESTURE_INPUT)
     val items = listOf(

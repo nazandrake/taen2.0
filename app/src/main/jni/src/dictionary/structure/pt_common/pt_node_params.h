@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -179,13 +180,10 @@ class PtNodeParams {
         return CodePointArrayView(mCodePoints, mCodePointCount);
     }
 
-    // TODO: Remove
-    // Number of code points
     AK_FORCE_INLINE uint8_t getCodePointCount() const {
         return mCodePointCount;
     }
 
-    // TODO: Remove
     AK_FORCE_INLINE const int *getCodePoints() const {
         return mCodePoints;
     }

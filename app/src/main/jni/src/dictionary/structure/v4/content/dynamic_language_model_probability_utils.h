@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2014, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,19 +47,16 @@ class DynamicLanguageModelProbabilityUtils {
             AKLOGE("The elapsed time is negatime value. Timestamp overflow?");
             return NOT_A_PROBABILITY;
         }
-        // TODO: Improve this logic.
         // We don't modify probability depending on the elapsed time.
         return probability;
     }
 
     static int shouldRemoveEntryDuringGC(const HistoricalInfo historicalInfo) {
-        // TODO: Improve this logic.
         const int elapsedTime = TimeKeeper::peekCurrentTime() - historicalInfo.getTimestamp();
         return elapsedTime > DURATION_TO_DISCARD_ENTRY_IN_SECONDS;
     }
 
     static int getPriorityToPreventFromEviction(const HistoricalInfo historicalInfo) {
-        // TODO: Improve this logic.
         // More recently input entries get higher priority.
         return historicalInfo.getTimestamp();
     }

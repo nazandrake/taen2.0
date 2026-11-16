@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +18,6 @@
 #include "suggest/core/layout/additional_proximity_chars.h"
 
 namespace latinime {
-// TODO: Stop using hardcoded additional proximity characters.
-// TODO: Have proximity character informations in each language's binary dictionary.
 const int AdditionalProximityChars::LOCALE_EN_US[LOCALE_EN_US_SIZE] = { 'e', 'n' };
 
 const int AdditionalProximityChars::EN_US_ADDITIONAL_A[EN_US_ADDITIONAL_A_SIZE] = {

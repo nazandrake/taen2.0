@@ -40,7 +40,6 @@ public class Ver4DictDecoder {
                     wordProperty.mIsPossiblyOffensive);
         }
         // Insert bigrams into the fusion dictionary.
-        // TODO: Support ngrams.
         for (WordProperty wordProperty : wordProperties) {
             if (!wordProperty.mHasNgrams) {
                 continue;

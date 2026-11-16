@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -149,7 +150,6 @@ void Ver4PatriciaTriePolicy::iterateNgramEntries(const WordIdArrayView prevWordI
             }
             int probability = NOT_A_PROBABILITY;
             if (probabilityEntry.hasHistoricalInfo()) {
-                // TODO: Quit checking count here.
                 // If count <= 1, the word can be an invaild word. The actual probability should
                 // be checked using getWordAttributesInContext() in onVisitEntry().
                 probability = probabilityEntry.getHistoricalInfo()->getCount() <= 1 ?
@@ -549,7 +549,6 @@ const WordProperty Ver4PatriciaTriePolicy::getWordProperty(
                 ngramPrevWordIsBeginningOfSentense, prevWordIds.size());
         const ProbabilityEntry ngramProbabilityEntry = entry.getProbabilityEntry();
         const HistoricalInfo *const historicalInfo = ngramProbabilityEntry.getHistoricalInfo();
-        // TODO: Output flags in WordAttributes.
         ngrams.emplace_back(ngramContext,
                 CodePointArrayView(ngramTargetCodePoints, codePointCount).toVector(),
                 entry.getWordAttributes().getProbability(), *historicalInfo);

@@ -143,7 +143,7 @@ class AccessibilityUtils private constructor() {
             Log.e(TAG, "Attempted to speak when accessibility was disabled!")
             return
         }
-        // The following is a hack to avoid using the heavy-weight TextToSpeech
+        // The following is a workaround to avoid using the heavy-weight TextToSpeech
         // class. Instead, we're just forcing a fake AccessibilityEvent into
         // the screen reader to make it speak.
         val event = obtainEvent()

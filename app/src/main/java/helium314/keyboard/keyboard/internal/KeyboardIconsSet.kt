@@ -96,7 +96,6 @@ class KeyboardIconsSet private constructor() {
             "start_onehanded_mode_key" to ToolbarKey.ONE_HANDED.name.lowercase(Locale.US),
         )
 
-        // todo: incognito and force incognito should not be the same? or not the same as toolbar key?
         private val keyboardIconsHolo by lazy { hashMapOf(
             NAME_SHIFT_KEY to                   R.drawable.sym_keyboard_shift_holo,
             NAME_SHIFT_KEY_SHIFTED to           R.drawable.sym_keyboard_shifted_holo,

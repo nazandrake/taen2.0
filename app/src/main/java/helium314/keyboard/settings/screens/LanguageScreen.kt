@@ -59,7 +59,7 @@ fun LanguageScreen(
     val sortedSubtypes by remember { mutableStateOf(getSortedSubtypes(ctx)) }
     val b = (LocalContext.current.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
-        Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+        Log.v("recompose", "preference changed")
     val enabledSubtypes = SubtypeSettings.getEnabledSubtypes()
     SearchScreen(
         onClickBack = onClickBack,

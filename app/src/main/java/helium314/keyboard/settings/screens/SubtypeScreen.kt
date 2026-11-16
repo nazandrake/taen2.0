@@ -97,7 +97,7 @@ fun SubtypeScreen(
     val prefs = ctx.prefs()
     val b = (LocalContext.current.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
-        Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+        Log.v("recompose", "preference changed")
     var currentSubtypeString by rememberSaveable { mutableStateOf(initialSubtype.toPref()) }
     val currentSubtype = currentSubtypeString.toSettingsSubtype()
     fun setCurrentSubtype(subtype: SettingsSubtype) {

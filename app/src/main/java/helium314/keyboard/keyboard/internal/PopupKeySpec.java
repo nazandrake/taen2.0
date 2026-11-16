@@ -33,7 +33,6 @@ import java.util.Locale;
  * Note that the '\' is also parsed by XML parser and {@link PopupKeySpec#splitKeySpecs(String)}
  * as well.
  */
-// TODO: Should extend the key specification object.
 public final class PopupKeySpec {
     public final int mCode;
     @Nullable

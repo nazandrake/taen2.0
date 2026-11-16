@@ -343,8 +343,6 @@ public final class EmojiPalettesView extends LinearLayout
         addRecentKey(key);
         final int code = key.getCode();
         if (code == KeyCode.MULTIPLE_CODE_POINTS) {
-            // todo: when we enter some emoticons, e.g. :-D, inline emoji search is triggered and emoji view is closed
-            //  (one more instance of "emoji search should recognize emoticons", but in this case could be fixed in other ways)
             mKeyboardActionListener.onTextInput(key.getOutputText());
         } else if (code != KeyCode.UNSPECIFIED) {
             mKeyboardActionListener.onCodeInput(code, NOT_A_COORDINATE, NOT_A_COORDINATE, false);
@@ -384,7 +382,6 @@ public final class EmojiPalettesView extends LinearLayout
 
     public void setHardwareAcceleratedDrawingEnabled(final boolean enabled) {
         if (!enabled) return;
-        // TODO: Should use LAYER_TYPE_SOFTWARE when hardware acceleration is off?
         setLayerType(LAYER_TYPE_HARDWARE, null);
     }
 

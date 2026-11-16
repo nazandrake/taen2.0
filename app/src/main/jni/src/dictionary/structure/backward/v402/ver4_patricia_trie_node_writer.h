@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,7 +126,6 @@ class Ver4PatriciaTrieNodeWriter : public PtNodeWriter {
 
     // Create updated probability entry using given unigram property. In addition to the
     // probability, this method updates historical information if needed.
-    // TODO: Update flags belonging to the unigram property.
     const ProbabilityEntry createUpdatedEntryFrom(
             const ProbabilityEntry *const originalProbabilityEntry,
             const UnigramProperty *const unigramProperty) const;

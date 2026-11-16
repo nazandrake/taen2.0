@@ -44,7 +44,6 @@ import helium314.keyboard.latin.utils.TypefaceUtils;
 import java.util.HashSet;
 
 /** A view that renders a virtual {@link Keyboard}. */
-// todo: this ThemeStyle-dependent stuff really should not be in here!
 public class KeyboardView extends View {
     // XML attributes
     private final KeyVisualAttributes mKeyVisualAttributes;
@@ -73,7 +72,6 @@ public class KeyboardView extends View {
     private static final float MAX_LABEL_RATIO = 0.90f;
 
     // Main keyboard
-    // TODO: Consider having a dummy keyboard object to make this @NonNull
     @Nullable
     private Keyboard mKeyboard;
     @NonNull
@@ -163,7 +161,6 @@ public class KeyboardView extends View {
 
     public void setHardwareAcceleratedDrawingEnabled(final boolean enabled) {
         if (!enabled) return;
-        // TODO: Should use LAYER_TYPE_SOFTWARE when hardware acceleration is off?
         setLayerType(LAYER_TYPE_HARDWARE, null);
     }
 
@@ -247,7 +244,6 @@ public class KeyboardView extends View {
         if (bufferNeedsUpdates || mOffscreenBuffer == null) {
             if (maybeAllocateOffscreenBuffer()) {
                 mInvalidateAllKeys = true;
-                // TODO: Stop using the offscreen canvas even when in software rendering
                 mOffscreenCanvas.setBitmap(mOffscreenBuffer);
             }
             onDrawKeyboard(mOffscreenCanvas);
@@ -293,7 +289,6 @@ public class KeyboardView extends View {
         // Calculate clip region and set.
         final boolean drawAllKeys = mInvalidateAllKeys || mInvalidatedKeys.isEmpty();
         final boolean isHardwareAccelerated = canvas.isHardwareAccelerated();
-        // TODO: Confirm if it's really required to draw all keys when hardware acceleration is on.
         if (drawAllKeys || isHardwareAccelerated) {
             if (!isHardwareAccelerated && background != null) {
                 // Need to draw keyboard background on {@link #mOffscreenBuffer}.
@@ -356,7 +351,7 @@ public class KeyboardView extends View {
         final int keyHeight = key.getHeight();
         final int bgWidth, bgHeight, bgX, bgY;
         if (key.needsToKeepBackgroundAspectRatio(mDefaultKeyLabelFlags)
-                // HACK: To disable expanding normal/functional key background.
+                // To disable expanding normal/functional key background.
                 && !key.hasCustomActionLabel()) {
             bgWidth = (int) (background.getIntrinsicWidth() * mIconScaleFactor);
             bgHeight = (int) (background.getIntrinsicHeight() * mIconScaleFactor);
@@ -462,7 +457,6 @@ public class KeyboardView extends View {
         if (hintLabel != null && mShowsHints) {
             paint.setTextSize(key.selectHintTextSize(params) * mHintFontSizeMultiplier);
             paint.setColor(key.selectHintTextColor(params));
-            // TODO: Should add a way to specify type face for hint letters
             paint.setTypeface(KeyboardTypeface.resolve(hintLabel, Typeface.DEFAULT_BOLD));
             blendAlpha(paint, params.mAnimAlpha);
             final float labelCharHeight = TypefaceUtils.getReferenceCharHeight(paint);

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2014, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -218,7 +219,6 @@ class LanguageModelDictContent {
                 const int prevWordCount, const int *const prevWordIds);
 
         int mPriority;
-        // TODO: Remove.
         int mCount;
         int mKey;
         int mPrevWordCount;

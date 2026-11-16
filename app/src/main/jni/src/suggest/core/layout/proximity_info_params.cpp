@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,8 +67,6 @@ const float ProximityInfoParams::STRAIGHT_ANGLE_THRESHOLD = M_PI_F * 15.0f / 180
 const float ProximityInfoParams::SKIP_CORNER_PROBABILITY = 0.4f;
 const float ProximityInfoParams::SPEED_MARGIN = 0.1f;
 const float ProximityInfoParams::CENTER_VALUE_OF_NORMALIZED_DISTRIBUTION = 0.0f;
-// TODO: The variance is critical for accuracy; thus, adjusting these parameters by machine
-// learning or something would be efficient.
 const float ProximityInfoParams::SPEEDxANGLE_WEIGHT_FOR_STANDARD_DEVIATION = 0.3f;
 const float ProximityInfoParams::MAX_SPEEDxANGLE_RATE_FOR_STANDARD_DEVIATION = 0.25f;
 const float ProximityInfoParams::SPEEDxNEAREST_WEIGHT_FOR_STANDARD_DEVIATION = 0.5f;
@@ -91,7 +90,6 @@ const float ProximityInfoParams::SKIP_PROBABALITY_WEIGHT_FOR_PROBABILITY_GAIN = 
 const float ProximityInfoParams::DEMOTION_LOG_PROBABILITY = 0.3f;
 
 // Used by ProximityInfoStateUtils::updateSampledSearchKeySets()
-// TODO: Investigate if this is required
 const float ProximityInfoParams::SEARCH_KEY_RADIUS_RATIO = 0.95f;
 
 // Used by ProximityInfoStateUtils::calculateBeelineSpeedRate()

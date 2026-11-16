@@ -85,17 +85,10 @@ class DictionaryFacilitatorImpl @JvmOverloads constructor(
 
     // The library does not deal well with ngram history for auto-capitalized words, so we adjust
     // the ngram context to store next word suggestions for such cases.
-    // todo: this is awful, find a better solution / workaround
-    //  or remove completely? not sure if it's actually an improvement
-    //  should be fixed in the library, but that's not feasible with current user-provides-library approach
-    //  added in 12cbd43bda7d0f0cd73925e9cf836de751c32ed0 / https://github.com/HeliBorg/HeliBoard/issues/135
     private var tryChangingWords = false
     private var changeFrom = ""
     private var changeTo = ""
 
-    // todo: write cache never set, and never read (only written)
-    //  tried to use read cache for a while, but small performance improvements are not worth the work,
-    //  see https://github.com/HeliBorg/HeliBoard/issues/307
     private var mValidSpellingWordReadCache: LruCache<String, Boolean>? = null
     private var mValidSpellingWordWriteCache: LruCache<String, Boolean>? = null
 
@@ -396,10 +389,9 @@ class DictionaryFacilitatorImpl @JvmOverloads constructor(
                 changeTo = wordToUse
             }
         } else {
-            // HACK: We'd like to avoid adding the capitalized form of common words to the User
+            // We'd like to avoid adding the capitalized form of common words to the User
             // History dictionary in order to avoid suggesting them until the dictionary
             // consolidation is done.
-            // TODO: Remove this hack when ready.
             val lowerCasedWord = word.lowercase(dictionaryGroup.locale)
             val lowerCaseFreqInMainDict = dictionaryGroup.getDict(Dictionary.TYPE_MAIN)?.getFrequency(lowerCasedWord)
                 ?: Dictionary.NOT_A_PROBABILITY
@@ -430,7 +422,7 @@ class DictionaryFacilitatorImpl @JvmOverloads constructor(
 
         // User history always reports words as invalid, so we check the frequency instead.
         // Testing shows that after 2 times adding, the frequency is 111, and then rises slowly with usage (values vary slightly).
-        // 120 is after 3 uses of the word, so we simply require more than that. todo: Could be made configurable.
+        // 120 is after 3 uses of the word, so we simply require more than that.
         // Words added to dictionaries (user and history) seem to be found only after some delay.
         // This is not too bad, but it delays adding in case a user wants to fill a dictionary using this functionality
         if (userHistoryDict.getFrequency(word) > 120) {
@@ -500,7 +492,6 @@ class DictionaryFacilitatorImpl @JvmOverloads constructor(
 
     override fun unlearnFromUserHistory(word: String, ngramContext: NgramContext,
                     timeStampInSeconds: Long, event: DictionaryFacilitator.UnlearnEvent) {
-        // TODO: Decide whether or not to remove the word on BACKSPACE.
         if (event != DictionaryFacilitator.UnlearnEvent.BACKSPACE) {
             currentlyPreferredDictionaryGroup.getSubDict(Dictionary.TYPE_USER_HISTORY)?.removeUnigramEntryDynamically(word)
         }
@@ -510,7 +501,6 @@ class DictionaryFacilitatorImpl @JvmOverloads constructor(
         putWordIntoValidSpellingWordCache("unlearnFromUserHistory", word.lowercase(Locale.getDefault()))
     }
 
-    // TODO: Revise the way to fusion suggestion results.
     override fun getSuggestionResults(
         composedData: ComposedData, ngramContext: NgramContext, keyboard: Keyboard,
         settingsValuesForSuggestion: SettingsValuesForSuggestion, sessionId: Int, inputStyle: Int
@@ -622,7 +612,6 @@ class DictionaryFacilitatorImpl @JvmOverloads constructor(
     override fun isValidPredictionWord(word: String, blockPotentiallyOffensive: Boolean): Boolean =
         isValidSuggestionWord(word) && !(blockPotentiallyOffensive && dictionaryGroups[0].getDict(Dictionary.TYPE_MAIN)?.isPossiblyOffensive(word) == true)
 
-    // todo: move into dictionaryGroup?
     private fun isValidWord(word: String, dictionariesToCheck: Array<String>, dictionaryGroup: DictionaryGroup): Boolean {
         if (word.isEmpty() || dictionaryGroup.isBlacklisted(word)) return false
         val userWords = userWordsInValidityChecks() // before the loop: one decision per check
@@ -674,7 +663,7 @@ class DictionaryFacilitatorImpl @JvmOverloads constructor(
             Privacy.onLock("glide") { GlideSuggester.forgetUserWords() }
         }
 
-        // HACK: This threshold is being used when adding a capitalized entry in the User History dictionary.
+        // This threshold is being used when adding a capitalized entry in the User History dictionary.
         private const val CAPITALIZED_FORM_MAX_PROBABILITY_FOR_INSERT = 140
 
         private fun createSubDict(

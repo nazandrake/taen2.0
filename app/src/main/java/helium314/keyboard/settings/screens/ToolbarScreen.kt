@@ -40,7 +40,7 @@ fun ToolbarScreen(
     val prefs = LocalContext.current.prefs()
     val b = (LocalContext.current.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
-        Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+        Log.v("recompose", "preference changed")
     val toolbarMode = Settings.readToolbarMode(prefs)
     val clipboardToolbarVisible = toolbarMode != ToolbarMode.HIDDEN
         || !prefs.getBoolean(Settings.PREF_TOOLBAR_HIDING_GLOBAL, Defaults.PREF_TOOLBAR_HIDING_GLOBAL)

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,7 +95,6 @@ class DicNodeProperties {
         return mDepth;
     }
 
-    // TODO: Move to output?
     uint16_t getLeavingDepth() const {
         return mLeavingDepth;
     }

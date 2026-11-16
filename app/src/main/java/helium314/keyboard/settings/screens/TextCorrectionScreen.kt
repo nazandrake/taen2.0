@@ -49,7 +49,7 @@ fun TextCorrectionScreen(
     val prefs = LocalContext.current.prefs()
     val b = (LocalContext.current.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
-        Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+        Log.v("recompose", "preference changed")
     val autocorrectEnabled = prefs.getBoolean(Settings.PREF_AUTO_CORRECTION, Defaults.PREF_AUTO_CORRECTION)
     val suggestionsVisible = Settings.readToolbarMode(prefs).let { it == ToolbarMode.SUGGESTION_STRIP || it == ToolbarMode.EXPANDABLE }
     val suggestionsEnabled = suggestionsVisible && prefs.getBoolean(Settings.PREF_SHOW_SUGGESTIONS, Defaults.PREF_SHOW_SUGGESTIONS)

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +25,6 @@
 
 namespace latinime {
 
-// TODO: Create PtConstants under the pt_common and move some constant values there.
 // Note that there are corresponding definitions in FormatSpec.java.
 class Ver4DictConstants {
  public:
@@ -47,7 +47,6 @@ class Ver4DictConstants {
     static const int NOT_A_TERMINAL_ADDRESS;
     static const int TERMINAL_ID_FIELD_SIZE;
     static const int TIME_STAMP_FIELD_SIZE;
-    // TODO: Remove
     static const int WORD_LEVEL_FIELD_SIZE;
     static const int WORD_COUNT_FIELD_SIZE;
     // Flags in probability entry.

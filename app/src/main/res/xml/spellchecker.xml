@@ -142,7 +142,7 @@
         android:subtypeLocale="sr" />
     <subtype
         android:label="@string/subtype_generic"
-        android:subtypeLocale="sr_#Latn" /> <!-- todo: test whether it works -->
+        android:subtypeLocale="sr_#Latn" />
     <subtype
         android:label="@string/subtype_generic"
         android:subtypeLocale="sv" />

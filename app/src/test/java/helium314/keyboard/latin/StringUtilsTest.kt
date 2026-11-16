@@ -25,7 +25,6 @@ import org.robolectric.annotation.Config
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-// todo: actually this test could/should be significantly expanded...
 @RunWith(RobolectricTestRunner::class)
 @Config(shadows = [
     ShadowInputMethodManager2::class,
@@ -114,8 +113,6 @@ class StringUtilsTest {
         checkTextRange("..", ".", spUrl, script, 2, 2)
         checkTextRange("...", "", spUrl, script, 3, 3)
 
-        // todo: these are bad cases of url detection
-        //  also: sometimesWordConnectors are for URL and should be named accordingly
         checkTextRange("@@@", "@@@", spUrl, script, 0, 6)
         checkTextRange("a...", "", spUrl, script, 0, 4)
         checkTextRange("@@@", "", spUrl, script, 0, 3)

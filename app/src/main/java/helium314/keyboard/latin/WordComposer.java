@@ -41,8 +41,6 @@ public final class WordComposer {
     // gestures a word, is displeased with the results and hits backspace, then gestures again.
     // At the very least we should avoid re-suggesting the same thing, and to do that we memorize
     // the rejected suggestion in this variable.
-    // TODO: this should be done in a comprehensive way by the User History feature instead of
-    // as an ad-hockery here.
     private String mRejectedBatchModeSuggestion;
 
     // Cache these values for performance
@@ -187,7 +185,7 @@ public final class WordComposer {
     }
 
     // specifically for that KeyCode.MULTIPLE_CODE_POINTS Hangul event: try keeping cursor position
-    // because typically nothing changes, todo: if really nothing changes maybe there is a better way to do it
+    // because typically nothing changes
     public void applyProcessedEvent(final Event event, final boolean keepCursorPosition) {
         mCombinerChain.applyProcessedEvent(event);
         final int primaryCode = event.getCodePoint();
@@ -207,7 +205,6 @@ public final class WordComposer {
                 // shouldn't be overridden by the "typed key" coordinates
                 // (See {@link #setBatchInputWord}).
                 if (!mIsBatchMode) {
-                    // TODO: Set correct pointer id and time
                     mInputPointers.addPointerAt(newIndex, keyX, keyY, 0, 0);
                 }
             }
@@ -225,7 +222,6 @@ public final class WordComposer {
 
     public void setCursorPositionWithinWord(final int posWithinWord) {
         mCursorPositionWithinWord = posWithinWord;
-        // TODO: compute where that puts us inside the events
     }
 
     public boolean isCursorFrontOrMiddleOfComposingWord() {
@@ -252,7 +248,6 @@ public final class WordComposer {
     public boolean moveCursorByAndReturnIfInsideComposingWord(final int expectedMoveAmount) {
         int actualMoveAmount = 0;
         int cursorPos = mCursorPositionWithinWord;
-        // TODO: Don't make that copy. We can do this directly from mTypedWordCache.
         final int[] codePoints = StringUtils.toCodePointArray(mTypedWordCache);
         if (expectedMoveAmount >= 0) {
             // Moving the cursor forward for the expected amount or until the end of the word has

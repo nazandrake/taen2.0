@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +35,6 @@ const int ForgettingCurveUtils::MIN_VISIBLE_LEVEL = 2;
 const int ForgettingCurveUtils::MAX_ELAPSED_TIME_STEP_COUNT = 31;
 const int ForgettingCurveUtils::DISCARD_LEVEL_ZERO_ENTRY_TIME_STEP_COUNT_THRESHOLD = 30;
 const int ForgettingCurveUtils::OCCURRENCES_TO_RAISE_THE_LEVEL = 1;
-// TODO: Evaluate whether this should be 7.5 days.
 // 15 days
 const int ForgettingCurveUtils::DURATION_TO_LOWER_THE_LEVEL_IN_SECONDS = 15 * 24 * 60 * 60;
 
@@ -42,7 +42,6 @@ const float ForgettingCurveUtils::ENTRY_COUNT_HARD_LIMIT_WEIGHT = 1.2;
 
 const ForgettingCurveUtils::ProbabilityTable ForgettingCurveUtils::sProbabilityTable;
 
-// TODO: Revise the logic to decide the initial probability depending on the given probability.
 /* static */ const HistoricalInfo ForgettingCurveUtils::createUpdatedHistoricalInfo(
         const HistoricalInfo *const originalHistoricalInfo, const int newProbability,
         const HistoricalInfo *const newHistoricalInfo, const HeaderPolicy *const headerPolicy) {
@@ -147,7 +146,6 @@ const ForgettingCurveUtils::ProbabilityTable ForgettingCurveUtils::sProbabilityT
 
 // See comments in ProbabilityUtils::backoff().
 /* static */ int ForgettingCurveUtils::backoff(const int unigramProbability) {
-    // See TODO comments in ForgettingCurveUtils::getProbability().
     return unigramProbability;
 }
 

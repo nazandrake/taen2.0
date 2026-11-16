@@ -280,8 +280,6 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
         mSettingsValuesLock.lock();
         try {
             if (mSettingsValues == null) {
-                // TODO: Introduce a static function to register this class and ensure that
-                // loadSettings must be called before "onSharedPreferenceChanged" is called.
                 Log.w(TAG, "onSharedPreferenceChanged called before loadSettings.");
                 return;
             }
@@ -326,7 +324,6 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
         mPrefs.registerOnSharedPreferenceChangeListener(this);
     }
 
-    // TODO: Remove this method and add proxy method to SettingsValues.
     public SettingsValues getCurrent() {
         return mSettingsValues;
     }

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -103,8 +104,6 @@ bool ProximityInfo::hasSpaceProximity(const int x, const int y) const {
     if (x < 0 || y < 0) {
         if (DEBUG_DICT) {
             AKLOGI("HasSpaceProximity: Illegal coordinates (%d, %d)", x, y);
-            // TODO: Enable this assertion.
-            //ASSERT(false);
         }
         return false;
     }
@@ -151,7 +150,6 @@ int ProximityInfo::getOriginalCodePointOf(const int keyIndex) const {
 }
 
 void ProximityInfo::initializeG() {
-    // TODO: Optimize
     for (int i = 0; i < KEY_COUNT; ++i) {
         const int code = mKeyCodePoints[i];
         const int lowerCode = CharUtils::toLowerCase(code);
@@ -220,7 +218,6 @@ int ProximityInfo::getKeyCenterXOfKeyIdG(
 // using the line segment.
 int ProximityInfo::getKeyCenterYOfKeyIdG(
         const int keyId, const int referencePointY, const bool isGeometric) const {
-    // TODO: Remove "isGeometric" and have separate "proximity_info"s for gesture and typing.
     if (keyId < 0) {
         return 0;
     }

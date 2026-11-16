@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +33,6 @@ class DynamicPtGcEventListeners {
  public:
     // Updates all PtNodes that can be reached from the root. Checks if each PtNode is useless or
     // not and marks useless PtNodes as deleted. Such deleted PtNodes will be discarded in the GC.
-    // TODO: Concatenate non-terminal PtNodes.
     class TraversePolicyToUpdateUnigramProbabilityAndMarkUselessPtNodesAsDeleted
         : public DynamicPtReadingHelper::TraversingEventListener {
      public:
@@ -76,7 +76,6 @@ class DynamicPtGcEventListeners {
         int mValidUnigramCount;
     };
 
-    // TODO: Remove when we stop supporting v402 format.
     // Updates all bigram entries that are held by valid PtNodes. This removes useless bigram
     // entries.
     class TraversePolicyToUpdateBigramProbability

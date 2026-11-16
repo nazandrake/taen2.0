@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,9 +32,6 @@ class FormatUtils {
  public:
     enum FORMAT_VERSION {
         // These MUST have the same values as the relevant constants in FormatSpec.java.
-        // TODO: Remove VERSION_2 and VERSION_201 when we:
-        // * Confirm that old versions of LatinIME download old-format dictionaries
-        // * We no longer need the corresponding constants on the Java side for dicttool
         VERSION_2 = 2,
         VERSION_201 = 201,
         VERSION_202 = 202,

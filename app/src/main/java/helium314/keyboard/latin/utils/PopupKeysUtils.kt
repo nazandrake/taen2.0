@@ -91,7 +91,7 @@ private fun getHintText(popupSet: PopupSet<*>?, params: KeyboardParams, label: S
 }
 
 private fun transformLabel(label: String, params: KeyboardParams): String =
-    if (label.startsWith("$$$")) { // currency keys, todo: handling is similar to textKeyData, could it be merged?
+    if (label.startsWith("$$$")) { // currency keys
         if (label == "$$$") {
             if (params.mId.isPasswordInput) "$"
             else params.mLocaleKeyboardInfos.currencyKey.first

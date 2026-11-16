@@ -18,7 +18,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 
 /** A dictionary that can fusion heads and tails of words for more compression. */
-// todo: this appears to be inefficient (a LOT of GC), and quite slow when processing bigrams (or is it actually the CombinedInputOutput?)
 public final class FusionDictionary implements Iterable<WordProperty> {
     private static final int CHARACTER_NOT_FOUND_INDEX = -1;
 
@@ -178,7 +177,6 @@ public final class FusionDictionary implements Iterable<WordProperty> {
          * shortcut list.
          */
         public WeightedString getShortcut(String word) {
-            // TODO: Don't do a linear search
             if (mShortcutTargets != null) {
                 int size = mShortcutTargets.size();
                 for (int i = 0; i < size; ++i) {
@@ -196,7 +194,6 @@ public final class FusionDictionary implements Iterable<WordProperty> {
          * Returns null if the word is not in the bigrams list.
          */
         public WeightedString getBigram(String word) {
-            // TODO: Don't do a linear search
             if (mBigrams != null) {
                 int size = mBigrams.size();
                 for (int i = 0; i < size; ++i) {
@@ -272,8 +269,6 @@ public final class FusionDictionary implements Iterable<WordProperty> {
      * Helper method to convert a String to an int array.
      */
     static int[] getCodePoints(String word) {
-        // TODO: this is a copy-paste of the old contents of StringUtils.toCodePointArray,
-        // which is not visible from the makedict package. Factor this code.
         int length = word.length();
         if (length == 0) return new int[] {};
         char[] characters = word.toCharArray();

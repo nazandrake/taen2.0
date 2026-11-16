@@ -89,7 +89,7 @@ class CombinerChain(initialText: String, combiningSpec: String) {
      * @param event the event to be applied
      */
     fun applyProcessedEvent(event: Event?) {
-        if (null != event) { // TODO: figure out the generic way of doing this
+        if (null != event) {
             if (KeyCode.DELETE == event.keyCode) {
                 val length = mCombinedText.length
                 if (length > 0) {

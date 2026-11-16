@@ -55,7 +55,6 @@ public class KeyDetector {
         return x + mCorrectionX;
     }
 
-    // TODO: Remove vertical correction.
     public int getTouchY(final int y) {
         return y + mCorrectionY;
     }

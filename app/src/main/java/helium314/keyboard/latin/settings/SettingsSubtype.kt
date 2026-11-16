@@ -23,7 +23,6 @@ import helium314.keyboard.latin.utils.locale
 import java.util.Locale
 
 // some kind of intermediate between the string stored in preferences and an InputMethodSubtype
-// todo: consider using a hashMap or sortedMap instead of a string if we run into comparison issues once again
 data class SettingsSubtype(val locale: Locale, val extraValues: String) {
 
     fun toPref() = locale.toLanguageTag() + Separators.SET + extraValues

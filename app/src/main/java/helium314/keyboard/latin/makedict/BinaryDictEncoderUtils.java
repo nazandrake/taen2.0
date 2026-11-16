@@ -25,7 +25,6 @@ import java.util.Map.Entry;
  * <p>
  * All the methods in this class are static.
  * <p>
- * TODO: Rename this class to DictEncoderUtils.
  */
 public class BinaryDictEncoderUtils {
     private static final String TAG = "BinaryDictEncoderUtils";
@@ -253,7 +252,6 @@ public class BinaryDictEncoderUtils {
      * @param targetPtNode the target PtNode to get the offset to
      * @return the offset to the target PtNode
      */
-    // TODO: is there any way to factorize this method with the one above?
     private static int getOffsetToTargetPtNodeDuringUpdate(PtNodeArray currentNodeArray,
                                                            int offsetFromStartOfCurrentNodeArray, PtNode targetPtNode) {
         int oldOffsetBasePoint = currentNodeArray.mCachedAddressBeforeUpdate
@@ -530,8 +528,6 @@ public class BinaryDictEncoderUtils {
         }
         int frequency;
         if (unigramFrequency > bigramFrequency) {
-            // todo: frequencies should be adjusted in dicts
-            //  Logging is disabled because spammy
             frequency = unigramFrequency;
         } else {
             frequency = bigramFrequency;
@@ -573,7 +569,7 @@ public class BinaryDictEncoderUtils {
         // If the bigram freq is less than half-a-step higher than the unigram freq, we get -1
         // here. The best approximation would be the unigram freq itself, so we should not
         // include this bigram in the dictionary. For now, register as 0, and live with the
-        // small over-estimation that we get in this case. TODO: actually remove this bigram
+        // small over-estimation that we get in this case.
         // if discretizedFrequency < 0.
         return discretizedFrequency > 0 ? discretizedFrequency : 0;
     }
@@ -601,7 +597,6 @@ public class BinaryDictEncoderUtils {
     static void writePlacedPtNodeArray(FusionDictionary dict,
                                                      DictEncoder dictEncoder, PtNodeArray ptNodeArray,
                                                      HashMap<Integer, Integer> codePointToOneByteCodeMap) {
-        // TODO: Make the code in common with BinaryDictIOUtils#writePtNode
         dictEncoder.setPosition(ptNodeArray.mCachedAddressAfterUpdate);
         int ptNodeCount = ptNodeArray.mData.size();
         dictEncoder.writePtNodeCount(ptNodeCount);
@@ -705,7 +700,6 @@ public class BinaryDictEncoderUtils {
         headerBuffer.write((byte) (0xFF & (version >> 8)));
         headerBuffer.write((byte) (0xFF & version));
         // Options flags
-        // TODO: Remove this field.
         final int options = 0;
         headerBuffer.write((byte) (0xFF & (options >> 8)));
         headerBuffer.write((byte) (0xFF & options));

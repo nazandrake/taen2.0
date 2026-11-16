@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +25,6 @@
 
 namespace latinime {
 
-// TODO: Quit using bigram probability to indicate the delta.
 class ProbabilityUtils {
  public:
     static AK_FORCE_INLINE int backoff(const int unigramProbability) {
@@ -32,9 +32,6 @@ class ProbabilityUtils {
         // For some reason, applying the backoff weight gives bad results in tests. To apply the
         // backoff weight, we divide the probability by 2, which in our storing format means
         // decreasing the score by 8.
-        // TODO: figure out what's wrong with this.
-        // return unigramProbability > 8 ?
-        //         unigramProbability - 8 : (0 == unigramProbability ? 0 : 8);
     }
 
     static AK_FORCE_INLINE int computeProbabilityForBigram(

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -235,8 +236,6 @@ class DicNode {
     }
 
     bool isTotalInputSizeExceedingLimit() const {
-        // TODO: 3 can be 2? Needs to be investigated.
-        // TODO: Have a const variable for 3 (or 2)
         return getTotalNodeCodePointCount() > MAX_WORD_LENGTH - 3;
     }
 
@@ -316,20 +315,13 @@ class DicNode {
 
     // Whether the omission is so frequent that it should incur zero cost.
     bool isZeroCostOmission() const {
-        // TODO: do not hardcode and read from header
         return (getNodeCodePoint() == KEYCODE_SINGLE_QUOTE);
     }
 
-    // TODO: remove
     float getTerminalDiffCostG(int path) const {
         return mDicNodeState.mDicNodeStateInput.getTerminalDiffCost(path);
     }
 
-    //////////////////////
-    // Temporary getter //
-    // TODO: Remove     //
-    //////////////////////
-    // TODO: Remove once touch path is merged into ProximityInfoState
     // Note: Returned codepoint may be a digraph codepoint if the node is in a composite glyph.
     int getNodeCodePoint() const {
         const int codePoint = mDicNodeProperties.getDicNodeCodePoint();
@@ -349,8 +341,6 @@ class DicNode {
                 == dicNode->mDicNodeProperties.getDicNodeCodePoint();
     }
 
-    // TODO: remove
-    // TODO: rename getNextInputIndex
     int16_t getInputIndex(int pointerId) const {
         return mDicNodeState.mDicNodeStateInput.getInputIndex(pointerId);
     }
@@ -447,7 +437,6 @@ class DicNode {
  private:
     DicNodeProperties mDicNodeProperties;
     DicNodeState mDicNodeState;
-    // TODO: Remove
     bool mIsCachedForNextSuggestion;
 
     AK_FORCE_INLINE int getTotalInputIndex() const {

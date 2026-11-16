@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -252,7 +253,6 @@ namespace latinime {
             if (i > 0 && j < (*sampledInputIndice)[i - 1]) {
                 break;
             }
-            // TODO: use mSampledLengthCache instead?
             length += GeometryUtils::getDistanceInt(xCoordinates[j], yCoordinates[j],
                     xCoordinates[j + 1], yCoordinates[j + 1]);
             duration += times[j + 1] - times[j];
@@ -556,7 +556,6 @@ namespace latinime {
                         / averageSpeed), adjustedStartTime, adjustedEndTime);
     }
     // Offset 1%
-    // TODO: Detect double letter more smartly
     return 0.01f + static_cast<float>(beelineDistance) / static_cast<float>(time) / averageSpeed;
 }
 
@@ -711,7 +710,6 @@ namespace latinime {
         const float sigma = (speedMultipliedByAngleRate + speedMultipliedByNearestKeyDistanceRate
                 + ProximityInfoParams::MIN_STANDARD_DEVIATION) * mostCommonKeyWidth;
         float theta = 0.0f;
-        // TODO: Use different metrics to compute sigmas.
         float sigmaX = sigma;
         float sigmaY = sigma;
         if (i == 0 && i != sampledInputSize - 1) {
@@ -835,7 +833,6 @@ namespace latinime {
             (*sampledSearchKeySets)[i].reset();
         }
         for (int j = std::max(i, lastSavedInputSize); j < sampledInputSize; ++j) {
-            // TODO: Investigate if this is required. This may not fail.
             if ((*sampledLengthCache)[j] - (*sampledLengthCache)[i] >= readForwordLength) {
                 break;
             }
@@ -939,7 +936,6 @@ namespace latinime {
     memset(codePointBuf, 0, sizeof(codePointBuf[0]) * MAX_WORD_LENGTH);
     int index = 0;
     float sumLogProbability = 0.0f;
-    // TODO: Current implementation is greedy algorithm. DP would be efficient for many cases.
     for (int i = 0; i < sampledInputSize && index < MAX_WORD_LENGTH - 1; ++i) {
         float minLogProbability = static_cast<float>(MAX_VALUE_FOR_WEIGHTING);
         int character = NOT_AN_INDEX;

@@ -109,7 +109,6 @@ class KeyboardLayoutSet internal constructor(private val mContext: Context, priv
         var mode = KeyboardMode.TEXT
         var disableTouchPositionCorrectionDataForTest: Boolean = false // remove
 
-        // TODO: Use {@link InputAttributes} instead of these variables.
         lateinit var editorInfo: EditorInfo
         lateinit var subtype: RichInputMethodSubtype
         var settingsValues: SettingsValues? = null
@@ -132,7 +131,6 @@ class KeyboardLayoutSet internal constructor(private val mContext: Context, priv
         init {
             val editorInfo = ei ?: EMPTY_EDITOR_INFO
             params.mode = getKeyboardMode(editorInfo)
-            // TODO: Consolidate those with {@link InputAttributes}.
             params.editorInfo = editorInfo
             params.settingsValues = settingsValues
         }

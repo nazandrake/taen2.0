@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2014, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +28,6 @@ namespace latinime {
 class NgramListener {
  public:
     // ngramProbability is always 0 for v403 decaying dictionary.
-    // TODO: Remove ngramProbability.
     virtual void onVisitEntry(const int ngramProbability, const int targetWordId) = 0;
     virtual ~NgramListener() {};
 

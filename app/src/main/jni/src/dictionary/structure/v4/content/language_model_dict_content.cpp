@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2014, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -104,8 +105,6 @@ const WordAttributes LanguageModelDictContent::getWordAttributes(const WordIdArr
         } else {
             probability = probabilityEntry.getProbability();
         }
-        // TODO: Some flags in unigramProbabilityEntry should be overwritten by flags in
-        // probabilityEntry.
         return WordAttributes(probability, unigramProbabilityEntry.isBlacklisted(),
                 unigramProbabilityEntry.isNotAWord(),
                 unigramProbabilityEntry.isPossiblyOffensive());
@@ -237,7 +236,6 @@ bool LanguageModelDictContent::updateAllEntriesOnInputWord(const WordIdArrayView
         if (prevWordIds[i] == NOT_A_WORD_ID) {
             break;
         }
-        // TODO: Optimize this code.
         const WordIdArrayView limitedPrevWordIds = prevWordIds.limit(i + 1);
         const ProbabilityEntry originalNgramProbabilityEntry = getNgramProbabilityEntry(
                 limitedPrevWordIds, wordId);

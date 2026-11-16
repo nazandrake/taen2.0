@@ -28,9 +28,6 @@ public class Ver4DictEncoder implements DictEncoder {
     public Ver4DictEncoder(File dictPlacedDir) {
         mDictPlacedDir = dictPlacedDir;
     }
-    // TODO: This builds a FusionDictionary first and iterates it to add words to the binary
-    // dictionary. However, it is possible to just add words directly to the binary dictionary
-    // instead.
     // In the long run, when we stop supporting version 2, FusionDictionary will become deprecated
     // and we can remove it. Then we'll be able to just call BinaryDictionary directly.
     @Override
@@ -63,7 +60,6 @@ public class Ver4DictEncoder implements DictEncoder {
             throw new IOException("Cannot create dictionary file");
         }
         for (WordProperty wordProperty : dict) {
-            // todo: no shortcuts
             if (!binaryDict.addUnigramEntry(wordProperty.mWord, wordProperty.getProbability(), null, 0,
                 wordProperty.mIsBeginningOfSentence, wordProperty.mIsNotAWord,
                 wordProperty.mIsPossiblyOffensive, 0 /* timestamp */)) {
@@ -78,7 +74,6 @@ public class Ver4DictEncoder implements DictEncoder {
         }
         for (WordProperty word0Property : dict) {
             if (!word0Property.mHasNgrams) continue;
-            // TODO: Support ngram.
             for (WeightedString word1 : word0Property.getBigrams()) {
                 NgramContext ngramContext =
                     new NgramContext(new NgramContext.WordInfo(word0Property.mWord));

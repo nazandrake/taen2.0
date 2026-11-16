@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1086,14 +1087,12 @@ static int compare_pair_capital(const void *a, const void *b) {
     /* U+00D0 */ 0x00D0, 0x004E, 0x004F, 0x004F, 0x004F, 0x004F, 0x004F, 0x00D7,
     /* U+00D8 */ 0x004F, 0x0055, 0x0055, 0x0055, 0x0055, 0x0059, 0x00DE, 0x0073,
         // U+00D8: Manually changed from 00D8 to 004F
-          // TODO: Check if it's really acceptable to consider Ø a diacritical variant of O
         // U+00DF: Manually changed from 00DF to 0073
     /* U+00E0 */ 0x0061, 0x0061, 0x0061, 0x0061, 0x0061, 0x0061, 0x00E6, 0x0063,
     /* U+00E8 */ 0x0065, 0x0065, 0x0065, 0x0065, 0x0069, 0x0069, 0x0069, 0x0069,
     /* U+00F0 */ 0x00F0, 0x006E, 0x006F, 0x006F, 0x006F, 0x006F, 0x006F, 0x00F7,
     /* U+00F8 */ 0x006F, 0x0075, 0x0075, 0x0075, 0x0075, 0x0079, 0x00FE, 0x0079,
         // U+00F8: Manually changed from 00F8 to 006F
-          // TODO: Check if it's really acceptable to consider ø a diacritical variant of o
     /* U+0100 */ 0x0041, 0x0061, 0x0041, 0x0061, 0x0041, 0x0061, 0x0043, 0x0063,
     /* U+0108 */ 0x0043, 0x0063, 0x0043, 0x0063, 0x0043, 0x0063, 0x0044, 0x0064,
     /* U+0110 */ 0x0046, 0x0064, 0x0045, 0x0065, 0x0045, 0x0065, 0x0045, 0x0065,
@@ -1116,7 +1115,7 @@ static int compare_pair_capital(const void *a, const void *b) {
     /* U+0170 */ 0x0055, 0x0075, 0x0055, 0x0075, 0x0057, 0x0077, 0x0059, 0x0079,
     /* U+0178 */ 0x0059, 0x005A, 0x007A, 0x005A, 0x007A, 0x005A, 0x007A, 0x0073,
     /* U+0180 */ 0x0180, 0x0181, 0x0182, 0x0183, 0x0184, 0x0185, 0x0186, 0x0187,
-          // TODO: A lot of letters are their own base code points, but for
+          // A lot of letters are their own base code points, but for
           // some (e.g. U+0180) it doesn't seem right. Ideally each code point should
           // be checked individually with all languages it's used in.
     /* U+0188 */ 0x0188, 0x0189, 0x018A, 0x018B, 0x018C, 0x018D, 0x018E, 0x018F,
@@ -1151,9 +1150,7 @@ static int compare_pair_capital(const void *a, const void *b) {
         // U+01FA: Manually changed from 00C5 to 0041
         // U+01FB: Manually changed from 00E5 to 0061
         // U+01FE: Manually changed from 00D8 to 004F
-          // TODO: Check if it's really acceptable to consider Ø a diacritical variant of O
         // U+01FF: Manually changed from 00F8 to 006F
-          // TODO: Check if it's really acceptable to consider ø a diacritical variant of o
     /* U+0200 */ 0x0041, 0x0061, 0x0041, 0x0061, 0x0045, 0x0065, 0x0045, 0x0065,
     /* U+0208 */ 0x0049, 0x0069, 0x0049, 0x0069, 0x004F, 0x006F, 0x004F, 0x006F,
     /* U+0210 */ 0x0052, 0x0072, 0x0052, 0x0072, 0x0055, 0x0075, 0x0055, 0x0075,

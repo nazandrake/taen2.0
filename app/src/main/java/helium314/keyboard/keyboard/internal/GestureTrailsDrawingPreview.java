@@ -160,7 +160,6 @@ public final class GestureTrailsDrawingPreview extends AbstractDrawingPreview im
         }
         trail.addStroke(tracker.getGestureStrokeDrawingPoints(), tracker.getDownTime());
 
-        // TODO: Should narrow the invalidate region.
         invalidateDrawingView();
     }
 }

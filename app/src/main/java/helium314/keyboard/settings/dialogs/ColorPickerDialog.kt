@@ -116,7 +116,7 @@ fun ColorPickerDialog(
             value = textValue,
             keyboardOptions = KeyboardOptions(
                 autoCorrectEnabled = false,
-                keyboardType = KeyboardType.Password, // todo: KeyboardType.Password is a crappy way of avoiding suggestions... is there really no way in compose?
+                keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done,
             ),
             keyboardActions = KeyboardActions(onDone = { onDismissRequest(); onConfirmed(controller.selectedColor.value.toArgb()) }),

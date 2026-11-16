@@ -58,8 +58,6 @@ public interface PopupKeysPanel {
      * @param listener the listener that will receive keyboard action from this
      * {@link PopupKeysPanel}.
      */
-    // TODO: Currently the PopupKeysPanel is inside a container view that is added to the parent.
-    // Consider the simpler approach of placing the PopupKeysPanel itself into the parent view.
     void showPopupKeysPanel(View parentView, Controller controller, int pointX,
                            int pointY, KeyboardActionListener listener);
 
@@ -76,8 +74,6 @@ public interface PopupKeysPanel {
      * @param pointY y coordinate of this {@link PopupKeysPanel}
      * @param onReleaseKey to receive keyboard actions from this {@link PopupKeysPanel}.
      */
-    // TODO: Currently the PopupKeysPanel is inside a container view that is added to the parent.
-    // Consider the simpler approach of placing the PopupKeysPanel itself into the parent view.
     void showPopupKeysPanel(View parentView, Controller controller, int pointX, int pointY, Function1<Key, Unit> onReleaseKey);
 
     /**

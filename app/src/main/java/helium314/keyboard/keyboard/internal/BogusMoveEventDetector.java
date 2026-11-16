@@ -14,7 +14,7 @@ import helium314.keyboard.latin.R;
 import helium314.keyboard.latin.common.Constants;
 import helium314.keyboard.latin.define.DebugFlags;
 
-// This hack is applied to certain classes of tablets.
+// This workaround is applied to certain classes of tablets.
 public final class BogusMoveEventDetector {
     private static final String TAG = BogusMoveEventDetector.class.getSimpleName();
 
@@ -26,11 +26,11 @@ public final class BogusMoveEventDetector {
     private static boolean sNeedsProximateBogusDownMoveUpEventHack;
 
     public static void init(final Resources res) {
-        // The proximate bogus down move up event hack is needed for a device such like,
+        // The proximate bogus down move up event workaround is needed for a device such like,
         // 1) is large tablet, or 2) is small tablet and the screen density is less than hdpi.
         // Though it seems odd to use screen density as criteria of the quality of the touch
         // screen, the small table that has a less density screen than hdpi most likely has been
-        // made with the touch screen that needs the hack.
+        // made with the touch screen that needs the workaround.
         final int screenMetrics = res.getInteger(R.integer.config_screen_metrics);
         final boolean isLargeTablet = (screenMetrics == Constants.SCREEN_METRICS_LARGE_TABLET);
         final boolean isSmallTablet = (screenMetrics == Constants.SCREEN_METRICS_SMALL_TABLET);

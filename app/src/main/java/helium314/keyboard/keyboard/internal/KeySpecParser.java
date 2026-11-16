@@ -31,7 +31,6 @@ import androidx.annotation.Nullable;
  * Note that the '\' is also parsed by XML parser and {@link PopupKeySpec#splitKeySpecs(String)}
  * as well.
  */
-// TODO: Rename to KeySpec and make this class to the key specification object.
 public final class KeySpecParser {
     // Constants for parsing.
     private static final char BACKSLASH = Constants.CODE_BACKSLASH;
@@ -126,7 +125,6 @@ public final class KeySpecParser {
     @Nullable
     public static String getLabel(@Nullable final String keySpec) {
         if (keySpec == null) {
-            // TODO: Throw {@link KeySpecParserError} once Key.keyLabel attribute becomes mandatory.
             return null;
         }
         if (hasIcon(keySpec)) {
@@ -152,7 +150,6 @@ public final class KeySpecParser {
     @Nullable
     public static String getOutputText(@Nullable final String keySpec, final int code) {
         if (keySpec == null) {
-            // TODO: Throw {@link KeySpecParserError} once Key.keyLabel attribute becomes mandatory.
             return null;
         }
         final int labelEnd = indexOfLabelEnd(keySpec);
@@ -182,7 +179,6 @@ public final class KeySpecParser {
 
     public static int getCode(@Nullable final String keySpec) {
         if (keySpec == null) {
-            // TODO: Throw {@link KeySpecParserError} once Key.keyLabel attribute becomes mandatory.
             return KeyCode.NOT_SPECIFIED;
         }
         final int labelEnd = indexOfLabelEnd(keySpec);
@@ -227,7 +223,6 @@ public final class KeySpecParser {
     @Nullable
     public static String getIconName(@Nullable final String keySpec) {
         if (keySpec == null) {
-            // TODO: Throw {@link KeySpecParserError} once Key.keyLabel attribute becomes mandatory.
             return null;
         }
         if (!hasIcon(keySpec)) {

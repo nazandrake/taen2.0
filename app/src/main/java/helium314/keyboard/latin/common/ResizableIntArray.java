@@ -10,7 +10,7 @@ import androidx.annotation.NonNull;
 
 import java.util.Arrays;
 
-// TODO: This class is not thread-safe.
+// This class is not thread-safe.
 public final class ResizableIntArray {
     @NonNull
     private int[] mArray;
@@ -62,7 +62,6 @@ public final class ResizableIntArray {
     private void ensureCapacity(final int minimumCapacity) {
         final int newCapacity = calculateCapacity(minimumCapacity);
         if (newCapacity > 0) {
-            // TODO: Implement primitive array pool.
             mArray = Arrays.copyOf(mArray, newCapacity);
         }
     }
@@ -77,7 +76,6 @@ public final class ResizableIntArray {
     }
 
     public void reset(final int capacity) {
-        // TODO: Implement primitive array pool.
         mArray = new int[capacity];
         mLength = 0;
     }
@@ -88,7 +86,6 @@ public final class ResizableIntArray {
     }
 
     public void set(@NonNull final ResizableIntArray ip) {
-        // TODO: Implement primitive array pool.
         mArray = ip.mArray;
         mLength = ip.mLength;
     }
@@ -96,7 +93,6 @@ public final class ResizableIntArray {
     public void copy(@NonNull final ResizableIntArray ip) {
         final int newCapacity = calculateCapacity(ip.mLength);
         if (newCapacity > 0) {
-            // TODO: Implement primitive array pool.
             mArray = new int[newCapacity];
         }
         System.arraycopy(ip.mArray, 0, mArray, 0, ip.mLength);

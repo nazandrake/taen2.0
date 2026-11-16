@@ -22,9 +22,6 @@ object DictionaryFactory {
      *
      * @return an initialized instance of DictionaryCollection
      */
-    // todo:
-    //  expose the weight so users can adjust dictionary "importance" (useful for addons like emoji dict)
-    //  allow users to block certain dictionaries (not sure how this should work exactly)
     fun createMainDictionaryCollection(context: Context, locale: Locale, useEmojiDict: Boolean): DictionaryCollection {
         val dicts = getMainDictsForLocale(context, locale, useEmojiDict)
         return DictionaryCollection(Dictionary.TYPE_MAIN, locale, dicts, FloatArray(dicts.size) { 1f })

@@ -1,10 +1,11 @@
 # Optional downloads of Taen. Dictionaries of Helium314/aosp-dictionaries (Codeberg), pinned to commit ff0cd52be8d9530200fefe8b296c53d4f662091e (2026-10-08).
 # Columns (tab separated): id, kind, locale, size in bytes, SHA-256, URL (https, commit-pinned), licence, source of the licence statement.
 # This file is app/src/main/assets/catalog/downloads.tsv too; DownloadCatalogTest keeps them equal and checks every row. Hashes were measured by downloading the files with curl on 2026-11-16.
-# A file is listed only when tools/dict-eval.sh finds it no worse than the dictionary in the APK on all five measures (tools/dict-eval.sh):
-#   bg  8086140 B: 898049 words / 129913 pairs / OOV 8.68 pct / typo fix 84.0 pct / next word 6.9 pct   (APK: 414905 / 0 / 21.72 pct / 80.5 pct / 0.0 pct)
-#   en-GB 3344583 B: 386504 / 123996 / 2.10 pct / 91.5 pct / 5.0 pct   (APK: 157424 / 0 / 4.49 pct / 91.0 pct / 0.0 pct)
-# Not listed: main_en_us__experimental.dict (279914 words but only 104702 pairs, next word 5.5 pct, against 481860 pairs and 12.1 pct in the APK).
+# The two dictionaries are also the ones bundled in the APK (app/src/main/assets/dicts/main_bg.dict and main_en-GB.dict, the same bytes); the rows let a user
+# reinstall them. Measured with tools/dict-eval.sh (words / pairs / OOV / typo fix / next word):
+#   bg  8086140 B: 898049 words / 129913 pairs / OOV 8.68 pct / typo fix 84.0 pct / next word 6.9 pct
+#   en-GB 3344583 B: 386504 / 123996 / 2.10 pct / 91.5 pct / 5.0 pct
+# Not listed: main_en_us__experimental.dict (279914 words but only 104702 pairs, next word 5.5 pct).
 dict-bg	dictionary	bg	8086140	9a64cdf81cc873885df78c14a061eff8ab1bd8b8795f5e595a9e2030f83d2c58	https://codeberg.org/Helium314/aosp-dictionaries/raw/commit/ff0cd52be8d9530200fefe8b296c53d4f662091e/dictionaries/main_bg__experimental.dict	CC BY 4.0 (Leipzig Corpora Collection word lists)	wordlists/main_bg__experimental.source line 2 at ff0cd52b: "license: source lists under CC BY 4.0"
 dict-en-gb	dictionary	en-GB	3344583	17f8b5ff2227167d3a0a3cb436c8982b8957a94fe0e41bb11561c8cf4b51541f	https://codeberg.org/Helium314/aosp-dictionaries/raw/commit/ff0cd52be8d9530200fefe8b296c53d4f662091e/dictionaries/main_en_gb__experimental.dict	CC BY 4.0 (Leipzig Corpora Collection word lists)	wordlists/main_en_GB__experimental.source line 2 at ff0cd52b: "license: source lists under CC BY 4.0"
 # Next-word models (ONNX, int8, Transformers.js export layout), measured with tools/nextword-eval.sh on the held-out Leipzig text of tools/dict-eval.sh

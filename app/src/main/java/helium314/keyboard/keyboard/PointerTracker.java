@@ -177,7 +177,6 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private final BatchInputArbiter mBatchInputArbiter;
     private final GestureStrokeDrawingPoints mGestureStrokeDrawingPoints;
 
-    // TODO: Add PointerTrackerFactory singleton and move some class static methods into it.
     public static void init(final TypedArray mainKeyboardViewAttr, final TimerProxy timerProxy,
             final DrawingProxy drawingProxy) {
         sParams = new PointerTrackerParams(mainKeyboardViewAttr);
@@ -869,17 +868,17 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
         if (mIsAllowedDraggingFinger) {
             processDraggingFingerInToNewKey(key, x, y, eventTime);
         }
-        // HACK: On some devices, quick successive proximate touches may be reported as a bogus
-        // down-move-up event by touch panel firmware. This hack detects such cases and breaks
+        // On some devices, quick successive proximate touches may be reported as a bogus
+        // down-move-up event by touch panel firmware. This workaround detects such cases and breaks
         // these events into separate up and down events.
         else if (sTypingTimeRecorder.isInFastTyping(eventTime)
                 && mBogusMoveEventDetector.isCloseToActualDownEvent(x, y)) {
             processProximateBogusDownMoveUpEventHack(key, x, y, eventTime, oldKey, lastX, lastY);
         }
-        // HACK: If there are currently multiple touches, register the key even if the finger
+        // If there are currently multiple touches, register the key even if the finger
         // slides off the key. This defends against noise from some touch panels when there are
         // close multiple touches.
-        // Caveat: When in chording input mode with a modifier key, we don't use this hack.
+        // Caveat: When in chording input mode with a modifier key, we don't use this workaround.
         else if (getActivePointerTrackerCount() > 1
                 && !sPointerTrackerQueue.hasModifierKeyOlderThan(this)) {
             if (DEBUG_MODE) {
@@ -973,7 +972,6 @@ public final class PointerTracker implements PointerTrackerQueue.Element,
     private void onMoveEventInternal(final int x, final int y, final long eventTime) {
         final Key oldKey = mCurrentKey;
 
-        // todo (later): move key swipe stuff to KeyboardActionListener (and finally extend it)
         if (mKeySwipeAllowed) {
             onKeySwipe(oldKey.getCode(), x, y, eventTime);
             return;

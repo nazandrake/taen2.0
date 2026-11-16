@@ -217,10 +217,6 @@ class ShadowInputMethodService {
             selectionStart = if (cursor > 0) composingEnd + cursor - 1
             else -cursor
             selectionEnd = selectionStart
-            // todo: this should call InputMethodManager#updateSelection(View, int, int, int, int)
-            //  but only after batch edit has ended
-            //  this is not used in RichInputMethodManager, but probably ends up in LatinIME.onUpdateSelection
-            //  -> DO IT (though it will likely only trigger that belatedSelectionUpdate thing, it might be relevant)
             return true
         }
         override fun setComposingRegion(p0: Int, p1: Int): Boolean {
@@ -254,7 +250,6 @@ class ShadowInputMethodService {
             return false // returns true if there is still a batch edit ongoing
         }
         // should notify about cursor info containing composing text, selection, ...
-        // todo: maybe that could be interesting, implement it?
         override fun requestCursorUpdates(p0: Int): Boolean {
             // we call this, but don't have onUpdateCursorAnchorInfo overridden in latinIME, so it does nothing
             // also currently we don't care about the return value
@@ -263,12 +258,10 @@ class ShadowInputMethodService {
         override fun setSelection(p0: Int, p1: Int): Boolean {
             selectionStart = p0
             selectionEnd = p1
-            // todo: call InputMethodService.onUpdateSelection(int, int, int, int, int, int), but only after batch edit is done!
             return true
         }
         // delete beforeLength before cursor position, and afterLength after cursor position
         // chars, not codepoints or glyphs
-        // todo: may delete only one half of a surrogate pair, but this should be avoided by RichInputConnection (maybe throw error)
         override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
             // delete only before or after selection
             text = textBeforeCursor.substring(0, textBeforeCursor.length - beforeLength) +

@@ -293,8 +293,6 @@ class KeyboardState(private val switchActions: SwitchActions) {
         updateAlphabetShiftState(autoCapsFlags, recapitalizeMode)
     }
 
-    // TODO: Remove this method. Come up with a more comprehensive way to reset the keyboard layout
-    //  when a keyboard layout set doesn't get reloaded in LatinIME.onStartInputViewInternal().
     fun onResetKeyboardStateToAlphabet(autoCapsFlags: Int, recapitalizeMode: RecapitalizeMode?) {
         if (DEBUG_EVENT) {
             Log.d(TAG, "onResetKeyboardStateToAlphabet")
@@ -320,7 +318,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
             return
         }
         if (shiftMode != ShiftMode.LOCKED) {
-            // todo: it's annoying when this happens in manual shift, but in order to block it we would
+            // It's annoying when this happens in manual shift, but in order to block it we would
             //  need to know whether this is an update for typing a letter that pops manual shift or
             //  moving the caret or whatever other cases. would also be nice for the space bar (and
             //  maybe other non-letter characters?) to not pop manual shift, which is especially
@@ -341,7 +339,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
                 PointerTracker.suppressShiftLongPress()
                 // As we are recapitalizing, we don't do any of the normal
                 // processing, including importantly the double tap timer.
-                // todo: this isn't detected before the first recapitalization
+                // This isn't detected before the first recapitalization
                 return
             }
             // In symbols mode, the shift key is actually the more-symbols toggle

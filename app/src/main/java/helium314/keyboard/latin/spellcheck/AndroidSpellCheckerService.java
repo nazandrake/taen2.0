@@ -56,7 +56,6 @@ public final class AndroidSpellCheckerService extends SpellCheckerService
 
     private final int MAX_NUM_OF_THREADS_READ_DICTIONARY = 2;
     private final Semaphore mSemaphore = new Semaphore(MAX_NUM_OF_THREADS_READ_DICTIONARY, true);
-    // TODO: Make each spell checker session has its own session id.
     private final ConcurrentLinkedQueue<Integer> mSessionIdPool = new ConcurrentLinkedQueue<>();
 
     private final DictionaryFacilitatorLruCache mDictionaryFacilitatorCache =

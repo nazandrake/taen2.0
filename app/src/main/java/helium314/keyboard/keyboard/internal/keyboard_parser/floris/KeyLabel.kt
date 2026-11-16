@@ -149,9 +149,6 @@ object KeyLabel {
         else -> "!icon/${KeyboardIconsSet.NAME_SHIFT_KEY}"
     }
 
-    // todo (later): try avoiding this weirdness
-    //  maybe just remove it and if users want it they can use custom functional layouts?
-    //  but it has been like this "forever" and actually seems to make sense
     private fun getPeriodLabel(params: KeyboardParams): String {
         if (params.mId.element.isNumberLayout) return "."
         if (params.mId.element.isAlphabet || params.mId.locale.language == "ar" || params.mId.locale.language == "fa")
@@ -164,7 +161,6 @@ object KeyLabel {
             "!icon/space_key|!code/key_space"
         else "!icon/space_key_for_number_layout|!code/key_space"
 
-    // todo (later): should this be handled with metaState? but metaState shift would require LOTS of changes...
     private fun getActionKeyCode(params: KeyboardParams): String {
         params.mId.internalAction?.let { return "${KeyboardCodesSet.PREFIX_CODE}${it.code}" }
         return if (params.mId.isMultiLine && params.mId.element == KeyboardElement.ALPHABET_MANUAL_SHIFTED)

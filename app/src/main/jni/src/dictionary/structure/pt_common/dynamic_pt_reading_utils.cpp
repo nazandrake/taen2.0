@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +28,6 @@ const DynamicPtReadingUtils::NodeFlags DynamicPtReadingUtils::FLAG_IS_MOVED = 0x
 const DynamicPtReadingUtils::NodeFlags DynamicPtReadingUtils::FLAG_IS_DELETED = 0x80;
 const DynamicPtReadingUtils::NodeFlags DynamicPtReadingUtils::FLAG_WILL_BECOME_NON_TERMINAL = 0x00;
 
-// TODO: Make DICT_OFFSET_ZERO_OFFSET = 0.
 // Currently, DICT_OFFSET_INVALID is 0 in Java side but offset can be 0 during GC. So, the maximum
 // value of offsets, which is 0x7FFFFF is used to represent 0 offset.
 const int DynamicPtReadingUtils::DICT_OFFSET_INVALID = 0;

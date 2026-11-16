@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +22,6 @@
 
 namespace latinime {
 
-// TODO: Have a .cpp for this class
 class DicNodeStateInput {
  public:
     DicNodeStateInput() {}
@@ -29,8 +29,6 @@ class DicNodeStateInput {
 
     void init() {
         for (int i = 0; i < MAX_POINTER_COUNT_G; i++) {
-            // TODO: The initial value for mInputIndex should be -1?
-            //mInputIndex[i] = i == 0 ? 0 : -1;
             mInputIndex[i] = 0;
             mPrevCodePoint[i] = NOT_A_CODE_POINT;
             mTerminalDiffCost[i] = static_cast<float>(MAX_VALUE_FOR_WEIGHTING);

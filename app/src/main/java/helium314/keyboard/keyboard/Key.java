@@ -124,7 +124,6 @@ public class Key implements Comparable<Key> {
     private static final int POPUP_KEYS_FLAGS_HAS_LABELS = 0x40000000;
     private static final int POPUP_KEYS_FLAGS_NEEDS_DIVIDERS = 0x20000000;
     private static final int POPUP_KEYS_FLAGS_NO_PANEL_AUTO_POPUP_KEY = 0x10000000;
-    // TODO: Rename these specifiers to !autoOrder! and !fixedOrder! respectively.
     public static final String POPUP_KEYS_AUTO_COLUMN_ORDER = "!autoColumnOrder!";
     public static final String POPUP_KEYS_FIXED_COLUMN_ORDER = "!fixedColumnOrder!";
     public static final String POPUP_KEYS_HAS_LABELS = "!hasLabels!";
@@ -205,7 +204,6 @@ public class Key implements Comparable<Key> {
         mHintIconName = null;
         mLabelFlags = labelFlags;
         mBackgroundType = backgroundType;
-        // TODO: Pass keyActionFlags as an argument.
         mActionFlags = ACTION_FLAGS_NO_KEY_PREVIEW;
         mPopupKeys = null;
         mPopupKeysColumnAndFlags = 0;
@@ -1023,7 +1021,6 @@ public class Key implements Comparable<Key> {
             if (!isSpacer && mWidth == 0)
                 throw new IllegalStateException("width = 0 should have been evaluated already");
             if (mHeight < 0)
-                // todo (later): deal with it properly when it needs to be adjusted, i.e. when changing popupKeys or moreSuggestions
                 throw new IllegalStateException("can't (yet) deal with absolute height");
             xPos = newX;
             yPos = newY;
@@ -1075,7 +1072,6 @@ public class Key implements Comparable<Key> {
          *  setDimensionsFromRelativeSize needs to be called before creating the key
          */
         public KeyParams(
-                // todo (much later): replace keySpec? these encoded icons and codes are not really great
                 @NonNull final String keySpec, // key text or some special string for KeySpecParser, e.g. "!icon/shift_key|!code/key_shift" (avoid using !text, should be removed)
                 final int code,
                 @NonNull final KeyboardParams params,
@@ -1248,7 +1244,6 @@ public class Key implements Comparable<Key> {
                 }
                 mActionFlags = actionFlags;
             } else {
-                // TODO: Pass keyActionFlags as an argument.
                 mActionFlags = ACTION_FLAGS_NO_KEY_PREVIEW;
                 mPopupKeys = null;
                 mPopupKeysColumnAndFlags = 0;

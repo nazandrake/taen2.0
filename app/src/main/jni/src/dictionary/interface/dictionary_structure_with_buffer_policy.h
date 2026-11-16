@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +63,6 @@ class DictionaryStructureWithBufferPolicy {
     virtual const WordAttributes getWordAttributesInContext(const WordIdArrayView prevWordIds,
             const int wordId, MultiBigramMap *const multiBigramMap) const = 0;
 
-    // TODO: Remove
     virtual int getProbability(const int unigramProbability, const int bigramProbability) const = 0;
 
     virtual int getProbabilityOfWord(const WordIdArrayView prevWordIds, const int wordId) const = 0;

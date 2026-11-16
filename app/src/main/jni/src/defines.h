@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +39,6 @@
 #define MAX_PROXIMITY_CHARS_SIZE 16
 #define ADDITIONAL_PROXIMITY_CHAR_DELIMITER_CODE 2
 
-// TODO: Use size_t instead of int.
 // Disclaimer: You will see a compile error if you use this macro against a variable-length array.
 // Sorry for the inconvenience. It isn't supported.
 template <typename T, int N>
@@ -210,13 +210,11 @@ AK_FORCE_INLINE static int intArrayToCharArray(const int *const source, const in
 #define MAX_BIGRAM_ENCODED_PROBABILITY 15
 
 // Max value for length, distance and probability which are used in weighting
-// TODO: Remove
 #define MAX_VALUE_FOR_WEIGHTING 10000000
 
 // The max number of the keys in one keyboard layout
 #define MAX_KEY_COUNT_IN_A_KEYBOARD 64
 
-// TODO: Remove
 #define MAX_POINTER_COUNT 1
 #define MAX_POINTER_COUNT_G 2
 

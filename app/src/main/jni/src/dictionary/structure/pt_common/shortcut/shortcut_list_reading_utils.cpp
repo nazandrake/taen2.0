@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +46,6 @@ const int ShortcutListReadingUtils::WHITELIST_SHORTCUT_PROBABILITY = 15;
 
 /* static */ int ShortcutListReadingUtils::readShortcutTarget(const ReadOnlyByteArrayView buffer,
         const int maxLength, int *const outWord, int *const pos) {
-    // TODO: Use codePointTable for shortcuts.
     return ByteArrayUtils::readStringAndAdvancePosition(buffer.data(), maxLength,
             nullptr /* codePointTable */, outWord, pos);
 }

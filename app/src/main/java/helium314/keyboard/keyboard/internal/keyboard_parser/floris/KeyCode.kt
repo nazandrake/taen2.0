@@ -231,7 +231,6 @@ object KeyCode {
         else -> false
     }
 
-    // todo: there are many more keys, see near https://developer.android.com/reference/android/view/KeyEvent#KEYCODE_0
     /**
      *  Convert an internal keyCode to a KeyEvent.KEYCODE_<xxx>.
      *  Positive codes are passed through, unknown negative codes result in KeyEvent.KEYCODE_UNKNOWN.
@@ -274,7 +273,6 @@ object KeyCode {
         else -> if (keyCode < 0) KeyEvent.KEYCODE_UNKNOWN else keyCode
     }
 
-    // todo: there are many more keys, see near https://developer.android.com/reference/android/view/KeyEvent#KEYCODE_0
     /**
      *  Convert a codePoint to a KeyEvent.KEYCODE_<xxx>.
      *  Fallback to KeyEvent.KEYCODE_UNKNOWN.

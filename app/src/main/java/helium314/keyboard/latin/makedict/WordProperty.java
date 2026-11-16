@@ -29,7 +29,6 @@ public final class WordProperty implements Comparable<WordProperty> {
     public final ProbabilityInfo mProbabilityInfo;
     public final ArrayList<WeightedString> mShortcutTargets;
     public final ArrayList<NgramProperty> mNgrams;
-    // TODO: Support mIsBeginningOfSentence.
     public final boolean mIsBeginningOfSentence;
     public final boolean mIsNotAWord;
     public final boolean mIsPossiblyOffensive;
@@ -38,7 +37,6 @@ public final class WordProperty implements Comparable<WordProperty> {
 
     private int mHashCode = 0;
 
-    // TODO: Support n-gram.
     public WordProperty(final String word, final ProbabilityInfo probabilityInfo,
             final ArrayList<WeightedString> shortcutTargets,
             @Nullable final ArrayList<WeightedString> bigrams,
@@ -120,7 +118,6 @@ public final class WordProperty implements Comparable<WordProperty> {
         }
     }
 
-    // TODO: Remove
     public ArrayList<WeightedString> getBigrams() {
         if (null == mNgrams) {
             return null;

@@ -68,10 +68,8 @@ public final class InputAttributes {
             if (null == editorInfo) {
                 Log.w(TAG, "No editor info for this field. Bug?");
             } else if (InputType.TYPE_NULL == mInputType) {
-                // TODO: We should honor TYPE_NULL specification.
                 Log.i(TAG, "InputType.TYPE_NULL is specified");
             } else if (inputClass == 0) {
-                // TODO: is this check still necessary?
                 Log.w(TAG, "Unexpected input class: inputType=0x imeOptions=0x");
             }
             mShouldShowSuggestions = false;
@@ -91,7 +89,6 @@ public final class InputAttributes {
         final boolean flagAutoCorrect = 0 != (mInputType & InputType.TYPE_TEXT_FLAG_AUTO_CORRECT);
         final boolean flagAutoComplete = 0 != (mInputType & InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE);
 
-        // TODO: Have a helper method in InputTypeUtils
         // Make sure that passwords are not displayed in {@link SuggestionStripView}.
         mShouldShowSuggestions = !mIsPasswordField && !flagNoSuggestions;
         mMayOverrideShowingSuggestions = !mIsPasswordField;

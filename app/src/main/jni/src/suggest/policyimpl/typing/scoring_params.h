@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,8 +41,6 @@ class ScoringParams {
     static const float DIGRAPH_PENALTY_FOR_EXACT_MATCH;
 
     // Numerically optimized parameters (currently for tap typing only).
-    // TODO: add ability to modify these constants programmatically.
-    // TODO: explore optimization of gesture parameters.
     static const float DISTANCE_WEIGHT_LENGTH;
     static const float PROXIMITY_COST;
     static const float FIRST_CHAR_PROXIMITY_COST;

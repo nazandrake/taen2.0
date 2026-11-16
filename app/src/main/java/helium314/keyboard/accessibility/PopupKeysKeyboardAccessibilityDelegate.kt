@@ -85,14 +85,10 @@ class PopupKeysKeyboardAccessibilityDelegate(
             // Invoke {@link PopupKeysKeyboardView#onUpEvent(int,int,int,long)} as if this hover
             // exit event selects a key.
             mKeyboardView.onUpEvent(x, y, pointerId, eventTime)
-            // TODO: Should fix this reference. This is a hack to clear the state of
-            // {@link PointerTracker}.
             PointerTracker.dismissAllPopupKeysPanels()
             return
         }
         // Close the popup keys keyboard.
-        // TODO: Should fix this reference. This is a hack to clear the state of
-        // {@link PointerTracker}.
         PointerTracker.dismissAllPopupKeysPanels()
     }
 

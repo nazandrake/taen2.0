@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,7 +51,7 @@ const ProbabilityEntry ProbabilityDictContent::getProbabilityEntry(const int ter
                 Ver4DictConstants::WORD_LEVEL_FIELD_SIZE, &entryPos);
         const int count = buffer->readUintAndAdvancePosition(
                 Ver4DictConstants::WORD_COUNT_FIELD_SIZE, &entryPos);
-        // Hack for better migration.
+        // Workaround for better migration.
         const HistoricalInfo historicalInfo(timestamp, level, count + level);
         return ProbabilityEntry(flags, probability, &historicalInfo);
     } else {

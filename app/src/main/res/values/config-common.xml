@@ -25,7 +25,6 @@
     <dimen name="config_sliding_key_input_preview_width">8.0dp</dimen>
     <!-- Percentages of sliding key input preview body and shadow, in proportion to the width.
          A negative value of the shadow ratio disables drawing shadow. -->
-    <!-- TODO: May use the shadow to alleviate rugged trail drawing. -->
     <integer name="config_sliding_key_input_preview_body_ratio">100</integer>
     <integer name="config_sliding_key_input_preview_shadow_ratio">-1</integer>
     <dimen name="config_key_hysteresis_distance_for_sliding_modifier">8.0dp</dimen>
@@ -91,7 +90,6 @@
     <dimen name="config_gesture_trail_end_width">2.5dp</dimen>
     <!-- Percentages of gesture preview taril body and shadow, in proportion to the trail width.
          A negative value of the shadow ratio disables drawing shadow. -->
-    <!-- TODO: May use the shadow to alleviate rugged trail drawing. -->
     <integer name="config_gesture_trail_body_ratio">100</integer>
     <integer name="config_gesture_trail_shadow_ratio">-1</integer>
 

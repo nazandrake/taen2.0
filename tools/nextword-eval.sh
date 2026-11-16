@@ -31,7 +31,7 @@ while IFS="$(printf '\t')" read -r id kind _locale size sha url _licence _source
 done < <(grep -v '^#' "$root/tools/downloads.lock")
 
 # the word list and word pairs of each dictionary: tools/dict-eval.sh leaves the dump of its last file as dump.tsv in TAEN_NATIVE_TEST_DIR
-TAEN_NATIVE_TEST_DIR="$work/en" "$root/tools/dict-eval.sh" "$work/text/eng_wikipedia_2016_10K/eng_wikipedia_2016_10K-sentences.txt" qwerty "$root/app/src/main/assets/dicts/main_en-US.dict"
+TAEN_NATIVE_TEST_DIR="$work/en" "$root/tools/dict-eval.sh" "$work/text/eng_wikipedia_2016_10K/eng_wikipedia_2016_10K-sentences.txt" qwerty "$root/app/src/main/assets/dicts/main_en-GB.dict"
 TAEN_NATIVE_TEST_DIR="$work/bg" "$root/tools/dict-eval.sh" "$work/text/bul_wikipedia_2021_10K/bul_wikipedia_2021_10K-sentences.txt" bg "$work/models/main_bg.dict"
 python3 -I "$root/tools/nextword/contexts.py" "$work/en/dump.tsv" "$work/text/eng_wikipedia_2016_10K/eng_wikipedia_2016_10K-sentences.txt" qwerty "$work/eval/en"
 python3 -I "$root/tools/nextword/contexts.py" "$work/bg/dump.tsv" "$work/text/bul_wikipedia_2021_10K/bul_wikipedia_2021_10K-sentences.txt" bg "$work/eval/bg"

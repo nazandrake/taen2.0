@@ -94,8 +94,6 @@ sealed interface KeyData : AbstractKeyData {
          */
         const val GROUP_KANA: Int = 97
 
-        // todo: emoji and language switch popups should actually disappear depending on current layout (including functional keys)
-        //  keys could be replaced with toolbar keys, but parsing needs to be adjusted (should happen anyway...)
         private fun getCommaPopupKeys(params: KeyboardParams): List<String> {
             val keys = mutableListOf<String>()
             if (!params.mId.deviceLocked)
@@ -146,7 +144,6 @@ sealed interface KeyData : AbstractKeyData {
         }
 
         private fun getStringInLocale(id: Int, params: KeyboardParams): String {
-            // todo: hi-Latn strings instead of this workaround?
             val locale = if (params.mId.locale.toLanguageTag() == "hi-Latn") "en_IN".constructLocale()
             else params.mId.locale
             return Settings.getInstance().getInLocale(id, locale)
@@ -275,8 +272,6 @@ sealed interface KeyData : AbstractKeyData {
         if (code >= 32) {
             if (newLabel.startsWith(KeyboardIconsSet.PREFIX_ICON)) {
                 // we ignore everything after the first |
-                // todo (later): for now this is fine, but it should rather be done when creating the popup key,
-                //  and it should be consistent with other popups and also with normal keys
                 return "${newLabel.substringBefore("|")}|${StringUtils.newSingleCodePointString(code)}"
             }
             return "$newLabel|${StringUtils.newSingleCodePointString(code)}"
@@ -431,7 +426,6 @@ sealed interface KeyData : AbstractKeyData {
         else params.mDefaultKeyWidth
     }
 
-    // todo (later): add explanations / reasoning, often this is just taken from conversion from OpenBoard / AOSP layouts
     private fun getAdditionalLabelFlags(params: KeyboardParams): Int {
         return when (label) {
             KeyLabel.ALPHA, KeyLabel.SYMBOL_ALPHA, KeyLabel.SYMBOL -> Key.LABEL_FLAGS_PRESERVE_CASE
@@ -613,8 +607,6 @@ class MultiTextKeyData(
     @Transient override val code: Int = KeyCode.MULTIPLE_CODE_POINTS
 
     override fun compute(params: KeyboardParams, isPopup: Boolean): KeyData {
-        // todo: does this work? maybe convert label to | style?
-        //  but if i allow negative codes, ctrl+z could be on a single key (but floris doesn't support this anyway)
         return this
     }
 

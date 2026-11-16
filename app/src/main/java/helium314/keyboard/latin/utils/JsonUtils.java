@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-// todo: remove around end of 2026 (used only for upgrading old recent emoji pref)
 public final class JsonUtils {
     private static final String TAG = JsonUtils.class.getSimpleName();
 

@@ -159,7 +159,7 @@
     <!-- Option to undo auto correction with backspace -->
     <string name="backspace_reverts_autocorrect">Backspace reverts autocorrect</string>
     <!-- Option to disable auto correction. -->
-    <string name="auto_correction_threshold_mode_off">Off</string> <!-- todo: use it or remove it -->
+    <string name="auto_correction_threshold_mode_off">Off</string>
     <!-- Option to suggest auto correction suggestions modestly. Auto-corrects only to a word which has small edit distance from typed word. -->
     <string name="auto_correction_threshold_mode_modest">Modest</string>
     <!-- Option to suggest auto correction suggestions aggressively. Auto-corrects to a word which has even large edit distance from typed word. -->
@@ -524,7 +524,7 @@
     <string name="prefs_long_press_keyboard_to_change_lang_summary">Long pressing space key will prompt input method selection menu</string>
     <!-- Title of the setting enabling long press on symbols key to switch to numpad -->
     <string name="prefs_long_press_symbol_for_numpad">Long press symbols key for numpad</string>
-    <!-- Title of the setting for reduced distance between keys, todo: not used any more -->
+    <!-- Title of the setting for reduced distance between keys -->
     <string name="prefs_narrow_key_gaps">Narrow key gaps</string>
     <!-- Title of the setting for setting distance between keys -->
     <string name="prefs_key_gap_scale">Key gap scale</string>
@@ -827,7 +827,7 @@ New dictionary:
     <!-- User dictionary settings. The list item to choose to insert a word into the user dictionary for all languages -->
     <string name="user_dict_settings_all_languages">For all languages</string>
     <!-- User dictionary settings. The text to show for the option that shows the entire list of supported locales to choose one -->
-    <string name="user_dict_settings_more_languages">More languages…</string> <!-- todo: use it or remove it -->
+    <string name="user_dict_settings_more_languages">More languages…</string>
     <!-- Message in user dictionary dialog -->
     <string name="user_dict_word_already_present">This word is already present in the %s user dictionary. Please type another one.</string>
     <!-- User dictionary settings. Text button to add a word -->
@@ -858,7 +858,7 @@ New dictionary:
     <string name="theme_name_holo_white" tools:keep="@string/theme_name_holo_white">Holo White</string>
     <!-- Theme name for dark theme (based on old no-border dark) -->
     <string name="theme_name_dark" tools:keep="@string/theme_name_dark">Dark</string>
-    <!-- Theme name for darker theme (based on old border dark), todo: re-consider that stupid name -->
+    <!-- Theme name for darker theme (based on old border dark) -->
     <string name="theme_name_darker" tools:keep="@string/theme_name_darker">Darker</string>
     <!-- Theme name for black theme (based on old amoled black) -->
     <string name="theme_name_black" tools:keep="@string/theme_name_black">Black</string>

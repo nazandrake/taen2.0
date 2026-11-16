@@ -83,7 +83,7 @@ public final class StringUtils {
         if (s.length() <= 1) {
             return s.toUpperCase(getLocaleUsedForToTitleCase(locale));
         }
-        // TODO: fix the bugs below
+        // Known limitations:
         // - It does not work for Serbian, because it fails to account for the "lj" character,
         // which should be "Lj" in title case and "LJ" in upper case.
         // - It does not work for Dutch, because it fails to account for the "ij" digraph when it's
@@ -150,8 +150,6 @@ public final class StringUtils {
         for (int index = startIndex; index < endIndex;
              index = Character.offsetByCodePoints(charSequence, index, 1)) {
             final int codePoint = Character.codePointAt(charSequence, index);
-            // TODO: stop using this, as it's not aware of the locale and does not always do
-            // the right thing.
             destination[destIndex] = downCase ? Character.toLowerCase(codePoint) : codePoint;
             destIndex++;
         }
@@ -266,7 +264,7 @@ public final class StringUtils {
         return true;
     }
 
-    // TODO: like capitalizeFirst*, this does not work perfectly for Dutch because of the IJ digraph
+    // Like capitalizeFirst*, this does not work perfectly for Dutch because of the IJ digraph
     // which should be capitalized together in *some* cases.
     @NonNull
     public static String capitalizeEachWord(@NonNull final String text,
@@ -301,7 +299,7 @@ public final class StringUtils {
      * <p>
      * Note: this method is called quite often, and should be fast.
      * <p>
-     * TODO: This will return that "abc./def" and ".abc/def" look like URLs to keep down the
+     * This will return that "abc./def" and ".abc/def" look like URLs to keep down the
      * code complexity, but ideally it should not. It's acceptable for now.
      */
     public static boolean lastPartLooksLikeURL(@NonNull final CharSequence text) {

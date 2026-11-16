@@ -65,7 +65,7 @@ fun LayoutPickerDialog(
     val prefs = ctx.prefs()
     val b = (ctx.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
-        Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+        Log.v("recompose", "preference changed")
 
     val currentLayout = Settings.readDefaultLayoutName(layoutType, prefs)
     val internalLayouts = LayoutUtils.getAvailableLayouts(layoutType, ctx)

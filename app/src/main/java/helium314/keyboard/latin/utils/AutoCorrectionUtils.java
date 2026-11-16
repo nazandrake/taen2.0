@@ -29,8 +29,6 @@ public final class AutoCorrectionUtils {
                 return false;
             }
             final int autoCorrectionSuggestionScore = suggestion.mScore;
-            // TODO: when the normalized score of the first suggestion is nearly equals to
-            //       the normalized score of the second suggestion, behave less aggressive.
             final float normalizedScore = BinaryDictionaryUtils.calcNormalizedScore(
                     consideredWord, suggestion.mWord, autoCorrectionSuggestionScore);
             if (DebugFlags.DEBUG_ENABLED) {

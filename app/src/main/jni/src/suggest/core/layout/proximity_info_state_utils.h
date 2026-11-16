@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -102,7 +103,6 @@ class ProximityInfoStateUtils {
             const std::vector<int> *const sampledInputYs,
             const std::vector<int> *const sampledTimes,
             const std::vector<int> *const sampledInputIndices);
-    // TODO: Move to most_probable_string_utils.h
     static float getMostProbableString(const ProximityInfo *const proximityInfo,
             const int sampledInputSize,
             const std::vector<std::unordered_map<int, float>> *const charProbabilities,

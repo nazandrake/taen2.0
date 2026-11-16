@@ -18,7 +18,7 @@ import java.util.zip.GZIPInputStream
 import javax.xml.parsers.ParserConfigurationException
 
 object DictIO {
-    // todo: files differ from dicttool, but are same size and are usable
+    // Files differ from dicttool, but are same size and are usable
     @Throws(FileNotFoundException::class, IOException::class, UnsupportedFormatException::class)
     fun writeBinaryDictionary(
         outputFilename: String,

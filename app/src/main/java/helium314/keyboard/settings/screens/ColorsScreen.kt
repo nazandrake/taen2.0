@@ -77,7 +77,7 @@ fun ColorsScreen(
     val prefs = ctx.prefs()
     val b = (ctx.getActivity() as? SettingsActivity)?.prefChanged?.collectAsState()
     if ((b?.value ?: 0) < 0)
-        Log.v("irrelevant", "stupid way to trigger recomposition on preference change")
+        Log.v("recompose", "preference changed")
 
     val themeName = theme ?: if (isNight) prefs.getString(Settings.PREF_THEME_COLORS_NIGHT, Defaults.PREF_THEME_COLORS_NIGHT)!!
         else prefs.getString(Settings.PREF_THEME_COLORS, Defaults.PREF_THEME_COLORS)!!
@@ -149,7 +149,6 @@ fun ColorsScreen(
                     nameField = it
                 },
                 isError = !nameValid,
-//                supportingText = { if (!nameValid) Text(stringResource(R.string.name_invalid)) } // todo: this is cutting off bottom half of the actual text...
                 trailingIcon = { if (!nameValid) CloseIcon(R.string.name_invalid) },
                 singleLine = true,
                 textStyle = contentTextDirectionStyle,

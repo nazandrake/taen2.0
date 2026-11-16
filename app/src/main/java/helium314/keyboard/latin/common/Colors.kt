@@ -186,9 +186,6 @@ class DynamicColors(context: Context, override val themeStyle: String, override 
             navBar = background
         }
 
-        // todo (idea): make better use of the states?
-        //  could also use / create StateListDrawables in colors (though that's a style than a color...)
-        //  this would better allow choosing e.g. cornered/rounded drawables for poup keys or moreSuggestions
         backgroundFilter = colorFilter(background)
         adjustedKeyText = brightenOrDarken(keyText, true)
 
@@ -244,7 +241,7 @@ class DynamicColors(context: Context, override val themeStyle: String, override 
                 else keyStateList
 
         } else {
-            // need to set color to background if key borders are disabled, or there will be ugly keys
+            // need to set color to background if key borders are disabled, or the keys are drawn without a background
             backgroundStateList =
                 if (!isNight) pressedStateList(adjustedFunctionalKey, background)
                 else pressedStateList(adjustedKeyBackground, background)
@@ -458,7 +455,7 @@ class DefaultColors (
             spaceBarStateList = if (themeStyle == STYLE_HOLO) pressedStateList(spaceBar, spaceBar)
                 else pressedStateList(brightenOrDarken(spaceBar, true), spaceBar)
         } else {
-            // need to set color to background if key borders are disabled, or there will be ugly keys
+            // need to set color to background if key borders are disabled, or the keys are drawn without a background
             backgroundStateList = pressedStateList(brightenOrDarken(background, true), background)
             keyStateList = pressedStateList(keyBackground, Color.TRANSPARENT)
             functionalKeyStateList = keyStateList

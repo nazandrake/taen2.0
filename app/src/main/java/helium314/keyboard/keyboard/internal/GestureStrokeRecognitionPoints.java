@@ -17,7 +17,6 @@ import java.util.Locale;
 
 /**
  * This class holds event points to recognize a gesture stroke.
- * TODO: Should be package private class.
  */
 public final class GestureStrokeRecognitionPoints {
     private static final String TAG = GestureStrokeRecognitionPoints.class.getSimpleName();
@@ -62,19 +61,16 @@ public final class GestureStrokeRecognitionPoints {
 
     private static final int MSEC_PER_SEC = 1000;
 
-    // TODO: Make this package private
     public GestureStrokeRecognitionPoints(final int pointerId,
             final GestureStrokeRecognitionParams recognitionParams) {
         mPointerId = pointerId;
         mRecognitionParams = recognitionParams;
     }
 
-    // TODO: Make this package private
     public void setKeyboardGeometry(final int keyWidth, final int keyboardHeight) {
         mKeyWidth = keyWidth;
         mMinYCoordinate = -(int)(keyboardHeight * EXTRA_GESTURE_TRAIL_AREA_ABOVE_KEYBOARD_RATIO);
         mMaxYCoordinate = keyboardHeight;
-        // TODO: Find an appropriate base metric for these length. Maybe diagonal length of the key?
         mDetectFastMoveSpeedThreshold = (int)(
                 keyWidth * mRecognitionParams.mDetectFastMoveSpeedThreshold);
         mGestureDynamicDistanceThresholdFrom = (int)(
@@ -90,12 +86,10 @@ public final class GestureStrokeRecognitionPoints {
         }
     }
 
-    // TODO: Make this package private
     public int getLength() {
         return mEventTimes.getLength();
     }
 
-    // TODO: Make this package private
     public void addDownEventPoint(final int x, final int y, final int elapsedTimeSinceFirstDown,
             final int elapsedTimeSinceLastTyping) {
         reset();
@@ -131,7 +125,6 @@ public final class GestureStrokeRecognitionPoints {
         return mRecognitionParams.mDynamicTimeThresholdFrom - decayedThreshold;
     }
 
-    // TODO: Make this package private
     public boolean isStartOfAGesture() {
         if (!hasDetectedFastMove()) {
             return false;
@@ -158,7 +151,6 @@ public final class GestureStrokeRecognitionPoints {
         return isStartOfAGesture;
     }
 
-    // TODO: Make this package private
     public void duplicateLastPointWith(final int time) {
         final int lastIndex = getLength() - 1;
         if (lastIndex >= 0) {
@@ -167,7 +159,6 @@ public final class GestureStrokeRecognitionPoints {
             if (DEBUG) {
                 Log.d(TAG, "duplicateLastPointWith");
             }
-            // TODO: Have appendMajorPoint()
             appendPoint(x, y, time);
             updateIncrementalRecognitionSize(x, y, time);
         }
@@ -245,7 +236,6 @@ public final class GestureStrokeRecognitionPoints {
      * @param isMajorEvent false if this is a historical move event
      * @return true if the event point is on the valid gesture area
      */
-    // TODO: Make this package private
     public boolean addEventPoint(final int x, final int y, final int time,
             final boolean isMajorEvent) {
         final int size = getLength();
@@ -279,18 +269,15 @@ public final class GestureStrokeRecognitionPoints {
         }
     }
 
-    // TODO: Make this package private
     public boolean hasRecognitionTimePast(
             final long currentTime, final long lastRecognitionTime) {
         return currentTime > lastRecognitionTime + mRecognitionParams.mRecognitionMinimumTime;
     }
 
-    // TODO: Make this package private
     public void appendAllBatchPoints(final InputPointers out) {
         appendBatchPoints(out, getLength());
     }
 
-    // TODO: Make this package private
     public void appendIncrementalBatchPoints(final InputPointers out) {
         appendBatchPoints(out, mIncrementalRecognitionSize);
     }

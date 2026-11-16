@@ -198,7 +198,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
     }
 
     public void endBatchEdit() {
-        if (mNestLevel <= 0) Log.e(TAG, "Batch edit not in progress!"); // TODO: exception instead
+        if (mNestLevel <= 0) Log.e(TAG, "Batch edit not in progress!");
         if (--mNestLevel == 0 && isConnected()) {
             mIC.endBatchEdit();
         }
@@ -285,7 +285,6 @@ public final class RichInputConnection implements PrivateCommandPerformer {
 
     private void checkBatchEdit() {
         if (mNestLevel != 1) {
-            // TODO: exception instead
             Log.e(TAG, "Batch edit level incorrect");
             Log.e(TAG, "unexpected state (caller trace omitted)");
         }
@@ -294,7 +293,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
     public void finishComposingText() {
         if (DEBUG_BATCH_NESTING) checkBatchEdit();
         if (DEBUG_PREVIOUS_TEXT) checkConsistencyForDebug();
-        // TODO: this is not correct! The cursor is not necessarily after the composing text.
+        // This is not correct! The cursor is not necessarily after the composing text.
         // In the practice right now this is only called when input ends so it will be reset so
         // it works, but it's wrong and should be fixed.
         mCommittedTextBeforeComposingText.append(mComposingText);
@@ -320,7 +319,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         if (DebugFlags.DEBUG_ENABLED)
             Log.d(TAG, "committing characters");
         mCommittedTextBeforeComposingText.append(text);
-        // TODO: the following is exceedingly error-prone. Right now when the cursor is in the
+        // The following is exceedingly error-prone. Right now when the cursor is in the
         //  middle of the composing word mComposingText only holds the part of the composing text
         //  that is before the cursor, so this actually works, but it's terribly confusing. Fix this.
         mExpectedSelStart += text.length() - mComposingText.length();
@@ -396,7 +395,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
             // We have some composing text - we should be in MODE_CHARACTERS only.
             return TextUtils.CAP_MODE_CHARACTERS & inputType;
         }
-        // TODO: this will generally work, but there may be cases where the buffer contains SOME
+        // This will generally work, but there may be cases where the buffer contains SOME
         //  information but not enough to determine the caps mode accurately. This may happen after
         //  heavy pressing of delete, for example DEFAULT_TEXT_CACHE_SIZE - 5 times or so.
         //  getCapsMode should be updated to be able to return a "not enough info" result so that
@@ -408,8 +407,6 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         }
         // This never calls InputConnection#getCapsMode - in fact, it's a static method that
         // never blocks or initiates IPC.
-        // TODO: don't call #toString() here. Instead, all accesses to
-        //  mCommittedTextBeforeComposingText should be done on the main thread.
         return CapsModeUtils.getCapsMode(mCommittedTextBeforeComposingText.toString(), inputType,
                 spacingAndPunctuations, hasSpaceBefore);
     }
@@ -487,7 +484,6 @@ public final class RichInputConnection implements PrivateCommandPerformer {
             // 1. the app actively changes text field content, e.g. joplin when deleting list markers like "2."
             // 2. the app has outdated contents in the text field, e.g. com.farmerbb.notepad returns the
             //     just deleted char right after deletion, instead of the correct one
-            //     todo: understand where this inconsistent state comes from, is it really the other app's fault, or is it HeliBoard?
             Log.w(TAG, "cached text out of sync, reloading");
             reloadCursorPosition();
             reloadTextCache();
@@ -515,7 +511,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
                 // take last char from mCommittedTextBeforeComposingText, consider composing length
                 final int index = mCommittedTextBeforeComposingText.length() - 1 - (i - composingLength);
                 if (index < mCommittedTextBeforeComposingText.length() && index >= 0)
-                    // todo: this can still cause an exception if mCommittedTextBeforeComposingText changes just at the right time (different threads!)
+                    // This can still cause an exception if mCommittedTextBeforeComposingText changes just at the right time (different threads!)
                     currentCachedChar = mCommittedTextBeforeComposingText.charAt(index);
                 else return lastIndex > 100; // still let it pass if the same character is repeated many times, but cached text too short
             }
@@ -566,7 +562,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
 
     public void deleteTextBeforeCursor(final int beforeLength) {
         if (DEBUG_BATCH_NESTING) checkBatchEdit();
-        // TODO: the following is incorrect if the cursor is not immediately after the composition.
+        // The following is incorrect if the cursor is not immediately after the composition.
         //  Right now we never come here in this case because we reset the composing state before we
         //  come here in this case, but we need to fix this.
         if (DebugFlags.DEBUG_ENABLED)
@@ -632,7 +628,6 @@ public final class RichInputConnection implements PrivateCommandPerformer {
                     mComposingText.delete(mComposingText.length() - 1, mComposingText.length());
                 }
                 if (mExpectedSelStart > 0 && mExpectedSelStart == mExpectedSelEnd) {
-                    // TODO: Handle surrogate pairs.
                     mExpectedSelStart -= 1;
                 }
                 mExpectedSelEnd = mExpectedSelStart;
@@ -695,8 +690,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         mExpectedSelEnd = mExpectedSelStart;
         mComposingText.setLength(0);
         mComposingText.append(text);
-        // TODO: support values of newCursorPosition != 1. At this time, this is never called with
-        //  newCursorPosition != 1.
+        // only newCursorPosition == 1 is supported; no caller passes another value
         if (isConnected()) {
             if (DebugFlags.DEBUG_ENABLED)
                 Log.d(TAG, "setting composing text of length"); // don't log actual text
@@ -835,7 +829,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
             final int checkLength = NUM_CHARS_TO_GET_BEFORE_CURSOR - 1;
             final String reference = prev.length() <= checkLength ? prev.toString()
                     : prev.subSequence(prev.length() - checkLength, prev.length()).toString();
-            // TODO: right now the following works because mComposingText holds the part of the
+            // Right now the following works because mComposingText holds the part of the
             //  composing text that is before the cursor, but this is very confusing. We should
             //  fix it.
             final StringBuilder internal = new StringBuilder()
@@ -1166,8 +1160,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
      * as soon as possible to notify the current cursor/anchor position to the input method.
      * @return {@code true} if the request is accepted. Returns {@code false} otherwise, which
      * includes "not implemented" or "rejected" or "temporarily unavailable" or whatever which
-     * prevents the application from fulfilling the request. (TODO: Improve the API when it turns
-     * out that we actually need more detailed error codes)
+     * prevents the application from fulfilling the request.
      */
     public boolean requestCursorUpdates(final boolean enableMonitor, final boolean requestImmediateCallback) {
         mIC = mParent.getCurrentInputConnection();

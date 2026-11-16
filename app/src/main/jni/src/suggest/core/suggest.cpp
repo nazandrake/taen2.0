@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,7 +44,6 @@ const int Suggest::MIN_CONTINUOUS_SUGGESTION_INPUT_SIZE = 2;
  *
  * Note: Currently does not support concurrent calls across threads. Continuous suggestion is
  * automatically activated for sequential calls that share the same starting input.
- * TODO: Stop detecting continuous suggestion. Start using traverseSession instead.
  */
 void Suggest::getSuggestions(ProximityInfo *pInfo, void *traverseSession,
         int *inputXs, int *inputYs, int *times, int *pointerIds, int *inputCodePoints,
@@ -55,7 +55,6 @@ void Suggest::getSuggestions(ProximityInfo *pInfo, void *traverseSession,
     DicTraverseSession *tSession = static_cast<DicTraverseSession *>(traverseSession);
     tSession->setupForGetSuggestions(pInfo, inputCodePoints, inputSize, inputXs, inputYs, times,
             pointerIds, maxSpatialDistance, TRAVERSAL->getMaxPointerCount());
-    // TODO: Add the way to evaluate cache
 
     initializeSearch(tSession);
     PROF_TIMER_END(0);
@@ -109,7 +108,6 @@ void Suggest::expandCurrentDicNodes(DicTraverseSession *traverseSession) const {
     DicNodeVector childDicNodes(TRAVERSAL->getDefaultExpandDicNodeSize());
     DicNode correctionDicNode;
 
-    // TODO: Find more efficient caching
     const bool shouldDepthLevelCache = TRAVERSAL->shouldDepthLevelCache(traverseSession);
     if (shouldDepthLevelCache) {
         traverseSession->getDicTraverseCache()->updateLastCachedInputIndex();
@@ -157,7 +155,6 @@ void Suggest::expandCurrentDicNodes(DicTraverseSession *traverseSession) const {
             // Only consider typing error corrections if the normalized compound distance is
             // below a spatial distance threshold.
             // NOTE: the threshold may need to be updated if scoring model changes.
-            // TODO: Remove. Do not prune node here.
             const bool allowsErrorCorrections = TRAVERSAL->allowsErrorCorrections(&dicNode);
             // Process for handling space substitution (e.g., hevis => he is)
             if (TRAVERSAL->isSpaceSubstitutionTerminal(traverseSession, &dicNode)) {
@@ -185,15 +182,12 @@ void Suggest::expandCurrentDicNodes(DicTraverseSession *traverseSession) const {
                 }
                 if (TRAVERSAL->isOmission(traverseSession, &dicNode, childDicNode,
                         allowsErrorCorrections)) {
-                    // TODO: (Gesture) Change weight between omission and substitution errors
-                    // TODO: (Gesture) Terminal node should not be handled as omission
                     correctionDicNode.initByCopy(childDicNode);
                     processDicNodeAsOmission(traverseSession, &correctionDicNode);
                 }
                 const ProximityType proximityType = TRAVERSAL->getProximityType(
                         traverseSession, &dicNode, childDicNode);
                 switch (proximityType) {
-                    // TODO: Consider the difference of proximityType here
                     case MATCH_CHAR:
                     case PROXIMITY_CHAR:
                         processDicNodeAsMatch(traverseSession, childDicNode);

@@ -81,7 +81,7 @@ public final class CapsModeUtils {
         // text in the linguistic sense. In RTL languages, this is still an opening sign, although
         // it may look like a right parenthesis for example. We also include double quote and
         // single quote since they aren't start punctuation in the unicode sense, but should still
-        // be skipped for English. TODO: does this depend on the language?
+        // be skipped for English.
         int i;
         if (hasSpaceBefore) {
             i = cs.length() + 1;

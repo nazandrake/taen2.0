@@ -152,7 +152,6 @@ class Event private constructor(
             )
 
         // A helper method to split the code point and the key code.
-        // todo: Ultimately, they should not be squashed into the same variable, and this method should be removed.
         @JvmStatic
         fun createSoftwareKeypressEvent(keyCodeOrCodePoint: Int, metaState: Int, keyX: Int, keyY: Int, isKeyRepeat: Boolean) =
             if (keyCodeOrCodePoint <= 0) {
@@ -207,7 +206,6 @@ class Event private constructor(
          * @return an event for this code point.
          */
         @JvmStatic
-        // TODO: should we have a different type of event for this? After all, it's not a key press.
         fun createEventForCodePointFromUnknownSource(codePoint: Int) = Event(eventType = EVENT_TYPE_INPUT_KEYPRESS, codePoint = codePoint)
 
         /**
@@ -219,7 +217,6 @@ class Event private constructor(
          * @return an event for this code point and coordinates.
          */
         @JvmStatic
-        // TODO: should we have a different type of event for this? After all, it's not a key press.
         fun createEventForCodePointFromAlreadyTypedText(codePoint: Int, x: Int, y: Int) =
             Event(eventType = EVENT_TYPE_INPUT_KEYPRESS, codePoint = codePoint, x = x, y = y)
 

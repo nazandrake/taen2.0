@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2013, The Android Open Source Project
+ * modified
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -147,7 +148,6 @@ bool Ver4PatriciaTrieNodeWriter::updatePtNodeUnigramProperty(
         const PtNodeParams *const toBeUpdatedPtNodeParams,
         const UnigramProperty *const unigramProperty) {
     // Update probability and historical information.
-    // TODO: Update other information in the unigram property.
     if (!toBeUpdatedPtNodeParams->isTerminal()) {
         return false;
     }
@@ -395,7 +395,6 @@ bool Ver4PatriciaTrieNodeWriter::writePtNodeAndGetTerminalIdAndAdvancePosition(
 const ProbabilityEntry Ver4PatriciaTrieNodeWriter::createUpdatedEntryFrom(
         const ProbabilityEntry *const originalProbabilityEntry,
         const UnigramProperty *const unigramProperty) const {
-    // TODO: Consolidate historical info and probability.
     if (mHeaderPolicy->hasHistoricalInfoOfWords()) {
         const HistoricalInfo &historicalInfoForUpdate = unigramProperty->getHistoricalInfo();
         const HistoricalInfo updatedHistoricalInfo =

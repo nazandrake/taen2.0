@@ -146,7 +146,6 @@ public class Keyboard {
             return false;
         }
         // Note: The native code has the main keyboard layout only at this moment.
-        // TODO: Figure out how to handle proximity characters information of all layouts.
         final boolean canAssumeNativeHasProximityCharsInfoOfAllKeys = (
                 mId.getElement() == KeyboardElement.ALPHABET
                 || mId.getElement() == KeyboardElement.ALPHABET_AUTOMATIC_SHIFTED);
