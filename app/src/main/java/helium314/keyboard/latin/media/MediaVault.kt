@@ -141,26 +141,53 @@ class MediaVault(
         Export.Included(Snapshot(encode(items), bytes))
     }
 
-    /** Replaces the whole collection by [snapshot] (an import). On a failure the collection that was there is put back; false then. */
+    /**
+     * Replaces the whole collection by [snapshot] (an import). The old collection stays until the new one is complete: every imported picture is written
+     * to a new store under a new id next to the old ones (each store write is itself verified) and read back, and only then the list is
+     * replaced, in one atomic store write: that write is the switch. The old pictures are removed after it. A crash before the switch leaves the old
+     * collection (the new stores are unlisted and removed after the next successful import, [sweep]); a crash after it leaves the new one. Pictures are written and checked one at a
+     * time, so no copy of the old collection is held. False, and the old collection untouched, on any failure before the switch.
+     */
     fun replaceAll(snapshot: Snapshot): Boolean = synchronized(lock) {
         if (!validate(snapshot)) return false
-        val before = exportAll(Long.MAX_VALUE) as? Export.Included
-        if (before == null && load() !is Listing.Damaged) return false // locked or unreadable: do not touch
-        if (!deleteAll()) return false
-        if (write(snapshot)) return true
-        deleteAll()
-        if (before != null) write(before.snapshot)
-        false
+        val current = when (val l = load()) {
+            Listing.Locked -> return false // locked or unreadable: do not touch
+            Listing.Damaged -> null // replaced as a whole, the damaged pictures go after the switch
+            is Listing.Items -> l.items
+        }
+        val written = ArrayList<String>()
+        fun abandon(): Boolean {
+            written.forEach { storage.open(itemName(it))?.delete() }
+            return false
+        }
+        val incoming = decode(snapshot.index)
+        val taken = current.orEmpty().toMutableList()
+        val renamed = ArrayList<MediaItem>(incoming.size)
+        for (item in incoming) {
+            val bytes = snapshot.items.getValue(item.id) // validate() checked that every listed picture is there
+            val id = newId(taken)
+            val store = storage.open(itemName(id)) ?: return abandon()
+            written.add(id)
+            try {
+                store.write(bytes)
+            } catch (_: VaultLockedException) {
+                return abandon()
+            } catch (_: StoreWriteException) {
+                return abandon()
+            }
+            // read back from disk: AES-GCM authenticates the bytes under the store's name, so a picture that decrypts is the one written
+            if (store.read() !is StoreContent.Data) return abandon()
+            MediaItem(id, item.format, item.size, item.tags).also { renamed.add(it); taken.add(it) }
+        }
+        if (!writeIndex(renamed)) return abandon() // the switch
+        sweep(renamed.map(MediaItem::id).toSet())
+        true
     }
 
-    private fun write(snapshot: Snapshot): Boolean = try {
-        for ((id, bytes) in snapshot.items) (storage.open(itemName(id)) ?: return false).write(bytes)
-        (storage.open(INDEX) ?: return false).write(snapshot.index)
-        true
-    } catch (_: VaultLockedException) {
-        false
-    } catch (_: StoreWriteException) {
-        false
+    /** Removes every picture store that is not in [keep] (the listed ones): what a crashed import or a crash after a switch left behind. */
+    private fun sweep(keep: Set<String>) {
+        val names = storage.names() ?: return
+        for (name in names) if (name.startsWith(PREFIX) && name != INDEX && name.removePrefix(PREFIX) !in keep) storage.open(name)?.delete()
     }
 
     private fun load(): Listing {

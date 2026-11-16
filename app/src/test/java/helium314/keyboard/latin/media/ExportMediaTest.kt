@@ -48,11 +48,14 @@ class ExportMediaTest {
         assertEquals(emptyList(), listed())
 
         ExportService.apply(ctx, ExportBundle.unpack(ExportCodec.decrypt(passphrase, file)), none)
-        assertEquals(setOf(gif.id, png.id), listed().map { it.id }.toSet())
-        assertContentEquals(MediaFixtures.gifClean, vault().read(gif.id))
-        assertContentEquals(MediaFixtures.pngClean, vault().read(png.id))
-        assertEquals(listOf("one", "two"), listed().first { it.id == gif.id }.tags)
+        // an import stores the pictures under new ids (written next to the old ones before the switch); what comes back is every picture with its tags
+        assertEquals(setOf(MediaFixtures.gifClean.toList() to listOf("one", "two"), MediaFixtures.pngClean.toList() to emptyList()), contents())
+        assertEquals(2, listed().size)
+        assertNull(vault().read(gif.id), "the stores of before the export were deleted, so the old ids are gone")
+        assertNull(vault().read(png.id))
     }
+
+    private fun contents() = listed().map { vault().read(it.id)!!.toList() to it.tags }.toSet()
 
     // ---- the 64 MiB rule, a damaged payload, the starter stickers --------------------------------------
 
@@ -123,12 +126,13 @@ class ExportMediaTest {
         val incoming = MediaVault(MediaFixtures.TestStorage()).also { assertIs<MediaVault.ImportResult.Added>(it.import(MediaFixtures.gifClean)) }
         val snapshot = assertIs<MediaVault.Export.Included>(incoming.exportAll(Long.MAX_VALUE)).snapshot
         assertTrue(v.replaceAll(snapshot))
-        assertEquals(snapshot.items.keys, listed().map { it.id }.toSet())
+        val replaced = listed().map { it.id }.toSet()
+        assertEquals(setOf(MediaFixtures.gifClean.toList() to emptyList<String>()), contents())
         assertNull(v.read(old.id), "replaced, as an import replaces the other data")
         // a snapshot that does not validate changes nothing
         val bad = MediaVault.Snapshot(snapshot.index, emptyMap())
         assertFalse(v.replaceAll(bad))
-        assertEquals(snapshot.items.keys, listed().map { it.id }.toSet())
+        assertEquals(replaced, listed().map { it.id }.toSet())
     }
 
     @Test fun whileThePrivacyLockIsClosedTheVaultIsLockedAndNothingIsWritten() {

@@ -35,7 +35,9 @@ class NextWordTyping(private val ime: LatinIME) {
     private val main = Executor { handler.post(it) }
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "taen-nextword").apply { isDaemon = true } }
     private val assist = NextWordAssist(worker, main, SystemClock::uptimeMillis)
-    private val store by lazy { ModelFiles(Privacy.nextWordModelDir(ime)) }
+    private val process = ModelFiles.processTag()
+    // a load that a previous process did not survive is recorded before anything is loaded here, so it is not loaded again before a new speed test
+    private val store by lazy { ModelFiles(Privacy.nextWordModelDir(ime)).also { it.settleCrashedLoads(process) } }
     private val entries: Map<String, DownloadEntry> by lazy {
         runCatching { DownloadCatalog.load(ime) }.getOrDefault(emptyList()).filter { it.kind == DownloadEntry.MODEL }.associateBy { it.id }
     }
@@ -103,12 +105,16 @@ class NextWordTyping(private val ime: LatinIME) {
     private fun readinessOf(model: NextWordModel): NextWordGate.Readiness {
         val entry = entries[model.id] ?: return NextWordGate.Readiness.NOT_INSTALLED
         val file = store.modelFile(model.id)
-        return NextWordGate.readiness(model, file.isFile && file.length() == entry.size, store.speed(model.id))
+        return NextWordGate.readiness(model, file.isFile && file.length() == entry.size, store.speed(model.id), store.loadCrashed(model.id))
     }
 
+    // every load asks for the memory free now (NextWordGate.mayLoadNow) and is bracketed by the loading marker
     private fun holder(model: NextWordModel): NextWordEngineHolder = holders.getOrPut(model.id) {
         NextWordEngineHolder(
             verify = { entries[model.id]?.let { files.diskState(it) == DownloadsStore.State.VERIFIED } == true },
+            mayLoad = { NextWordGate.mayLoadNow(store.speed(model.id), ModelFiles.freeMb(ime)) },
+            beginLoad = { store.markLoading(model.id, process) },
+            endLoad = { store.clearLoading(model.id) },
             load = { model.load(ime.assets, store.modelFile(model.id).path, THREADS) },
         )
     }

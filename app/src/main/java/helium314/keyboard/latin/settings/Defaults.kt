@@ -79,7 +79,7 @@ object Defaults {
     const val PREF_VOICE_TYPING = true
     const val PREF_NEXTWORD_MODEL = true
     const val PREF_MEDIA_STARTER_PACK = false
-    const val PREF_EMOJI_HOLD = "comma" // EmojiHold.DEFAULT (a test keeps them equal)
+    const val PREF_EMOJI_HOLD = "none" // EmojiHold.DEFAULT (a test keeps them equal)
     const val PREF_BLOCK_POTENTIALLY_OFFENSIVE = true
     const val PREF_SHOW_LANGUAGE_SWITCH_KEY = true
     const val PREF_LANGUAGE_SWITCH_KEY = "internal"
@@ -126,7 +126,6 @@ object Defaults {
     const val PREF_BIGRAM_PREDICTIONS = true
     const val PREF_SUGGEST_PUNCTUATION = false
     const val PREF_SUGGEST_CLIPBOARD_CONTENT = false
-    // glide typing ships off while the quality gate is missed (GlideQualityGateTest checks this against the held-out numbers)
     const val PREF_GESTURE_INPUT = true // the glide quality gate passes (GlideQualityGateTest)
     const val PREF_VIBRATION_DURATION_SETTINGS = -1
     const val PREF_KEYPRESS_SOUND_VOLUME = -0.01f

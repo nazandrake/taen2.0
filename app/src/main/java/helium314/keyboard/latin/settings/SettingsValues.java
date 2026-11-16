@@ -6,6 +6,8 @@
 
 package helium314.keyboard.latin.settings;
 
+import helium314.keyboard.latin.ImeSwitcher;
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -397,7 +399,7 @@ public class SettingsValues {
     }
 
     public boolean isLanguageSwitchKeyEnabled() {
-        if (!mShowsLanguageSwitchKey) {
+        if (!mShowsLanguageSwitchKey && !ImeSwitcher.INSTANCE.getRequested()) {
             return false;
         }
         final RichInputMethodManager imm = RichInputMethodManager.getInstance();

@@ -9,23 +9,26 @@ import helium314.keyboard.latin.nextword.engine.PreSplit
 import java.util.Locale
 
 /**
- * The measured result of a model on the project's reference set (tools/nextword, the 1000 held-out contexts) and the reference phone:
- * top-3 next-word hits of the dictionary alone and with the model (per mille), and the step time and added memory on that phone. [adopted] is the
- * outcome of the gate: at least 50 per mille (5 points) better, p95 at most 150 ms and at most 300 MB added on the reference phone, or, for a model that
- * is checked on each phone ([NextWordModel.speedTestOnEachPhone], the limits of NextWordGate.Speed), the accuracy part alone; its reference phone numbers
- * are then recorded but do not decide. The settings page shows these numbers.
+ * The measured result of a model on the project's reference set (tools/nextword, the 1000 held-out contexts) and on the reference phone:
+ * top-3 next-word hits of the dictionary alone and with the model (per mille), and the step time and added memory on that phone. [adopted] is the accuracy
+ * part of the gate (at least [NextWordGate.MIN_GAIN_PER_MILLE] better); time and memory are decided by the speed test on each phone. The settings page
+ * shows these numbers.
  */
-class Reference(val dictionaryPerMille: Int, val modelPerMille: Int, val referenceP95Ms: Long, val referenceExtraMb: Long, val adopted: Boolean) {
+class Reference(val dictionaryPerMille: Int, val modelPerMille: Int, val referenceP95Ms: Long, val referenceExtraMb: Long) {
     val gainPerMille: Int get() = modelPerMille - dictionaryPerMille
+    val adopted: Boolean get() = gainPerMille >= NextWordGate.MIN_GAIN_PER_MILLE
 }
 
-/** One downloadable next-word model: its catalogue row ([id]), language, tokenizer files in the APK and how its tokenizer splits text. */
+/**
+ * One downloadable next-word model: its catalogue row ([id]), language, tokenizer files in the APK, how its tokenizer splits text, and [maxP95Ms], the
+ * step time that 95 % of the steps of this phone's speed test must not exceed.
+ */
 class NextWordModel(
     val id: String,
     val language: String,
     val tokenizerAssets: String,
     val split: PreSplit,
-    val speedTestOnEachPhone: Boolean,
+    val maxP95Ms: Long,
     val reference: Reference,
 ) {
     /** The engine: the tokenizer from the APK and the model file at [modelPath] (already verified by the caller) on ONNX Runtime with [threads] threads. */
@@ -38,10 +41,12 @@ class NextWordModel(
 }
 
 object NextWordModels {
-    val ENGLISH = NextWordModel("model-en", "en", "nextword/smollm2-135m", PreSplit.SMOLLM2, speedTestOnEachPhone = false,
-        reference = Reference(121, 409, 272, 337, adopted = false)) // 28.8 points better, but over 150 ms and 300 MB on the reference phone
-    val BULGARIAN = NextWordModel("model-bg", "bg", "nextword/qwen3-0.6b", PreSplit.QWEN2, speedTestOnEachPhone = true,
-        reference = Reference(69, 205, 1403, 1395, adopted = true)) // 13.6 points better; time and memory are decided on each phone
+    // measured on the reference phone over the 1000 contexts: 28.8 points better, 272 ms at p95, 337 MB added (over its 150 ms there)
+    val ENGLISH = NextWordModel("model-en", "en", "nextword/smollm2-135m", PreSplit.SMOLLM2, maxP95Ms = 150,
+        reference = Reference(121, 409, 272, 337))
+    // accuracy on the build machine over the 1000 contexts (13.6 points better); on the reference phone over the first 100: 1403 ms at p95, 1395 MB added
+    val BULGARIAN = NextWordModel("model-bg", "bg", "nextword/qwen3-0.6b", PreSplit.QWEN2, maxP95Ms = 250,
+        reference = Reference(69, 205, 1403, 1395))
     val ALL = listOf(ENGLISH, BULGARIAN)
 
     fun byId(id: String): NextWordModel? = ALL.firstOrNull { it.id == id }

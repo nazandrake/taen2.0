@@ -224,8 +224,8 @@ private fun rowName(ctx: Context, entry: DownloadEntry): String {
 }
 
 /**
- * The next-word models: the model switch, and per model what NextWordGate decides on this phone with the measured numbers, the speed test (a model that
- * is checked on each phone) and, when it is too slow here, Remove.
+ * The next-word models: the model switch, and per model what NextWordGate decides on this phone with the measured numbers, the speed test (every model
+ * is checked on each phone), whether there is memory for it right now, and, when it fails here, Remove.
  */
 @Composable
 private fun NextWordSection(wiring: DownloadsWiring, overview: DownloadsStore.Overview?, busy: Boolean, changed: () -> Unit) {
@@ -239,8 +239,14 @@ private fun NextWordSection(wiring: DownloadsWiring, overview: DownloadsStore.Ov
     var failed by remember { mutableStateOf(false) }
     var cancel by remember { mutableStateOf(false) }
     var speeds by remember { mutableStateOf(emptyMap<String, NextWordGate.Speed?>()) }
+    var crashed by remember { mutableStateOf(emptySet<String>()) }
+    var freeNow by remember { mutableStateOf(-1L) }
     LaunchedEffect(overview, testing) {
-        speeds = withContext(Dispatchers.IO) { models.associate { it.id to wiring.models.speed(it.id) } }
+        withContext(Dispatchers.IO) {
+            speeds = models.associate { it.id to wiring.models.speed(it.id) }
+            crashed = models.filter { wiring.models.loadCrashed(it.id) }.map { it.id }.toSet()
+            freeNow = wiring.freeMbNow()
+        }
     }
     PreferenceCategory(stringResource(R.string.nextword_title))
     Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -257,23 +263,28 @@ private fun NextWordSection(wiring: DownloadsWiring, overview: DownloadsStore.Ov
         val model = NextWordModels.byId(entry.id) ?: continue
         val installed = overview?.rows?.firstOrNull { it.entry.id == entry.id }?.state == DownloadsStore.State.VERIFIED
         val speed = speeds[entry.id]
-        val readiness = NextWordGate.readiness(model, installed, speed)
+        val readiness = NextWordGate.readiness(model, installed, speed, entry.id in crashed)
         val name = rowName(ctx, entry)
         val ref = model.reference
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
             val text = when (readiness) {
-                NextWordGate.Readiness.NOT_INSTALLED -> stringResource(R.string.nextword_state_not_installed, name, percent(ref.modelPerMille), percent(ref.dictionaryPerMille))
-                NextWordGate.Readiness.DISABLED_BY_GATE -> stringResource(R.string.nextword_state_disabled, name, percent(ref.modelPerMille), percent(ref.dictionaryPerMille),
-                    ref.referenceP95Ms.toString(), ref.referenceExtraMb.toString())
-                NextWordGate.Readiness.NEEDS_SPEED_TEST -> stringResource(R.string.nextword_state_needs_test, name)
+                NextWordGate.Readiness.NOT_INSTALLED -> stringResource(R.string.nextword_state_not_installed, name, percent(ref.modelPerMille), percent(ref.dictionaryPerMille),
+                    ref.referenceP95Ms.toString(), ref.referenceExtraMb.toString(), model.maxP95Ms.toString(), NextWordGate.MARGIN_MB.toString())
+                NextWordGate.Readiness.DISABLED_BY_GATE -> stringResource(R.string.nextword_state_disabled, name, percent(ref.modelPerMille), percent(ref.dictionaryPerMille))
+                NextWordGate.Readiness.NEEDS_SPEED_TEST -> stringResource(R.string.nextword_state_needs_test, name, model.maxP95Ms.toString(), NextWordGate.MARGIN_MB.toString())
+                NextWordGate.Readiness.LOAD_CRASHED -> stringResource(R.string.nextword_state_crashed, name)
                 NextWordGate.Readiness.TOO_SLOW -> if (speed!!.enoughMemory)
-                    stringResource(R.string.nextword_state_too_slow, name, speed.p95Ms.toString(), NextWordGate.PHONE_MAX_P95_MS.toString())
-                else stringResource(R.string.nextword_state_low_memory, name, speed.extraMb.toString(), NextWordGate.PHONE_MARGIN_MB.toString(), speed.freeMb.toString())
+                    stringResource(R.string.nextword_state_too_slow, name, speed.p95Ms.toString(), model.maxP95Ms.toString())
+                else stringResource(R.string.nextword_state_low_memory, name, speed.extraMb.toString(), NextWordGate.MARGIN_MB.toString(), speed.freeMb.toString())
                 NextWordGate.Readiness.READY -> stringResource(R.string.nextword_state_ready, name, percent(ref.modelPerMille), percent(ref.dictionaryPerMille))
             }
             Text(text, style = MaterialTheme.typography.bodyMedium)
-            if (speed != null && readiness == NextWordGate.Readiness.READY)
+            if (speed != null && readiness == NextWordGate.Readiness.READY) {
                 Text(stringResource(R.string.nextword_state_speed, speed.p95Ms.toString(), speed.extraMb.toString()), style = MaterialTheme.typography.bodySmall)
+                if (!NextWordGate.mayLoadNow(speed, freeNow))
+                    Text(stringResource(R.string.nextword_state_low_memory_now, speed.extraMb.toString(), NextWordGate.MARGIN_MB.toString(), freeNow.coerceAtLeast(0).toString()),
+                        style = MaterialTheme.typography.bodySmall)
+            }
             if (testing == entry.id) {
                 Text(stringResource(R.string.nextword_testing, step.first, step.second), style = MaterialTheme.typography.bodySmall)
                 LinearProgressIndicator(progress = { if (step.second > 0) step.first.toFloat() / step.second else 0f }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
@@ -281,7 +292,7 @@ private fun NextWordSection(wiring: DownloadsWiring, overview: DownloadsStore.Ov
             }
             if (failed && testing == null && readiness == NextWordGate.Readiness.NEEDS_SPEED_TEST) Text(stringResource(R.string.nextword_test_failed), style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (model.speedTestOnEachPhone && installed && testing == null && readiness != NextWordGate.Readiness.DISABLED_BY_GATE)
+                if (installed && testing == null && readiness != NextWordGate.Readiness.DISABLED_BY_GATE)
                     TextButton(onClick = {
                         if (!busy) {
                             testing = entry.id

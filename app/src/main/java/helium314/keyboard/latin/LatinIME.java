@@ -27,6 +27,7 @@ import android.util.Printer;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowInsets;
 import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InlineSuggestion;
@@ -1050,6 +1051,7 @@ public class LatinIME extends InputMethodService implements
     @Override
     public void onWindowShown() {
         super.onWindowShown();
+        requestOwnImeSwitcher();
         if (isInputViewShown()) {
             if (mInputView != null && Settings.getValues().mIsFloatingKeyboard)
                 FloatingKeyboardUtils.setFloating(mInputView);
@@ -1086,6 +1088,26 @@ public class LatinIME extends InputMethodService implements
         mVoiceTyping.onFieldChange(); // the keyboard window closes: the microphone is released and nothing is typed later
         mNextWord.onFieldChange();
         cleanupInternalStateForFinishInput();
+    }
+
+    /**
+     * From Android 16 the system draws an IME switcher button below the keyboard (gesture navigation), which switches to the next input method:
+     * Taen gives the system a single subtype, so a tap there leaves Taen. The keyboard asks the system to leave out its own bar; the system then asks
+     * the keyboard to show a switcher of its own ({@link #onCustomImeSwitcherButtonRequestedVisible}), which is Taen's language key: a tap cycles
+     * Taen's languages, a long press opens the system picker.
+     */
+    private void requestOwnImeSwitcher() {
+        if (Build.VERSION.SDK_INT < 36) return;
+        final Window window = getWindow().getWindow();
+        if (window != null) window.getInsetsController().hide(WindowInsets.Type.captionBar());
+    }
+
+    @Override
+    public void onCustomImeSwitcherButtonRequestedVisible(final boolean visible) {
+        if (ImeSwitcher.INSTANCE.getRequested() == visible) return;
+        ImeSwitcher.INSTANCE.setRequested(visible);
+        // the language key follows the request (SettingsValues.isLanguageSwitchKeyEnabled); a keyboard that is not shown is built with it later
+        if (mInputView != null && isInputViewShown()) mKeyboardSwitcher.reloadMainKeyboard();
     }
 
     private void cleanupInternalStateForFinishInput() {

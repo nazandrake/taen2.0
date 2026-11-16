@@ -160,6 +160,35 @@ class PinnedInstallerTest {
         assertEquals(emptyList(), leftovers(), "identify writes nothing")
     }
 
+    @Test fun discardStagedNeverTouchesThePartFileOfARunningInstall() {
+        val halfway = CountDownLatch(1)
+        val goOn = CountDownLatch(1)
+        val slow = {
+            object : InputStream() {
+                private val inner = ByteArrayInputStream(payload)
+                private var sent = 0
+                override fun read(): Int = inner.read()
+                override fun read(b: ByteArray, off: Int, len: Int): Int {
+                    if (sent >= payload.size / 2) { halfway.countDown(); goOn.await(10, TimeUnit.SECONDS) }
+                    return inner.read(b, off, minOf(len, 4096)).also { if (it > 0) sent += it }
+                }
+            } as InputStream?
+        }
+        var result: PinnedInstaller.Result? = null
+        val running = thread { result = installer().install(entry(), target, open = slow) }
+        assertTrue(halfway.await(10, TimeUnit.SECONDS))
+        assertEquals(listOf("dict-x.part"), leftovers(), "the install is halfway")
+        installer().discardStaged() // a second install starting meanwhile
+        assertEquals(listOf("dict-x.part"), leftovers(), "the running install's file stays")
+        goOn.countDown()
+        running.join(10_000)
+        assertEquals(PinnedInstaller.Result.Installed, result)
+        assertContentEquals(payload, target.readBytes())
+        File(staging, "dict-y.part").writeBytes(byteArrayOf(1))
+        installer().discardStaged()
+        assertEquals(emptyList(), leftovers(), "positive control: with no install running a leftover goes")
+    }
+
     @Test fun aLeftoverPartFileIsRemovedByDiscardStaged() {
         File(staging, "dict-x.part").writeBytes(byteArrayOf(1))
         File(staging, "keep.txt").writeBytes(byteArrayOf(1))

@@ -25,24 +25,24 @@ class EmojiHoldQuickTest {
         for (bad in listOf("", "Comma", "exotic", "comma ", 3, true, null)) assertNull(ProfileKeys.validate(Settings.PREF_EMOJI_HOLD, bad), bad.toString())
     }
 
-    @Test fun theDefaultIsCommaAndEachTapStepsToTheNextAndBackToTheStart() {
+    @Test fun theDefaultIsNoneAndEachTapStepsToTheNextAndBackToTheStart() {
         val prefs = FakePrefs()
-        assertEquals(EmojiHold.COMMA, QuickSettings.emojiHold(prefs))
+        assertEquals(EmojiHold.NONE, QuickSettings.emojiHold(prefs))
         val seen = ArrayList<EmojiHold>()
         repeat(5) { seen.add(QuickSettings.cycleEmojiHold(prefs)) }
-        assertEquals(listOf(EmojiHold.PERIOD, EmojiHold.SPACE, EmojiHold.LANGUAGE, EmojiHold.NONE, EmojiHold.COMMA), seen)
+        assertEquals(listOf(EmojiHold.COMMA, EmojiHold.PERIOD, EmojiHold.SPACE, EmojiHold.LANGUAGE, EmojiHold.NONE), seen)
     }
 
     @Test fun theCycleWritesExactlyOneKeyInOneCommit() {
         val prefs = FakePrefs()
         QuickSettings.cycleEmojiHold(prefs)
-        assertEquals(mapOf<String, Any>("emoji_hold" to "period"), prefs.map)
+        assertEquals(mapOf<String, Any>("emoji_hold" to "comma"), prefs.map)
         assertEquals(listOf(setOf("emoji_hold")), prefs.commits.map { it.keys })
     }
 
     @Test fun aStoredValueThatIsNotOneOfTheFiveIsReadAsTheDefault() {
         val prefs = FakePrefs()
         prefs.edit().putString("emoji_hold", "exotic").commit()
-        assertEquals(EmojiHold.COMMA, QuickSettings.emojiHold(prefs))
+        assertEquals(EmojiHold.NONE, QuickSettings.emojiHold(prefs))
     }
 }

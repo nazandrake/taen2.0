@@ -132,6 +132,21 @@ class DownloadsInstallerTest {
         assertEquals(DownloadsStore.State.VERIFIED, store.diskState(bgEntry))
     }
 
+    // the hash is kept per file between calls; a file replaced by another of the same size within the same millisecond must not keep the old answer
+    @Test fun aFileReplacedWithinTheSameMillisecondIsHashedAgain() {
+        val target = targetOf(bgEntry).also { it.parentFile.mkdirs() }
+        target.writeBytes(bg)
+        val stamp = target.lastModified()
+        assertEquals(DownloadsStore.State.VERIFIED, store.diskState(bgEntry))
+        val other = File(target.parentFile, "other").apply { writeBytes(bg.reversedArray()); setLastModified(stamp) }
+        java.nio.file.Files.move(other.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        assertEquals(stamp, target.lastModified(), "same size, same time stamp")
+        assertEquals(DownloadsStore.State.DAMAGED, store.diskState(bgEntry), "a replaced file is not taken for the verified one")
+        val good = File(target.parentFile, "good").apply { writeBytes(bg); setLastModified(stamp) }
+        java.nio.file.Files.move(good.toPath(), target.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        assertEquals(DownloadsStore.State.VERIFIED, store.diskState(bgEntry), "and back")
+    }
+
     @Test fun downloadedCopiesAreDeletedOnlyAfterAnInstallAndOnlyWhenAsked() {
         val kept = Doc("k", bg)
         installer().install(listOf(kept), deleteDownloaded = false)

@@ -74,7 +74,7 @@ class PinnedInstaller(
 
     /** Installs the content of [open] as [entry] to [target]. [accept] runs on the verified `.part` file only. */
     fun install(entry: DownloadEntry, target: File, hooks: Hooks = Hooks.NONE, accept: (File) -> Boolean = { true }, open: () -> InputStream?): Result {
-        val lock = locks.computeIfAbsent(dir.absoluteFile.normalize().path) { Semaphore(1) }
+        val lock = lockOf(dir)
         if (!lock.tryAcquire()) return Result.Busy
         try {
             return installLocked(entry, target, hooks, accept, open)
@@ -124,15 +124,27 @@ class PinnedInstaller(
         }
     }
 
-    /** Removes the leftover `.part` files of an install that did not finish (a crash). Installed files are not touched. */
-    fun discardStaged() {
-        dir.listFiles { f -> f.name.endsWith(PART_SUFFIX) }?.forEach { it.delete() }
+    /**
+     * Removes the leftover `.part` files of an install that did not finish (a crash). Installed files are not touched. It takes the directory's install
+     * lock: while an install runs, its `.part` file is not a leftover, and nothing is removed (false).
+     */
+    fun discardStaged(): Boolean {
+        val lock = lockOf(dir)
+        if (!lock.tryAcquire()) return false
+        try {
+            dir.listFiles { f -> f.name.endsWith(PART_SUFFIX) }?.forEach { it.delete() }
+            return true
+        } finally {
+            lock.release()
+        }
     }
 
     private fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it) }
 
     companion object {
         private val locks = ConcurrentHashMap<String, Semaphore>()
+        // one install or discard per staging directory, whichever instance runs it
+        private fun lockOf(dir: File): Semaphore = locks.computeIfAbsent(dir.absoluteFile.normalize().path) { Semaphore(1) }
         const val PART_SUFFIX = ".part"
         const val BUFFER = 1 shl 16
         const val SPACE_MARGIN = 64L * 1024 * 1024

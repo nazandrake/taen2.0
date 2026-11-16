@@ -115,13 +115,30 @@ class EmojiHoldKeysTest {
         }
     }
 
+    // the default is none: an update keeps the comma key's menu as it was; the user chooses a key in the settings or the quick panel
+    @Test fun anUpdateFromAVersionWithoutTheSettingKeepsTheCommaMenu() {
+        // the settings of an earlier version have no emoji_hold key: what the keyboard reads from them (SettingsValues)
+        val prefs = helium314.keyboard.latin.profiles.FakePrefs()
+        prefs.edit().putBoolean(helium314.keyboard.latin.settings.Settings.PREF_SHOW_EMOJI_KEY, false).commit()
+        val hold = EmojiHold.fromPref(prefs.getString(helium314.keyboard.latin.settings.Settings.PREF_EMOJI_HOLD, Defaults.PREF_EMOJI_HOLD))
+        assertEquals(EmojiHold.NONE, hold)
+        assertEquals(EmojiHold.NONE, helium314.keyboard.latin.settings.Settings.getValues().mEmojiHold, "the running keyboard, whose settings have no such key")
+        val comma = keys(hold, emojiKey = false).getValue("comma")
+        assertFalse(comma.holdsEmoji())
+        assertTrue((comma.popupKeys?.size ?: 0) > 1, "the comma menu of the earlier version is still there")
+        // positive control: a user who picks the comma key gets the hold
+        prefs.edit().putString(helium314.keyboard.latin.settings.Settings.PREF_EMOJI_HOLD, "comma").commit()
+        val chosen = EmojiHold.fromPref(prefs.getString(helium314.keyboard.latin.settings.Settings.PREF_EMOJI_HOLD, Defaults.PREF_EMOJI_HOLD))
+        assertTrue(keys(chosen, emojiKey = false).getValue("comma").holdsEmoji())
+    }
+
     @Test fun theSettingValuesAndTheDefault() {
-        assertEquals(EmojiHold.COMMA, EmojiHold.DEFAULT)
+        assertEquals(EmojiHold.NONE, EmojiHold.DEFAULT)
         assertEquals(EmojiHold.DEFAULT.pref, Defaults.PREF_EMOJI_HOLD)
         assertEquals(listOf("comma", "period", "space", "language", "none"), EmojiHold.entries.map { it.pref })
         for (h in EmojiHold.entries) assertEquals(h, EmojiHold.fromPref(h.pref))
-        assertEquals(EmojiHold.COMMA, EmojiHold.fromPref(null))
-        assertEquals(EmojiHold.COMMA, EmojiHold.fromPref("exotic"))
+        assertEquals(EmojiHold.NONE, EmojiHold.fromPref(null))
+        assertEquals(EmojiHold.NONE, EmojiHold.fromPref("exotic"))
         assertEquals(listOf(EmojiHold.PERIOD, EmojiHold.SPACE, EmojiHold.LANGUAGE, EmojiHold.NONE, EmojiHold.COMMA), EmojiHold.entries.map { it.next() })
     }
 }

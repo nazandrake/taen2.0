@@ -28,19 +28,31 @@ class NextWordAssistTest {
         assertEquals(1, model.calls)
     }
 
-    @Test fun aResultLaterThan150MsIsDroppedAndTheDictionaryListStays() {
+    @Test fun aResultThatReachesTheMainThreadAfter150MsIsDropped() {
         request()
-        worker.runAll() // the step itself takes no fake time here: the request waited too long before it started
-        now += 151
+        worker.runAll() // the step ends at once (t = 0)
+        now += 151 // the main thread runs the callback 151 ms after the request
         main.runAll()
-        assertEquals(listOf("dog", "cat", "fox"), shown, "positive control: in time when the clock has not moved past the deadline before the end of the step")
-        shown = null
+        assertNull(shown, "too late when it would be applied: the dictionary list stays")
+        assertEquals(1, model.calls, "positive control: the step did run")
+        request()
+        worker.runAll()
+        now += 150
+        main.runAll()
+        assertEquals(listOf("dog", "cat", "fox"), shown, "positive control: applied at exactly 150 ms")
+    }
+
+    @Test fun aResultLaterThan150MsIsDroppedAndTheDictionaryListStays() {
         request()
         now += 151
         worker.runAll()
         main.runAll()
         assertNull(shown, "started after the deadline: dropped")
-        assertEquals(1, model.calls, "a request that is already late does not run the model")
+        assertEquals(0, model.calls, "a request that is already late does not run the model")
+        request()
+        worker.runAll()
+        main.runAll()
+        assertEquals(listOf("dog", "cat", "fox"), shown, "positive control: the next request in time runs and is shown")
     }
 
     @Test fun aStepThatEndsAfterTheDeadlineIsDropped() {

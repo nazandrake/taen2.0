@@ -56,6 +56,54 @@ class NextWordEngineHolderTest {
         assertEquals(NextWordEngineHolder.State.DAMAGED, throwing.state)
     }
 
+    @Test fun everyLoadAsksForMemoryFirstAndShortMemoryIsTriedAgainLater() {
+        var enough = false
+        var asked = 0
+        val h = NextWordEngineHolder({ true }, mayLoad = { asked++; enough }) { loads++; fakeRanker(FakeModel(emptyMap()).also { models.add(it) }) }
+        assertNull(h.get(), "not enough memory now: not loaded")
+        assertEquals(0, loads)
+        assertEquals(NextWordEngineHolder.State.NO_MEMORY, h.state)
+        enough = true
+        assertNotNull(h.get(), "positive control: loaded once memory is free")
+        assertEquals(1, loads)
+        h.unload()
+        enough = false
+        assertNull(h.get(), "asked again before the next load")
+        assertEquals(3, asked)
+        assertEquals(1, loads)
+    }
+
+    @Test fun aMarkerIsSetBeforeEachLoadAndClearedOnlyWhenTheLoadReturns() {
+        val events = ArrayList<String>()
+        var fail = false
+        var markerWritable = true
+        val h = NextWordEngineHolder({ true }, { true }, beginLoad = { events.add("begin"); markerWritable }, endLoad = { events.add("end") }) {
+            events.add("load")
+            if (fail) throw IllegalStateException("cannot load")
+            fakeRanker(FakeModel(emptyMap()))
+        }
+        assertNotNull(h.get())
+        assertEquals(listOf("begin", "load", "end"), events, "a crash during the load leaves the marker behind")
+        h.unload()
+        events.clear()
+        fail = true
+        assertNull(h.get())
+        assertEquals(listOf("begin", "load", "end"), events, "a load that throws ends in this process: the marker is cleared")
+        assertEquals(NextWordEngineHolder.State.FAILED, h.state)
+        val unmarked = NextWordEngineHolder({ true }, { true }, beginLoad = { markerWritable }, endLoad = {}) { loads++; fakeRanker(FakeModel(emptyMap())) }
+        markerWritable = false
+        assertNull(unmarked.get(), "a marker that cannot be written: not loaded (a crash would go unnoticed)")
+        assertEquals(0, loads)
+        assertEquals(NextWordEngineHolder.State.FAILED, unmarked.state)
+    }
+
+    @Test fun aMemoryCheckThatThrowsMeansNoLoad() {
+        val h = NextWordEngineHolder({ true }, mayLoad = { throw IllegalStateException("no memory figure") }) { loads++; fakeRanker(FakeModel(emptyMap())) }
+        assertNull(h.get())
+        assertEquals(0, loads)
+        assertEquals(NextWordEngineHolder.State.NO_MEMORY, h.state)
+    }
+
     @Test fun forgetReachesTheLoadedModelOnly() {
         val h = holder(good = true)
         h.forget() // nothing loaded: nothing to forget

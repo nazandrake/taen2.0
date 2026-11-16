@@ -26,7 +26,8 @@ class NextWordAssist(private val worker: Executor, private val main: Executor, p
                 return@execute
             }
             if (clock() - start > DEADLINE_MILLIS) return@execute
-            main.execute { if (mine == generation) onResult(ranked) }
+            // checked again where it is applied: the main thread can be busy for a while after the step ended
+            main.execute { if (mine == generation && clock() - start <= DEADLINE_MILLIS) onResult(ranked) }
         }
     }
 

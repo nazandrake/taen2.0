@@ -207,6 +207,24 @@ class MultiCursorTest {
         assertFalse(multi.isActive)
     }
 
+    @Test fun aLateReportOfTheSelectionBeforeTheFirstCursorDoesNotDropTheCursors() {
+        // seen on the reference phone: the editor reports the old caret after the first range was selected
+        val field = FakeField("ab ab xab ab", 12)
+        val multi = cursor(field)
+        multi.next(field)
+        multi.onSelectionChanged(12, 12)
+        multi.next(field)
+        assertTrue(multi.isActive)
+        assertEquals(listOf(TextRange(0, 2), TextRange(10, 12)), multi.heldRanges)
+        val column = FakeField("a1\nb2", 1)
+        val lines = cursor(column)
+        lines.addCaretOnNextLine(1, 1)
+        lines.onSelectionChanged(1, 1)
+        assertTrue(lines.isActive)
+        lines.onSelectionChanged(2, 2) // positive control: a caret the cursors did not set drops them
+        assertFalse(lines.isActive)
+    }
+
     @Test fun aLineShorterThanTheColumnIsSkippedAndTheLastLineEndsTheColumn() {
         assertEquals(listOf(2, 8), MultiCursor.columnCarets("ab1\nc\nde2", 2, 3))
         val field = FakeField("ab1\nc\nde2", 2)

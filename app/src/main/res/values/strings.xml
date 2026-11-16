@@ -1279,9 +1279,11 @@ New dictionary:
     <string name="nextword_title">Next-word model</string>
     <string name="nextword_switch">Order predictions with the model</string>
     <string name="nextword_switch_summary">Runs on this phone only, and only in fields where learning is allowed (never in password, incognito or no-learning fields). It shows only words of your dictionaries. Nothing it reads is stored.</string>
-    <string name="nextword_state_not_installed">%1$s: not installed. On the reference text the next word is among the first three %2$s %% of the time with the model, %3$s %% with the dictionary alone.</string>
-    <string name="nextword_state_disabled">%1$s: not used, because it did not pass the reference check (at least 5 points better in the first three, 95 %% of the steps within 150 ms and at most 300 MB added on a Xiaomi Mi A1). Measured: %2$s %% against %3$s %% in the first three, %4$s ms, %5$s MB.</string>
-    <string name="nextword_state_needs_test">%1$s: installed. Run the speed test once on this phone before it is used.</string>
+    <string name="nextword_state_not_installed">%1$s: not installed. On the reference text the next word is among the first three %2$s %% of the time with the model, %3$s %% with the dictionary alone. On a Xiaomi Mi A1, 95 %% of the steps took up to %4$s ms and it added %5$s MB. It needs a speed test on this phone before it is used: 95 %% of the steps within %6$s ms, and the memory it adds plus %7$s MB free.</string>
+    <string name="nextword_state_disabled">%1$s: not used, because on the reference text it is not at least 5 points better in the first three (%2$s %% with the model, %3$s %% with the dictionary alone).</string>
+    <string name="nextword_state_needs_test">%1$s: installed. Run the speed test once on this phone before it is used (95 %% of the steps within %2$s ms, and the memory it adds plus %3$s MB free).</string>
+    <string name="nextword_state_crashed">%1$s: the keyboard was stopped while it loaded the model, most likely for lack of memory. It is not used until the speed test passes again.</string>
+    <string name="nextword_state_low_memory_now">Not enough memory right now: it needs %1$s MB plus %2$s MB to spare, %3$s MB are free. It is not loaded until there is.</string>
     <string name="nextword_state_too_slow">%1$s: too slow on this phone (95 %% of the steps within %2$s ms, the limit is %3$s ms). It is not used. You can remove it to free the space.</string>
     <string name="nextword_state_low_memory">%1$s: not enough memory on this phone (it needs %2$s MB plus %3$s MB to spare, %4$s MB were free). It is not used. You can remove it to free the space.</string>
     <string name="nextword_state_ready">%1$s: in use. On the reference text the next word is among the first three %2$s %% of the time with the model, %3$s %% with the dictionary alone.</string>

@@ -21,10 +21,13 @@ Version 2.0.0 (versionCode 9). Android 11 and newer, 64-bit ARM. Application ID 
   never downloads it: Settings > Voice typing > Download the model opens a pinned link in your browser, and Install downloaded model checks
   the file before use (`BUILDING.md` section 8).
 - Optional downloads by choice (Settings > Downloads, the same browser download and checked install): dictionaries and a next-word model
-  per language. The model only reorders suggestions from your dictionaries and never runs in password, incognito or no-learning fields.
+  per language (SmolLM2-135M for English, Qwen3-0.6B for Bulgarian), each used only on a phone that passes its own speed
+  and memory test and only while the phone has the memory free. The model only reorders suggestions from your dictionaries and never runs in password, incognito or no-learning fields.
 - Cursor navigation on the space bar: one swipe moves across characters and up and down lines; hold Shift with another finger,
   or switch on the selection-mode toolbar key, to select. Toolbar keys add the next occurrence of a word (like Ctrl+G in an IDE)
   or a cursor at the same column on the next line; typed text and backspace then edit every cursor at once.
+- On Android 16 and later with gesture navigation, the system's keyboard-switch button below the keyboard is replaced by Taen's
+  language key: a tap cycles Taen's languages, a long press opens the system's keyboard picker.
 - Offline GIFs and stickers from your own pictures (metadata removed), emoji on a held key, a quick settings panel, templates and saved
   profiles of the settings, and an encrypted export.
 
@@ -67,6 +70,8 @@ Security reports: `SECURITY.md`.
 
 ## Known limitations
 
+- Glide typing is on by default. With the bundled CC BY English dictionary 79.6 % of words are right on a synthetic sample
+  (gate 79.5 %); improving this is planned. It can be switched off in Settings > Gesture typing.
 - Only English, Bulgarian and Bengali dictionaries are bundled; other languages need a dictionary file (Settings > Languages).
 - Voice typing and the next-word models are measured on one low-end reference phone and one desktop; other phones are not measured.
 - Line moves and selection by arrow keys depend on the app: some web and custom editors ignore them. Several cursors need an app

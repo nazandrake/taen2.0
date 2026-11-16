@@ -3,6 +3,7 @@ package helium314.keyboard.latin.media
 
 import helium314.keyboard.latin.privacy.filesContaining
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -171,6 +172,156 @@ class MediaVaultTest {
         val v = MediaVault(failing)
         assertIs<MediaVault.ImportResult.Failed>(v.import(MediaFixtures.gifClean))
         assertEquals(emptyList(), failing.files(), "no picture is left without a list entry")
+    }
+
+    // ---- replacing the collection (an import): the old set stays until the new one is complete ---------
+
+    private class Crash : Error("the process ends here")
+
+    /** Real stores in [dir] whose [crashAt]-th file write or rename ends the "process" (an Error that nothing catches), as a kill would. */
+    private class CrashingStorage(private val dir: java.io.File, private val crashAt: Int) : MediaStorage {
+        private var steps = 0
+        private val files = object : helium314.keyboard.latin.privacy.StoreFiles by helium314.keyboard.latin.privacy.DefaultStoreFiles {
+            override fun writeSynced(file: java.io.File, bytes: ByteArray) { step(); helium314.keyboard.latin.privacy.DefaultStoreFiles.writeSynced(file, bytes) }
+            override fun replace(from: java.io.File, to: java.io.File): Boolean { step(); return helium314.keyboard.latin.privacy.DefaultStoreFiles.replace(from, to) }
+        }
+        private fun step() { if (++steps == crashAt) throw Crash() }
+        override fun open(name: String) = helium314.keyboard.latin.privacy.testStore(dir, name, files = files)
+        override fun names(): List<String> = dir.listFiles { f -> f.name.endsWith(".enc") }?.map { it.name.removeSuffix(".enc") }.orEmpty()
+    }
+
+    /** What the user sees of a collection: every picture's bytes with its tags. */
+    private fun contents(v: MediaVault) = items(v).map { v.read(it.id)!!.toList() to it.tags }.toSet()
+
+    private fun incoming(): MediaVault.Snapshot {
+        val source = MediaVault(MediaFixtures.TestStorage())
+        added(source.import(MediaFixtures.gifClean, listOf("a")))
+        added(source.import(MediaFixtures.pngClean, listOf("b")))
+        return assertIs<MediaVault.Export.Included>(source.exportAll(Long.MAX_VALUE)).snapshot
+    }
+
+    private val oldSet = setOf(MediaFixtures.jpegClean.toList() to listOf("old"))
+    private val newSet = setOf(MediaFixtures.gifClean.toList() to listOf("a"), MediaFixtures.pngClean.toList() to listOf("b"))
+
+    @Test fun aCrashAtAnyPointOfAnImportLeavesTheOldOrTheNewCollectionComplete() {
+        val snapshot = incoming()
+        var crashes = 0
+        for (k in 1..100) {
+            val dir = helium314.keyboard.latin.privacy.tempDir()
+            added(MediaVault(MediaFixtures.TestStorage(dir)).import(MediaFixtures.jpegClean, listOf("old")))
+            val finished = try { MediaVault(CrashingStorage(dir, k)).replaceAll(snapshot) } catch (_: Crash) { null }
+            val after = contents(MediaVault(MediaFixtures.TestStorage(dir)))
+            if (finished == null) {
+                crashes++
+                assertTrue(after == oldSet || after == newSet, "a crash at write $k left $after")
+            } else {
+                assertEquals(true, finished)
+                assertEquals(newSet, after, "positive control: without a crash the new set is there")
+                assertTrue(crashes >= 3, "the import was interrupted at every one of its $crashes writes before it finished")
+                return
+            }
+        }
+        error("the import never finished")
+    }
+
+    private fun stores(s: MediaFixtures.TestStorage) = s.files().filter { it.endsWith(".enc") }
+
+    @Test fun afterAnImportOnlyTheNewPicturesAndTheirListAreOnDisk() {
+        val s = MediaFixtures.TestStorage()
+        val v = MediaVault(s)
+        val old = added(v.import(MediaFixtures.jpegClean, listOf("old")))
+        assertTrue(v.replaceAll(incoming()))
+        assertEquals(newSet, contents(v))
+        assertEquals(3, stores(s).size, "two pictures and the list: ${s.files()}")
+        assertFalse(stores(s).contains("media_${old.id}.enc"), "the old picture is gone after the switch")
+        assertEquals(stores(s), s.files(), "no temporary file is left")
+    }
+
+    @Test fun whatACrashedImportLeftIsRemovedByTheNextImport() {
+        val dir = helium314.keyboard.latin.privacy.tempDir()
+        val s = MediaFixtures.TestStorage(dir)
+        added(MediaVault(s).import(MediaFixtures.jpegClean, listOf("old")))
+        assertFailsWith<Crash> { MediaVault(CrashingStorage(dir, 3)).replaceAll(incoming()) } // after the first new picture was stored
+        assertEquals(oldSet, contents(MediaVault(s)))
+        assertEquals(3, stores(s).size, "positive control: the old picture, its list and one unlisted new picture")
+        assertTrue(MediaVault(s).replaceAll(incoming()))
+        assertEquals(newSet, contents(MediaVault(s)))
+        assertEquals(3, stores(s).size, "the unlisted picture of the crashed import is gone: ${s.files()}")
+    }
+
+    @Test fun reimportingTheOwnExportKeepsEveryPicture() {
+        val s = MediaFixtures.TestStorage()
+        val v = MediaVault(s)
+        added(v.import(MediaFixtures.gifClean, listOf("a")))
+        added(v.import(MediaFixtures.pngClean, listOf("b")))
+        val own = assertIs<MediaVault.Export.Included>(v.exportAll(Long.MAX_VALUE)).snapshot
+        assertTrue(v.replaceAll(own), "the same ids as the live pictures: written under new ones first")
+        assertEquals(newSet, contents(v))
+        assertEquals(3, stores(s).size)
+    }
+
+    @Test fun aFailedSwitchOrALockedVaultLeavesTheOldCollectionAndNoNewStore() {
+        val failing = MediaFixtures.TestStorage(failing = setOf(MediaVault.INDEX))
+        val dirFiles = { failing.files() }
+        // the list cannot be written: the old collection has to be put in by hand (through the default storage of the same folder)
+        val plain = MediaFixtures.TestStorage(failing.dir)
+        added(MediaVault(plain).import(MediaFixtures.jpegClean, listOf("old")))
+        val before = dirFiles()
+        assertFalse(MediaVault(failing).replaceAll(incoming()))
+        assertEquals(before, dirFiles(), "the new pictures were removed again")
+        assertEquals(oldSet, contents(MediaVault(plain)))
+        plain.locked = true
+        assertFalse(MediaVault(plain).replaceAll(incoming()))
+        plain.locked = false
+        assertEquals(before, dirFiles(), "locked: nothing written or removed")
+        assertTrue(MediaVault(plain).replaceAll(incoming()), "positive control: unlocked and writable, it is replaced")
+        assertEquals(newSet, contents(MediaVault(plain)))
+    }
+
+    @Test fun anImportReplacesADamagedCollection() {
+        val s = MediaFixtures.TestStorage()
+        val v = MediaVault(s)
+        added(v.import(MediaFixtures.jpegClean, listOf("old")))
+        java.io.File(s.dir, "${MediaVault.INDEX}.enc").delete() // pictures without a list
+        assertIs<MediaVault.Listing.Damaged>(v.list())
+        assertTrue(v.replaceAll(incoming()))
+        assertEquals(newSet, contents(v))
+        assertEquals(3, stores(s).size, "the damaged collection's picture is gone")
+    }
+
+    /** Real stores in [dir] whose rename of a picture store leaves damaged bytes behind (a disk that does not keep what it was given). */
+    private class DamagingStorage(private val dir: java.io.File) : MediaStorage {
+        private val files = object : helium314.keyboard.latin.privacy.StoreFiles by helium314.keyboard.latin.privacy.DefaultStoreFiles {
+            override fun replace(from: java.io.File, to: java.io.File): Boolean {
+                val ok = helium314.keyboard.latin.privacy.DefaultStoreFiles.replace(from, to)
+                if (ok && !to.name.startsWith(MediaVault.INDEX)) to.writeBytes(to.readBytes().also { it[it.size - 1] = (it[it.size - 1].toInt() xor 1).toByte() })
+                return ok
+            }
+        }
+        override fun open(name: String) = helium314.keyboard.latin.privacy.testStore(dir, name, files = files)
+        override fun names(): List<String> = dir.listFiles { f -> f.name.endsWith(".enc") }?.map { it.name.removeSuffix(".enc") }.orEmpty()
+    }
+
+    @Test fun aPictureThatDoesNotReadBackStopsTheImportBeforeTheSwitch() {
+        val dir = helium314.keyboard.latin.privacy.tempDir()
+        val s = MediaFixtures.TestStorage(dir)
+        added(MediaVault(s).import(MediaFixtures.jpegClean, listOf("old")))
+        val before = s.files()
+        assertFalse(MediaVault(DamagingStorage(dir)).replaceAll(incoming()))
+        assertEquals(oldSet, contents(MediaVault(s)), "the old collection is still listed and readable")
+        assertEquals(before, s.files(), "the damaged new picture was removed again")
+        assertTrue(MediaVault(s).replaceAll(incoming()), "positive control: on a sound disk the same import goes through")
+    }
+
+    @Test fun anInvalidSnapshotChangesNothing() {
+        val s = MediaFixtures.TestStorage()
+        val v = MediaVault(s)
+        added(v.import(MediaFixtures.jpegClean, listOf("old")))
+        val before = s.files()
+        val good = incoming()
+        assertFalse(v.replaceAll(MediaVault.Snapshot(good.index, emptyMap())))
+        assertEquals(before, s.files())
+        assertEquals(oldSet, contents(v))
     }
 
     @Test fun idsAreRandomAndUnique() {

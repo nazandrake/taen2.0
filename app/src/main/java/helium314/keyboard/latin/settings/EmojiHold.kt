@@ -13,7 +13,7 @@ enum class EmojiHold(val pref: String) {
     fun next(): EmojiHold = entries[(ordinal + 1) % entries.size]
 
     companion object {
-        val DEFAULT = COMMA
+        val DEFAULT = NONE // an update keeps every key as it was; the user picks a key in the settings or the quick panel
         fun fromPref(value: String?): EmojiHold = entries.firstOrNull { it.pref == value } ?: DEFAULT
     }
 }

@@ -53,9 +53,9 @@ class NextWordSpeedTestTest {
         val model = FakeModel(emptyMap())
         val unknown = NextWordSpeedTest({ 0L }, { -1L }, { 4000L }).run({ fakeRanker(model) }, listOf("the cat dog"), needMb = 0)!!
         assertEquals(NextWordSpeedTest.UNKNOWN_MB, unknown.extraMb)
-        assertTrue(!unknown.passes, "unmeasured memory never passes")
+        assertTrue(!unknown.passes(NextWordModels.BULGARIAN), "unmeasured memory never passes")
         val known = NextWordSpeedTest({ 0L }, { 1000L }, { 4000L }).run({ fakeRanker(model) }, listOf("the cat dog"), needMb = 0)!!
-        assertTrue(known.passes, "positive control: the same run with readable memory passes")
+        assertTrue(known.passes(NextWordModels.BULGARIAN), "positive control: the same run with readable memory passes")
         var asked = 0
         assertNull(NextWordSpeedTest({ 0L }, { 1000L }, { 4000L }).run({ fakeRanker(model) }, listOf("the cat dog"), needMb = 0, cancelled = { ++asked > 1 }))
         assertTrue(model.closed, "the model is closed after the test")
@@ -68,11 +68,11 @@ class NextWordSpeedTestTest {
         val short = NextWordSpeedTest({ 0L }, { 1000L }, { 618L + 1023 }).run(load, listOf("the cat dog"), needMb = 618)!!
         assertEquals(0, loads, "not loaded: it could push the keyboard out of memory")
         assertEquals(Triple(0L, 618L, 1641L), Triple(short.p95Ms, short.extraMb, short.freeMb))
-        assertEquals(true to false, short.fastEnough to short.enoughMemory, "the result says not enough memory, not too slow")
+        assertEquals(true to false, short.fastEnough(NextWordModels.BULGARIAN) to short.enoughMemory, "the result says not enough memory, not too slow")
         val unreadable = NextWordSpeedTest({ 0L }, { 1000L }, { -1L }).run(load, listOf("the cat dog"), needMb = 618)!!
         assertEquals(0, loads, "free memory that cannot be read: not loaded either")
         assertEquals(0L, unreadable.freeMb)
-        assertTrue(!unreadable.passes)
+        assertTrue(!unreadable.passes(NextWordModels.BULGARIAN))
         val enough = NextWordSpeedTest({ 0L }, { 1000L }, { 618L + 1024 }).run(load, listOf("the cat dog"), needMb = 618)!!
         assertEquals(1, loads, "positive control: exactly the model plus the margin free, it is loaded and tested")
         assertEquals(1642L, enough.freeMb)

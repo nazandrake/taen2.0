@@ -63,6 +63,7 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
             if (first == null || first.start == first.end || first.end > text.length) return MultiCursorResult.Refused.NOTHING_TO_MATCH
             needle = text.substring(first.start, first.end)
             wholeWord = selStart == selEnd
+            ownSelections.add(TextRange(minOf(selStart, selEnd), maxOf(selStart, selEnd))) // a late report of the selection before
             setRanges(text, listOf(first), first)
             return MultiCursorResult.Ranges(1, countAll(text))
         }
@@ -88,6 +89,7 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
             if (selStart != selEnd) return MultiCursorResult.Refused.NOTHING_TO_MATCH
             columnOrigin = selStart
             columnLines = 1
+            ownSelections.add(TextRange(selStart, selStart)) // a late report of the caret before
         } else {
             val held = regionText
             if (held == null || text.regionOf(ranges) != held) {

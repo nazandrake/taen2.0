@@ -93,7 +93,6 @@ object ExportService {
         val filesDir = app.filesDir
         val protectedDir = DeviceProtectedUtils.getFilesDir(app)
         val before = collect(app, accept, withMedia = false, mediaCap = 0L)
-        val mediaBefore = if (parts.media != null) (Privacy.mediaVault(app).exportAll(Long.MAX_VALUE) as? MediaVault.Export.Included)?.snapshot else null
         try {
             parts.prefsDe?.let { replacePrefs(de, it) }
             parts.prefsCe?.let { replacePrefs(ce, it) }
@@ -101,9 +100,10 @@ object ExportService {
             check(Privacy.replaceAllLearned(app, parts.learned)) { "could not store the learned words" }
             FileSet.replace(filesDir, accept, parts.files)
             FileSet.replace(protectedDir, accept, parts.protectedFiles)
+            // the last step: the vault keeps the old pictures until the new ones are complete (MediaVault.replaceAll), so a failure here leaves them as they were
+            // and no copy of them is needed for the way back
             parts.media?.let { check(Privacy.mediaVault(app).replaceAll(it)) { "could not store the pictures" } }
         } catch (t: Throwable) {
-            runCatching { mediaBefore?.let { Privacy.mediaVault(app).replaceAll(it) } }
             // best effort, each step on its own so that one failure does not stop the others
             runCatching { replacePrefs(de, before.prefsDe!!) }
             runCatching { replacePrefs(ce, before.prefsCe!!) }

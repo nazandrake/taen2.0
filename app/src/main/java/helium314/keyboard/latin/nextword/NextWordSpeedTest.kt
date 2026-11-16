@@ -15,13 +15,13 @@ import kotlin.math.max
 class NextWordSpeedTest(private val clockNanos: () -> Long, private val residentKb: () -> Long, private val freeMb: () -> Long) {
     /**
      * Null when [cancelled] became true. [load] throws when the model cannot be loaded. [needMb] is the least the model needs (the size of its file): when
-     * the phone reports less free than that plus [NextWordGate.PHONE_MARGIN_MB], or the free memory cannot be read, the model is not loaded at all (it
+     * the phone reports less free than that plus [NextWordGate.MARGIN_MB], or the free memory cannot be read, the model is not loaded at all (it
      * could push the keyboard out of memory) and the result fails on memory.
      */
     fun run(load: () -> NextWordRanker, sentences: List<String>, needMb: Long, cancelled: () -> Boolean = { false },
             progress: (Int, Int) -> Unit = { _, _ -> }): NextWordGate.Speed? {
         val free = max(0L, freeMb())
-        if (free - needMb < NextWordGate.PHONE_MARGIN_MB) return NextWordGate.Speed(0, needMb, free)
+        if (free - needMb < NextWordGate.MARGIN_MB) return NextWordGate.Speed(0, needMb, free)
         val before = residentKb()
         var peak = before
         var unknown = before < 0

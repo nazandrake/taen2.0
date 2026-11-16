@@ -4,7 +4,10 @@ package helium314.keyboard.latin.downloads
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
 import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
 
 /**
  * Where each catalogue row lives ([targetOf]) and what is installed there. A row is "verified" only when its file has the pinned size and SHA-256;
@@ -64,21 +67,29 @@ class DownloadsStore(
     /** Deletes the files of every row (Remove all). Returns the entries whose file could not be removed. */
     fun removeAll(): List<DownloadEntry> = entries.filter { !remove(it) && targetOf(it).exists() && diskState(it) != State.NOT_INSTALLED }
 
-    // a model file is 130-620 MB: its hash is kept for as long as the file has the same length and time of change (only PinnedInstaller writes there)
-    private val hashes = HashMap<String, Triple<Long, Long, String>>()
+    // a model file is 130-620 MB: its hash is kept for as long as the file is the same one: the same inode (an install renames a new file in), length and
+    // time of change in nanoseconds. A file system without an inode key is hashed every time.
+    private val hashes = HashMap<String, Pair<String, String>>()
+
+    private fun identity(file: File): String? = try {
+        val a = Files.readAttributes(file.toPath(), BasicFileAttributes::class.java)
+        a.fileKey()?.let { "$it ${a.size()} ${a.lastModifiedTime().to(TimeUnit.NANOSECONDS)}" }
+    } catch (_: IOException) {
+        null
+    }
 
     private fun hashOf(file: File): String? {
         val key = file.absolutePath
-        val length = file.length()
-        val changed = file.lastModified()
-        synchronized(hashes) { hashes[key]?.let { (l, m, h) -> if (l == length && m == changed) return h } }
+        val before = identity(file)
+        if (before != null) synchronized(hashes) { hashes[key]?.let { (id, h) -> if (id == before) return h } }
         val hash = try {
             val digest = MessageDigest.getInstance("SHA-256")
             file.inputStream().use { digestOf(it, digest) }
         } catch (_: IOException) {
             return null
         }
-        synchronized(hashes) { hashes[key] = Triple(length, changed, hash) }
+        // kept only when the file did not change while it was read
+        if (before != null && identity(file) == before) synchronized(hashes) { hashes[key] = before to hash }
         return hash
     }
 
