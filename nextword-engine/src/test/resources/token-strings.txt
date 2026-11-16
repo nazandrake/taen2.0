@@ -1,0 +1,100 @@
+Hello
+the cat sat on the mat
+I think we should meet tomorrow at the station.
+Can you send me the file before lunch?
+She's sure they'll come, but we'd better wait.
+It isn't what I'd call a quiet evening, is it?
+THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG
+Room 42 is on the 3rd floor, call 0888 123 456.
+Prices went up by 12.5% in 2025 and 7% in 2026.
+"Quoted words" and (brackets) and [square ones]!
+email: someone@example.org, web: https://example.org/a?b=1
+  two leading spaces and two trailing \u0020
+tab\tseparated\twords
+first line
+second line
+multiple    spaces   between     words
+co-operate, re-enter, well-known
+naïve café résumé façade
+Ünïcödé and ümlauts in Zürich
+emoji 😀 in the middle 🎉 and at the end 👍
+I'M SHOUTING'S NOT NICE
+don't won't can't shouldn't
+ellipsis... and dashes — and – en dash
+a
+ a
+x y z
+1 2 3 4 5 6 7 8 9 10
+3.14159 and 2,718
+#hashtag @mention $dollars £pounds €euros
+What do you want for dinner tonight
+I am going to the
+Thank you very much for your
+Let me know if you have any
+The meeting has been moved to
+We are looking forward to seeing you
+Please find attached the
+Have a nice
+How are you doing
+See you
+by the way
+Happy birthday! Hope you have a great day
+The weather is really nice today, isn't it?
+My phone battery is almost dead
+Remind me to buy milk and bread
+Sorry, I can't talk right now.
+I'll be there in five minutes
+Where did you park the car?
+It was the best of times, it was the worst of times
+NASA, UNESCO and the EU signed it.
+first line\nsecond line\n\nthird after a blank line
+Version 2.0.0 of the app is out\r\nfor everyone
+Здравей
+как си днес
+Ще се видим утре сутринта на гарата.
+Можеш ли да ми пратиш файла преди обяд?
+Тя е сигурна, че ще дойдат, но по-добре да почакаме.
+Не е точно тиха вечер, нали?
+БЪЛГАРИЯ Е ЧЛЕН НА ЕВРОПЕЙСКИЯ СЪЮЗ
+Стая 42 е на третия етаж, обадете се на 0888 123 456.
+Цените се вдигнаха с 12,5% през 2025 г.
+„Кавички“ и (скоби) и [квадратни]!
+Йордан, Юлия и Явор отидоха до Ямбол.
+щъркел, жълт, ъгъл, ьо
+  два водещи интервала \u00a0\u0020
+думи\tс\tтабулации
+първи ред
+втори ред
+много    интервали   между   думите
+добро утро
+добър ден
+добър вечер
+лека нощ
+Благодаря ти много за
+Какво ще правиш довечера
+Отивам до магазина за
+Обади ми се, когато
+Ще се видим в
+Честит рожден ден! Пожелавам ти
+Как си
+До скоро
+между другото
+Батерията на телефона ми е почти изтощена
+Напомни ми да купя мляко и хляб
+Съжалявам, сега не мога да говоря.
+Ще бъда там след пет минути
+Къде паркира колата?
+София, Пловдив, Варна и Бургас
+смесен text и кирилица
+емоджи 😀 в средата 🎉
+съкращения: т.е., напр., гр., ул.
+Ѝ и ѝ са различни от И и и
+й като две точки: й и café
+Тодор Живков и Петър Дънов
+програмиране на Kotlin и Java
+числа 1 2 3 и 10 20 30
+ул. „Витоша“ № 15, ет. 3
+Въпрос? Отговор! Още... край.
+а
+ а
+Дълго изречение, което има много думи и запетаи, за да проверим дали всичко работи правилно до края.

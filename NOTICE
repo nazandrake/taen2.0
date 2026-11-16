@@ -1,0 +1,146 @@
+Taen
+Copyright (C) the Taen authors, and the copyright holders named in the individual source files.
+
+Taen is licensed under the GNU General Public License v3.0 only (see LICENSE).
+
+Origin of the code
+------------------
+- HeliBoard v4.2 (git tag v4.2, commit 0c60dffb03a4e2e7a37cb82210f5299f93c03979),
+  https://github.com/HeliBorg/HeliBoard, GPL-3.0-only. This repository starts from a source import; the upstream history is
+  in the HeliBoard repository.
+- OpenBoard (https://github.com/openboard-team/openboard), GPL-3.0, from which HeliBoard is forked.
+- Android Open Source Project (AOSP) LatinIME keyboard, Apache License 2.0 (see LICENSE-Apache-2.0).
+  Files derived from AOSP keep their "Copyright (C) The Android Open Source Project" headers and
+  their "Apache-2.0 AND GPL-3.0-only" SPDX tags.
+- Some layout and keyboard-parser code in HeliBoard is adapted from FlorisBoard
+  (https://github.com/florisboard/florisboard, Apache License 2.0). Its headers are kept.
+- Glide (gesture) typing: the engine in app/src/main/java/helium314/keyboard/latin/gesture (GlideEngine.kt) is a
+  rewrite of FlorisBoard's "statistical glide typing classifier" (StatisticalGlideTypingClassifier.kt) at tag v0.4.0,
+  commit 80fb20885ba335947b6fd8f3449de8be11c0e13d (2024-09-18), https://github.com/florisboard/florisboard, Apache License
+  2.0 (licence verified in that commit: LICENSE and README), Copyright 2020-2024 Patrick Goldinger and the FlorisBoard
+  Contributors. FlorisBoard's class follows Etienne Desticourt's write-up for AnySoftKeyboard
+  (https://github.com/AnySoftKeyboard/AnySoftKeyboard/pull/1870, Apache License 2.0, SPDX verified from the repository).
+  Kept from them: the model (ideal gesture over the key centres, shape and location distance, Gaussian probabilities, pruning
+  by first and last key and by path length) and the constants (standard deviations 22.08 and 0.5109, loop for double
+  letters). New in Taen: the code (no Android types), log-domain costs, a dictionary-probability cost term, coarse-then-fine
+  scoring, key mapping by base letter for Bulgarian and accented letters, and the word list read from the bundled main
+  dictionary. The source files carry "Apache-2.0 AND GPL-3.0-only". CleverKeys (GPL-3.0, tribixbite/CleverKeys at
+  96cd1917) was evaluated and not used: its decoders need the prebuilt ONNX Runtime native library and model files, and its
+  Bulgarian model is a downloadable pack.
+
+Not included
+------------
+- The HeliBoard name and launcher icon (CC BY-SA 4.0) are not used. Taen has its own name and a
+  placeholder icon.
+- HeliBoard's gesture data gathering, its support for loading a user-supplied native library and its
+  support for the closed-source Google glide typing library were removed. Glide typing is the open-source
+  engine named above; no native library, no model file and no download are involved.
+
+Bundled data and libraries
+--------------------------
+Dictionaries, app/src/main/assets/dicts/main_*.dict (3 files):
+- main_en-GB.dict and main_bg.dict: main_en_gb__experimental.dict and main_bg__experimental.dict of
+  https://codeberg.org/Helium314/aosp-dictionaries at commit ff0cd52be8d9530200fefe8b296c53d4f662091e (unchanged copies, SHA-256 in
+  tools/downloads.lock). "created using wordlist.py and wordlist_combined.py, using word lists available at
+  https://wortschatz.uni-leipzig.de/en/download/", "license: source lists under CC BY 4.0" (lines 1 and 2 of
+  wordlists/main_en_GB__experimental.source and wordlists/main_bg__experimental.source at that commit). Attribution: Leipzig
+  Corpora Collection, Universitaet Leipzig (https://wortschatz.uni-leipzig.de), CC BY 4.0; the compiled dictionaries are derived works
+  of those lists. app/src/test/resources/glide/en.tsv.gz and bg.tsv.gz are the word lists of these two files (tools/gen-glide-fixtures.sh).
+- main_bn.dict: dictionaries/main_bn.dict of https://codeberg.org/Helium314/aosp-dictionaries at the same commit
+  ff0cd52be8d9530200fefe8b296c53d4f662091e (unchanged copy, SHA-256 dd555eee57aceec08200cc293ffafd29a13bb531156e3a36e5a16ff6895d13a6).
+  Lines 1 and 2 of wordlists/main_bn.source at that commit: "created using wordlist.py and wordlist_combined.py, based on word lists
+  from the Leipzig Corpora Collection (https://wortschatz.uni-leipzig.de/en/download), then thoroughly proofread and corrected",
+  "license: source lists under CC BY 4.0". Attribution: Leipzig Corpora Collection, Universitaet Leipzig, CC BY 4.0; the compiled
+  dictionary is a derived work of those lists.
+The other HeliBoard dictionaries (the older AOSP and OpenBoard word lists) are not bundled because no licence statement is published
+for them. Other languages can be added by the user from a dictionary file (Settings > Languages).
+Emoji data: app/src/main/assets/emoji/*.txt are lists of emoji code points (the Unicode emoji set), no text of a licence
+applies beyond the Unicode Terms of Use. The HeliBoard emoji search dictionaries (CLDR annotations, Unicode License v3,
+combined with Signal emoji data, AGPL-3.0) are NOT bundled and cannot be downloaded: Taen has no network access.
+Emoji search: app/src/main/assets/emoji_search/en.txt and bg.txt hold the emoji names and keywords of the Unicode CLDR
+annotations in English and Bulgarian (Unicode CLDR 49.0.0 through https://github.com/unicode-org/cldr-json, tag 49.0.0, commit
+a4b67247b446fd51b475991017a2481911210c60; files cldr-annotations-full and cldr-annotations-derived-full annotations/en and /bg;
+Unicode License v3, Copyright (c) 2015-2024 Unicode, Inc.; SPDX Unicode-3.0). The licence text is app/src/main/assets/
+emoji_search/LICENSE-Unicode-3.0.txt, shipped with the data as the licence asks. They are generated by tools/gen-emoji-search.py
+(the emoji of the keyboard's palette only, no skin-tone variants, lower-case keywords) and read by the app from its assets: no
+network. Emoji data from Signal (AGPL-3.0) is not used.
+Input method table: app/src/main/assets/bn-khipro.mim, MIT License, Copyright (c) 2024 rank_coder (header kept in the file).
+Layouts and locale key texts (assets/layouts, assets/locale_key_texts): HeliBoard, GPL-3.0-only.
+Libraries (Apache-2.0 per their POMs): AndroidX, Jetpack Compose, kotlinx.serialization, sh.calvin.reorderable,
+com.github.skydoves:colorpicker-compose. com.android.tools:desugar_jdk_libs 2.1.5: GPL-2.0 with the Classpath Exception per
+its POM (OpenJDK-derived java.time backport), compatible with GPL-3.0-only through the exception.
+Bouncy Castle (org.bouncycastle:bcprov-jdk18on 1.81, https://www.bouncycastle.org), the Bouncy Castle licence (an MIT licence, SPDX MIT),
+Copyright (c) 2000-2023 The Legion of the Bouncy Castle Inc.: used for Argon2id only (the encrypted export, the PIN and the trigger word).
+The other POM licences were read for sh.calvin.reorderable and colorpicker-compose only; the AndroidX, Compose and Kotlin
+licences are the standard Apache-2.0 ones and are not re-verified per artifact.
+Native code in the APK: libjni_latinime.so (built from app/src/main/jni, AOSP LatinIME, Apache-2.0) and
+libandroidx.graphics.path.so from androidx.graphics:graphics-path 1.0.1 (Apache-2.0, AOSP). The second one is kept on
+purpose: the minified release still contains androidx.graphics.path.PathIteratorPreApi34Impl and ConicConverter, which Compose
+uses on Android 11 to 13 (minSdk 30) and which load it; removing it risks UnsatisfiedLinkError there. It is on
+privacy/native-libs.allow and its checksum is pinned in gradle/verification-metadata.xml.
+LICENSE-CC-BY-SA-4.0 (the HeliBoard icon and name) stays in the repository until the upstream icon files and any
+CC BY-SA text in docs are confirmed removed.
+
+Voice typing: speech is recognised on the phone, nothing is sent anywhere
+-------------------------------------------------------------------------------------------
+- ONNX Runtime 1.27.0 (com.microsoft.onnxruntime:onnxruntime-android, https://github.com/microsoft/onnxruntime), MIT License, Copyright (c)
+  Microsoft Corporation (licence from the project's GitHub licence file and the POM; checked 2026-11-12). Prebuilt libonnxruntime.so and
+  libonnxruntime4j_jni.so for arm64-v8a, taken from Maven Central and pinned by SHA-256 in gradle/verification-metadata.xml (AAR 077dec5e...);
+  both are on privacy/native-libs.allow. CPU provider only. Version choice: the AARs of 1.22.0, 1.24.3 and 1.27.0 declare no permission and no
+  network class; 1.30.0 and 1.31.1 add the INTERNET permission, a telemetry provider and an HTTP client (read from their manifests and
+  class lists), so they are not used. libonnxruntime.so links liblog (its logger); the app sets its log level to fatal and the device audit
+  reads logcat.
+- Model: NVIDIA parakeet-tdt-0.6b-v3 (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), CC BY 4.0 (the licence field of the model repository), Copyright
+  NVIDIA Corporation. The ONNX int8 export used here was made by the sherpa-onnx project (k2-fsa/sherpa-onnx, Apache-2.0) and is published as
+  csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8 (also CC BY 4.0), revision ed5d745623472f97cfc2e6c2916ee248798fc5a8. Changes by the
+  exporter: conversion to ONNX and quantisation to int8; none by Taen. The model is NOT in the APK and is never downloaded by the app: the builder
+  fetches it with `make fetch-voice-model` (tools/voice-model.lock lists URL, size and SHA-256), the user installs the four files or, since 1.0.2, the one
+  archive of the same model (the official k2-fsa/sherpa-onnx release asset sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2, 487211443 bytes, SHA-256
+  1495e91b59d7fc53ddca91f3431758ec99f8fa253fdb0e1e851be0f72b14b0f9, tools/voice-model-archive.lock; the four files in it were measured equal to the Hugging Face
+  files, so the same licence and credit apply), and the app checks the archive and each file's SHA-256 before it is used. The archive is unpacked by the app's
+  own bzip2 decoder (Bzip2InputStream.kt, written from the public format description, tested against libbz2 output): no compression library and no new
+  dependency was added in 1.0.2. Credit shown to the user in Settings > Voice typing.
+- Code: the log-mel front end (Fbank.kt) and the token-and-duration greedy search (TdtGreedy.kt) are new Kotlin written from the published behaviour of
+  the model (NeMo preprocessor settings in the model metadata, the sherpa-onnx NeMo transducer decoder). Their oracle, tools/voice/parakeet_ref.py (numpy
+  and onnxruntime), and the sherpa-onnx Python package (Apache-2.0) used for the comparison run on the build machine only and are not shipped.
+- Test audio: the host smoke test uses 20 English and 20 Bulgarian utterances of the FLEURS test split (google/fleurs, CC BY 4.0, public read speech,
+  no personal data); tools/voice/prepare_samples.py cuts them, they are never committed or shipped. Voice activity detection (Silero) is not used.
+
+Starter stickers: part of the APK, off until the user turns them on
+---------------------------------------------------------------------------------------
+- app/src/main/assets/stickers/*.png (38 files): Fluent Emoji, 3D style, Microsoft Corporation (https://github.com/microsoft/fluentui-emoji), MIT License,
+  Copyright (c) Microsoft Corporation (licence file of commit 1ffb34c752ecf5d402f04cfb4b392c77f57c54bc, read 2026-11-16). Unchanged copies of the published PNG files;
+  tools/sticker-pack.lock lists name, size, SHA-256 and the pinned address of each, tools/make-sticker-pack.sh rebuilds them. Credit shown in Settings > GIFs and stickers.
+  The Noto Animated Emoji set (CC BY 4.0) is not used: its GIFs have no commit-pinned address.
+
+Optional dictionary downloads: NOT in the APK, fetched by the user with the browser
+-------------------------------------------------------------------------------------------------------
+- Source: https://codeberg.org/Helium314/aosp-dictionaries at commit ff0cd52be8d9530200fefe8b296c53d4f662091e (2026-10-08); tools/downloads.lock lists address, size and
+  SHA-256 of every file, the app checks them before installing. Repository licence file: GNU General Public License v3 (LICENSE, first line "GNU GENERAL PUBLIC LICENSE
+  Version 3"). Each file's own statement is its wordlists/<name>.source, quoted in tools/downloads.lock.
+- main_bg__experimental.dict and main_en_gb__experimental.dict (the two files in tools/downloads.lock; main_en_us__experimental.dict measured worse than the dictionary in the APK and is not
+  listed): "created using wordlist.py and wordlist_combined.py, using word lists available at https://wortschatz.uni-leipzig.de/en/download/", "license: source lists under CC BY 4.0"
+  (lines 1 and 2 of wordlists/main_bg__experimental.source and wordlists/main_en_GB__experimental.source at that commit). Attribution: Leipzig Corpora Collection, Universität
+  Leipzig (https://wortschatz.uni-leipzig.de); the compiled dictionary is a derived work of those lists. Held-out text of the evaluation (tools/dict-eval.sh): Leipzig Wikipedia samples
+  bul_wikipedia_2021_10K and eng_wikipedia_2016_10K (CC BY 4.0), downloaded on the build PC only.
+
+Next-word models (2.0.0): the models are NOT in the APK, fetched by the user with the browser; their tokenizer files are in the APK
+-------------------------------------------------------------------------------------------------------------------------------
+- English: SmolLM2-135M, Hugging Face (https://huggingface.co/HuggingFaceTB/SmolLM2-135M, commit 93efa2f097d58c2a74874c7e644dbc9b0cee75a2), Apache License 2.0 (the licence field
+  of the model repository). The int8 ONNX file is the conversion published as onnx-community/SmolLM2-135M-ONNX (commit d0ae6834f1df45e0e95b5fdae95e536f9ca7cd3f, which names
+  the model above as its base). Changes by the converter: conversion to ONNX and int8 quantisation; none by Taen.
+- Bulgarian: Qwen3-0.6B, Qwen team, Alibaba Cloud (https://huggingface.co/Qwen/Qwen3-0.6B, commit c1899de289a04d12100db370d81485cdf75e47ca), Apache License 2.0 (the licence
+  field and LICENSE file of the model repository). The int8 ONNX file is the conversion published as onnx-community/Qwen3-0.6B-ONNX (commit
+  79346d370dfae34801d26993fda9ae2372900fd0). Changes by the converter: conversion to ONNX and int8 quantisation; none by Taen.
+- tools/downloads.lock lists address, size and SHA-256 of both model files; the app checks them before installing and again before the first use.
+- app/src/main/assets/nextword/*/vocab.json and merges.txt: unchanged copies of the two models' tokenizer files (same repositories and commits as the ONNX files, Apache License
+  2.0); tools/nextword/tokenizers.lock lists them. The tokenizer (BpeTokenizer.kt) is new Kotlin written from the published byte-level BPE behaviour; its reference token ids
+  (nextword-engine/src/test/resources) were made once with the Hugging Face tokenizers library (Apache-2.0) on the build machine, not shipped.
+- Held-out text of the measurement (tools/nextword-eval.sh): the same Leipzig Wikipedia samples as the dictionary evaluation (CC BY 4.0), on the build PC only.
+
+Changes from HeliBoard v4.2
+---------------------------
+Taen is a modified version of HeliBoard v4.2 (GPL-3.0-only, section 5). Changes made 2026-10 to 2026-11 and later, as recorded in
+the history of this repository: no network permission; encrypted storage of all user data; app lock and self-destruct; incognito and
+anti-snooping rules; an open-source glide typing engine; on-device voice typing; optional pinned downloads; offline pictures; removal of gesture data gathering, of user-supplied native
+libraries and of the HeliBoard name and icon. Files derived from AOSP keep their Apache-2.0 headers.

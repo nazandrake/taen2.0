@@ -1,0 +1,40 @@
+// Host build of the pure-Kotlin voice engine: the sources are the ones the app compiles, app/src/main/java/helium314/keyboard/latin/voice/engine
+// (log-mel features, TDT greedy search, vocabulary, ONNX Runtime wrapper). They have no Android type, so they run on the build machine
+// against the desktop ONNX Runtime of the same version as the app's Android one (same Java API). Tests: ./gradlew :voice-engine:test.
+// The smoke test with the real model and audio is :voice-engine:voiceSmoke (make voice-smoke, BUILDING.md section 8).
+apply plugin: 'java'
+apply plugin: 'kotlin'
+
+sourceSets {
+    main {
+        kotlin {
+            srcDir '../app/src/main/java/helium314/keyboard/latin/voice/engine'
+        }
+    }
+}
+
+dependencies {
+    compileOnly 'com.microsoft.onnxruntime:onnxruntime:1.27.0'
+    testImplementation 'com.microsoft.onnxruntime:onnxruntime:1.27.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.jetbrains.kotlin:kotlin-test-junit:2.4.0'
+}
+
+test {
+    useJUnit()
+    exclude '**/EngineSmokeTest*'
+}
+
+// the smoke test needs the model and the samples (environment TAEN_VOICE_MODEL_DIR, TAEN_VOICE_SAMPLES_DIR); never up to date
+tasks.register('voiceSmoke', Test) {
+    group = 'verification'
+    description = 'Runs the engine on the real model and the FLEURS samples (EN and BG), prints WER and speed'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnit()
+    filter { includeTestsMatching '*EngineSmokeTest' }
+    outputs.upToDateWhen { false }
+    testLogging { showStandardStreams = true }
+    maxHeapSize = '2g'
+    // the same process-wide thread count the app uses on the phone class of device: 4
+}

@@ -6,8 +6,29 @@ Enable the repository's git hooks once per clone (python3 is required):
 
     scripts/setup-hooks
 
-This runs `git config core.hooksPath githooks`. The hooks then block a commit, a commit message or a push
-that fails `scripts/public-check`.
+This runs `git config core.hooksPath githooks` (`make hooks` does the same). The hooks then block a commit, a
+commit message or a push that fails `scripts/public-check`. Before a push the hook also runs
+`tools/pre-push-checks.sh`: it refuses key files, runs the buildSrc, engine and unit tests with `privacyCheck`, and
+builds the pushed commit twice to check that the APK is reproducible (`BUILDING.md`, sections 5 and 9).
+
+## Changes to the code
+
+- Read `INVARIANTS.md` first. A change that touches a rule (permissions, backup, storage, clipboard, logging,
+  self-destruct, native code) needs a test that fails without the change, and `make check` must stay green.
+- When you change a check (`privacyCheck`, SourceRules, the APK scan, the leak audit), plant the violation it is
+  meant to catch, see the check fail, then keep the planted case as a test.
+- New user data goes through `Privacy.kt` (encrypted stores). New dependencies need
+  `./gradlew --write-verification-metadata sha256` and a reviewed diff of `gradle/verification-metadata.xml`.
+- No network code, no analytics, no logging of user text. Log calls take one tag and one fixed string.
+- Keep licence, copyright, SPDX and "modified" lines of every file. Files derived from AOSP keep their Apache-2.0
+  header and get a "modified" line when changed.
+- Write tests first where you can; tests run without network, phone or clock dependence.
+
+Checks before a pull request:
+
+    make check          # privacyCheck, buildSrc, engine and unit tests, release build
+    make native-test    # when app/src/main/jni changes
+    make leak-audit     # when the APK contents change
 
 ## Public check
 

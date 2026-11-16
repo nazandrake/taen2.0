@@ -1,0 +1,44 @@
+// Host build of the pure-Kotlin next-word engine: the sources are the ones the app compiles, app/src/main/java/helium314/keyboard/latin/nextword/engine
+// (byte-level BPE tokenizer, ranking, ONNX Runtime wrapper). They have no Android type, so they run on the build machine against the desktop
+// ONNX Runtime of the same version as the app's Android one (same Java API). Tests: ./gradlew :nextword-engine:test.
+// The measurement with the real models and the held-out text is :nextword-engine:nextWordEval (make nextword-eval, BUILDING.md section 10).
+apply plugin: 'java'
+apply plugin: 'kotlin'
+
+sourceSets {
+    main {
+        kotlin {
+            srcDir '../app/src/main/java/helium314/keyboard/latin/nextword/engine'
+        }
+    }
+}
+
+dependencies {
+    compileOnly 'com.microsoft.onnxruntime:onnxruntime:1.27.0'
+    testImplementation 'com.microsoft.onnxruntime:onnxruntime:1.27.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.jetbrains.kotlin:kotlin-test-junit:2.4.0'
+}
+
+// ONNX Runtime unpacks its native library into java.io.tmpdir: the build directory, not the RAM-backed /tmp
+test {
+    useJUnit()
+    exclude '**/NextWordEvalTest*'
+    systemProperty 'taen.assets', file('../app/src/main/assets').absolutePath
+    systemProperty 'java.io.tmpdir', temporaryDir.absolutePath
+}
+
+// the measurement needs the models and the contexts (environment TAEN_NEXTWORD_MODEL_DIR, TAEN_NEXTWORD_EVAL_DIR); never up to date
+tasks.register('nextWordEval', Test) {
+    group = 'verification'
+    description = 'Runs the ranking on the real models and the held-out contexts (EN and BG), prints top-3 hits and step times'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnit()
+    filter { includeTestsMatching '*NextWordEvalTest' }
+    outputs.upToDateWhen { false }
+    testLogging { showStandardStreams = true }
+    maxHeapSize = '3g'
+    systemProperty 'taen.assets', file('../app/src/main/assets').absolutePath
+    systemProperty 'java.io.tmpdir', temporaryDir.absolutePath
+}

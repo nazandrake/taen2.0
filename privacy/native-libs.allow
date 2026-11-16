@@ -1,0 +1,10 @@
+# Native libraries (file names under lib/<abi>/) the release APK may contain (P6). Anything else fails apkScanRelease.
+# The optional word links-liblog lets that one library link liblog / __android_log (never android/util/Log); see ApkRules.parseNativeLibs.
+libjni_latinime.so            # built from app/src/main/jni (AOSP LatinIME dictionary engine), the only code built in this repo
+libandroidx.graphics.path.so  # androidx.graphics:graphics-path 1.0.1 (Apache-2.0, AOSP), pulled in by Compose ui-graphics; source-built by AndroidX, pinned by checksum in gradle/verification-metadata.xml; see NOTICE
+# Voice typing: ONNX Runtime 1.27.0 from com.microsoft.onnxruntime:onnxruntime-android (MIT, Microsoft, prebuilt, pinned by SHA-256 in
+# gradle/verification-metadata.xml; see NOTICE). CPU provider only. Checked on the 1.27.0 arm64-v8a files: no socket, getaddrinfo or curl symbol,
+# and the AAR declares no permission. libonnxruntime.so links liblog (its logger writes to logcat); the app sets the logging level to FATAL
+# and the device leak audit checks logcat (D2, voice session) for output.
+libonnxruntime.so             links-liblog
+libonnxruntime4j_jni.so       # the JNI glue of the Java API

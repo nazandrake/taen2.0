@@ -1,0 +1,34 @@
+# Pinned build environment for the reference build and the reproducibility check (BUILDING.md, section 3).
+# Build locally, no registry push:  make container       Build in it:  make container-build / make container-verify-repro
+# NOT YET BUILT ON THIS MACHINE (neither podman nor docker is installed on the dev machine): the digest and the zip checksum
+# below were resolved from the registry and from dl.google.com on 2026-11-11, the rest is unverified until the first run.
+#
+# JDK 21 (Eclipse Temurin), base image pinned by digest. The tag was eclipse-temurin:21-jdk-noble at that date.
+FROM docker.io/library/eclipse-temurin:21-jdk-noble@sha256:114cabb73033ca4ce7ceec3deb62396bc1b716282bae051ed3c1d82e38fcab2d
+
+# Tools used by the scripts only; they do not influence the APK bytes.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git unzip make curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
+ && git config --system --add safe.directory '*'
+
+# Android command-line tools 19.0, pinned by SHA-256 (Google publishes only a SHA-1: 5fdcc763663eefb86a5b8879697aa6088b041e70).
+# Not 23.0: its sdkmanager downloads the Android CLI with usage metrics and has no --licenses (same pin as tools/build-linux.sh).
+ARG CMDLINE_ZIP=commandlinetools-linux-13114758_latest.zip
+ARG CMDLINE_SHA256=7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee
+ENV ANDROID_HOME=/opt/android-sdk
+RUN curl -fsSL -o /tmp/cmdline.zip "https://dl.google.com/android/repository/${CMDLINE_ZIP}" \
+ && echo "${CMDLINE_SHA256}  /tmp/cmdline.zip" | sha256sum -c - \
+ && mkdir -p "${ANDROID_HOME}/cmdline-tools" \
+ && unzip -q /tmp/cmdline.zip -d "${ANDROID_HOME}/cmdline-tools" \
+ && mv "${ANDROID_HOME}/cmdline-tools/cmdline-tools" "${ANDROID_HOME}/cmdline-tools/latest" \
+ && rm /tmp/cmdline.zip
+
+# Building in this image means accepting the Android SDK licences; that is the builder's own act.
+RUN yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null \
+ && "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" \
+      "platforms;android-37.0" "build-tools;36.0.0" "ndk;28.0.13004108"
+
+COPY build-in-container.sh /usr/local/bin/taen-build
+RUN chmod +x /usr/local/bin/taen-build
+WORKDIR /src

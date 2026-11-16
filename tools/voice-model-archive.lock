@@ -1,0 +1,7 @@
+# The one archive of the same voice model (Taen 1.0.2): the official k2-fsa/sherpa-onnx release asset (Apache-2.0 tooling, model CC-BY-4.0, NVIDIA).
+# One download (the GitHub asset answers with Content-Disposition: attachment) and one install: "Install downloaded model" checks the archive SHA-256 first,
+# then reads the four files of tools/voice-model.lock out of it and checks each one again. The four files inside the archive were measured equal
+# (size and SHA-256) to the Hugging Face files of voice-model.lock on 2026-11-14 (tools/voice/check_archive.py repeats that check).
+# The release tag asr-models is mutable upstream: if the asset is ever replaced, the archive hash no longer matches and the app says so (the four single files still work).
+# Columns (tab separated): archive name, size in bytes, SHA-256, URL, folder inside the archive. Kept equal to VoiceModelSpec.archive by VoicePolicyTest.
+sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2	487211443	1495e91b59d7fc53ddca91f3431758ec99f8fa253fdb0e1e851be0f72b14b0f9	https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2	sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8

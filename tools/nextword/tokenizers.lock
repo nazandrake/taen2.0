@@ -1,0 +1,7 @@
+# The tokenizer files of the next-word models, shipped verbatim in the APK under assets/nextword (the model files themselves are downloads, tools/downloads.lock).
+# Columns (tab separated): asset path, size in bytes, SHA-256, source (https, commit-pinned). Both are Apache-2.0, like their models (NOTICE).
+# Checked by TokenizerAssetsTest (the source tree) and leak audit S11 (the release APK); tools/nextword/make_token_fixtures.py checks that they equal tokenizer.json.
+nextword/smollm2-135m/vocab.json	800662	82b84012e3add4d01d12ba14442026e49b8cbbaead1f79ecf3d919784f82dc79	https://huggingface.co/onnx-community/SmolLM2-135M-ONNX/resolve/d0ae6834f1df45e0e95b5fdae95e536f9ca7cd3f/vocab.json
+nextword/smollm2-135m/merges.txt	466391	0b54e8aa4e53d5383e2e4bc635a56b43f9647f7b13832d5d9ecd8f82dac4f510	https://huggingface.co/onnx-community/SmolLM2-135M-ONNX/resolve/d0ae6834f1df45e0e95b5fdae95e536f9ca7cd3f/merges.txt
+nextword/qwen3-0.6b/vocab.json	2776833	ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910	https://huggingface.co/onnx-community/Qwen3-0.6B-ONNX/resolve/79346d370dfae34801d26993fda9ae2372900fd0/vocab.json
+nextword/qwen3-0.6b/merges.txt	1671853	8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5	https://huggingface.co/onnx-community/Qwen3-0.6B-ONNX/resolve/79346d370dfae34801d26993fda9ae2372900fd0/merges.txt

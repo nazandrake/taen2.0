@@ -1,0 +1,4 @@
+include ':app'
+include ':tools:make-emoji-keys'
+include ':voice-engine'
+include ':nextword-engine'

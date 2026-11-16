@@ -1,0 +1,9 @@
+# Voice model for Taen voice typing: the sherpa-onnx int8 export of NVIDIA parakeet-tdt-0.6b-v3.
+# Licence: CC-BY-4.0 (NVIDIA, https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3; the ONNX files are made by k2-fsa/sherpa-onnx, Apache-2.0).
+# Pinned Hugging Face revision of csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8: ed5d745623472f97cfc2e6c2916ee248798fc5a8 (2026-11-07).
+# Columns (tab separated): file name, size in bytes, SHA-256, URL (with ?download=true: Hugging Face then answers the three .onnx files with Content-Disposition: attachment, so the browser saves them; it answers tokens.txt as inline text/plain even so, measured 2026-11-14, which is why the single archive of tools/voice-model-archive.lock is the preferred download). The SHA-256 values are also the Hugging Face LFS object ids of the files.
+# Kept equal to app/src/main/java/helium314/keyboard/latin/voice/VoiceModelSpec.kt by VoiceModelSpecTest. Read by tools/fetch-voice-model.sh.
+encoder.int8.onnx	652282294	1afbe69c1ffdabee94755f42e4daf1d93549131a3da11356bda84fcef0f2c479	https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/ed5d745623472f97cfc2e6c2916ee248798fc5a8/encoder.int8.onnx?download=true
+decoder.int8.onnx	11845274	0222a86147299d4dee90edf95b6d13827edb42ad8b7c9cf0b2582f030937c0b5	https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/ed5d745623472f97cfc2e6c2916ee248798fc5a8/decoder.int8.onnx?download=true
+joiner.int8.onnx	6355277	cbd02f3696e9944970111fb439d9c3fd365a80374565f13f2b9c7007d253fc98	https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/ed5d745623472f97cfc2e6c2916ee248798fc5a8/joiner.int8.onnx?download=true
+tokens.txt	93939	d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d	https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/ed5d745623472f97cfc2e6c2916ee248798fc5a8/tokens.txt?download=true
