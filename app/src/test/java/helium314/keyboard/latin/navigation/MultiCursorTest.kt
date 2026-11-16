@@ -47,6 +47,96 @@ class MultiCursorTest {
         assertEquals("ax1\nbx2\ncx3", field.text)
     }
 
+    @Test fun caretsAddedBelowAfterTypingStayAtTheTypedColumn() {
+        // typing moves every caret to the right: the next caret below sits at the column of the first caret now, not at its old one
+        val field = FakeField("a1\nb2\nc3", 1)
+        val multi = cursor(field)
+        assertEquals(MultiCursorResult.Lines(2), multi.addCaretOnNextLine(1, 1))
+        assertEquals(MultiCursorResult.Written, multi.type("x"))
+        assertEquals("ax1\nbx2\nc3", field.text)
+        assertEquals(MultiCursorResult.Lines(3), multi.addCaretOnNextLine(field.selStart, field.selEnd))
+        assertEquals(listOf(TextRange(2, 2), TextRange(6, 6), TextRange(10, 10)), multi.heldRanges)
+        assertEquals(MultiCursorResult.Written, multi.type("y"))
+        assertEquals("axy1\nbxy2\nc3y", field.text)
+    }
+
+    @Test fun backspaceMovesTheColumnToo() {
+        val field = FakeField("ab1\ncd2\nef3", 2)
+        val multi = cursor(field)
+        multi.addCaretOnNextLine(2, 2)
+        assertEquals(MultiCursorResult.Written, multi.deleteBackward())
+        assertEquals("a1\nc2\nef3", field.text)
+        assertEquals(MultiCursorResult.Lines(3), multi.addCaretOnNextLine(field.selStart, field.selEnd))
+        assertEquals(listOf(TextRange(1, 1), TextRange(4, 4), TextRange(7, 7)), multi.heldRanges)
+    }
+
+    @Test fun aLineBreakTypedIntoColumnCaretsEndsTheColumnAndTheNextCaretStartsFromTheCaretNow() {
+        val field = FakeField("ab\ncd\nef", 1)
+        val multi = cursor(field)
+        multi.addCaretOnNextLine(1, 1)
+        multi.addCaretOnNextLine(field.selStart, field.selEnd)
+        assertEquals(MultiCursorResult.Written, multi.type("1\n2"))
+        assertEquals("a1\n2b\nc1\n2d\ne1\n2f", field.text)
+        assertTrue(multi.isActive, "the carets stay for typing")
+        assertEquals(MultiCursorResult.Refused.NO_MORE_LINES, multi.addCaretOnNextLine(field.selStart, field.selEnd))
+        assertFalse(multi.isActive, "the old carets are not kept next to a new column")
+    }
+
+    @Test fun backspaceRemovesAWholeGraphemeAtEveryCaret() {
+        val graphemes = listOf(
+            "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67", // family: three people joined by zero-width joiners
+            "\uD83D\uDC4D\uD83C\uDFFD", // thumbs up with a skin tone
+            "\uD83C\uDDE7\uD83C\uDDEC", // flag: two regional indicators
+            "1\uFE0F\u20E3", // keycap
+            "e\u0301", // a letter with a combining accent
+        )
+        for (g in graphemes) {
+            val field = FakeField("x$g\ny$g", 1 + g.length)
+            val multi = cursor(field)
+            assertEquals(MultiCursorResult.Lines(2), multi.addCaretOnNextLine(field.selStart, field.selEnd))
+            assertEquals(MultiCursorResult.Written, multi.deleteBackward())
+            assertEquals("x\ny", field.text, g.map { it.code.toString(16) }.toString())
+        }
+        // a plain letter is still one character
+        val plain = FakeField("xa\nya", 2)
+        val multi = cursor(plain)
+        multi.addCaretOnNextLine(2, 2)
+        multi.deleteBackward()
+        assertEquals("x\ny", plain.text)
+    }
+
+    @Test fun undoIsGoneAsSoonAsAnythingElseChangesTheField() {
+        val field = FakeField("ab ab", 1)
+        val multi = cursor(field)
+        repeat(2) { multi.next(field) }
+        multi.type("cd")
+        assertEquals("cd cd", field.text)
+        field.text += "!" // another edit, outside the region of the cursors
+        field.calls.clear()
+        assertNull(multi.undoLastEdit())
+        assertEquals("cd cd!", field.text)
+        assertEquals(emptyList(), field.calls)
+
+        // positive control: without the other edit the same undo goes through
+        val clean = FakeField("ab ab", 1)
+        val second = cursor(clean)
+        repeat(2) { second.next(clean) }
+        second.type("cd")
+        assertEquals(MultiCursorResult.Undone, second.undoLastEdit())
+        assertEquals("ab ab", clean.text)
+
+        // an edit between two typed letters starts a new undo that does not reach back before it
+        val letters = FakeField("ab ab", 1)
+        val third = cursor(letters)
+        repeat(2) { third.next(letters) }
+        third.type("c")
+        letters.text += "?"
+        third.type("d")
+        assertEquals("cd cd?", letters.text)
+        assertEquals(MultiCursorResult.Undone, third.undoLastEdit())
+        assertEquals("c c?", letters.text)
+    }
+
     // ---- the whole contract -------------------------------------------------------------------------------------
 
     @Test fun aSelectionMatchesSubstringsAndMatchingIsCaseSensitive() {

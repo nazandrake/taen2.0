@@ -11,13 +11,14 @@ import kotlin.test.assertTrue
  * The glide quality gate: top-1 at least 79.5 % for English and 70 % for Bulgarian (p95 latency at most 150 ms on the
  * reference phone is measured on the phone, not here).
  *
- * What it measures: the engine over the WHOLE bundled main dictionary (en-US 160 669 words, bg 414 905 words, from
- * tools/gen-glide-fixtures.sh) on generated gestures. There are no recorded swipes (the app records none, and
+ * What it measures: the engine over the WHOLE word list of the bundled CC BY dictionaries (English 386 504 words, Bulgarian
+ * 898 049 words, from tools/gen-glide-fixtures.sh) on generated gestures. The gate tracks these dictionaries: the figures
+ * below were measured with them, and a different dictionary list has to be measured again and the gate set from that. There are no recorded swipes (the app records none, and
  * its privacy contract forbids it), so each gesture is a seeded finger model over the key geometry of the real
  * layout file (GlideTestKit.gesture): per-letter miss of 0.2 key sizes (the "typical" level of the gate), a hand
  * shift of 0.1 key, corners rounded by up to 0.35 key, a sideways bow, uneven speed, whole-pixel touch points.
- * Words are drawn uniformly from the words of probability >= 100 with at least 3 distinct keys (12 620 English,
- * 9 916 Bulgarian words): rare words as often as common ones, which is harder than real use. The constants of
+ * Words are drawn uniformly from the words of probability >= 100 with at least 3 distinct keys (about 9 500 English,
+ * about 10 000 Bulgarian words): rare words as often as common ones, which is harder than real use. The constants of
  * the engine were tuned on the TUNING words only (seed 7, words 0..149); the gate runs on the HELD-OUT words
  * (the next 200 words) with a different gesture seed. This is synthetic data: a pass shows that the
  * engine works, not a measurement of real-finger accuracy.
@@ -58,14 +59,15 @@ class GlideQualityGateTest {
 
     private class Setup(val lang: String, val layout: String, val minTop1: Double)
 
-    // the gate: English 79.5 %, Bulgarian 70 % (both Bulgarian layouts: phonetic and BDS). English was 80 % until the licensed
-    // dictionaries (CC BY) measured 79.6 %, inside the noise of a 500-word sample; improving it is planned
+    // the gate: English 79.5 %, Bulgarian 70 % (both Bulgarian layouts: phonetic and BDS). With the shipped CC BY dictionaries the
+    // decision sample measures English 79.6 %, Bulgarian (phonetic) 87.4 % and BDS 85.6 %. English was 80 % before: 79.6 % is inside the
+    // noise of a 500-word sample, so the gate is 79.5 %; improving the English figure is planned
     private val setups = listOf(Setup("en", "qwerty", 79.5), Setup("bg", "bulgarian", 70.0), Setup("bg", "bulgarian_bds", 70.0))
 
     @Test
     fun glideIsOnByDefaultExactlyWhenTheGatePasses() {
         val report = StringBuilder()
-        val below = ArrayList<String>() // design gate missed on the decision sample: glide must ship off
+        val below = ArrayList<String>() // gate missed on the decision sample: glide must ship off
         val regressed = ArrayList<String>() // far below the gate on the held-out words: the engine got worse
         for (s in setups) {
             val words = GlideTestKit.lexiconWords(s.lang)
@@ -80,7 +82,8 @@ class GlideQualityGateTest {
             }
             // The gate is decided on a larger fresh sample at the gate level, 500 words
             // that neither the tuning (words 0..149) nor the held-out set (150..349) used: its sampling error is +-1.7 points
-            // instead of +-3 for 200 words. English: 79.5 % on the 200 held-out words, 83.2 % on these 500.
+            // instead of +-3 for 200 words. With the shipped dictionaries English gives 81.0 % on the 200 held-out words and 79.6 % on these 500;
+            // Bulgarian gives 88.0 % and 87.4 % (phonetic), 88.5 % and 85.6 % (BDS).
             val confirmation = run("${s.lang}/${s.layout} decision sample noise 0.2", lexicon, s.layout, sample(words, kb, 7, 350, 500), 0.2f, 29)
             report.appendLine(confirmation.toString())
             if (confirmation.top1Percent < s.minTop1) below.add("${confirmation.label} ${confirmation.top1Percent}")

@@ -132,7 +132,8 @@ The test audio is public read speech; the quality on the owner's own voice and o
 The space bar moves the cursor across characters and, in multi-line fields, up and down lines (one arrow key per key-row height;
 a single-line field never gets an up or down key, which could move the focus to another view). Selection, "select next occurrence"
 and cursors on several lines work in memory only: the keyboard reads the field text when a key asks for it, keeps only the region
-between the first and the last cursor and the undo of the last edit (two minutes), and drops all of it when the field changes, the
+between the first and the last cursor and the undo of the last edit (two minutes, with a SHA-256 digest of the whole field, not its
+text, so that any other change of the field ends the undo), and drops all of it when the field changes, the
 screen locks or you move the cursor yourself. Nothing of it is stored, logged, copied or learned. In password fields and incognito
 fields (`PrivacyPolicy`) these keys do nothing and the field text is not read. An edit is written in one batch only after checking
 that the region still holds what it held; a field that gives no text, only part of it, or more than 20 000 characters is not

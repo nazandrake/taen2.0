@@ -399,7 +399,11 @@ public class SettingsValues {
     }
 
     public boolean isLanguageSwitchKeyEnabled() {
-        if (!mShowsLanguageSwitchKey && !ImeSwitcher.INSTANCE.getRequested()) {
+        // the system's bar is replaced by the keyboard's own switcher: this key, whatever the setting and the number of languages say
+        if (ImeSwitcher.INSTANCE.getRequested()) {
+            return true;
+        }
+        if (!mShowsLanguageSwitchKey) {
             return false;
         }
         final RichInputMethodManager imm = RichInputMethodManager.getInstance();

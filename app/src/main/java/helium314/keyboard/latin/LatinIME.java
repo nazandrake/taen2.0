@@ -1099,7 +1099,14 @@ public class LatinIME extends InputMethodService implements
     private void requestOwnImeSwitcher() {
         if (Build.VERSION.SDK_INT < 36) return;
         final Window window = getWindow().getWindow();
-        if (window != null) window.getInsetsController().hide(WindowInsets.Type.captionBar());
+        if (window == null) return;
+        if (wantsOwnImeSwitcher()) window.getInsetsController().hide(WindowInsets.Type.captionBar());
+        else window.getInsetsController().show(WindowInsets.Type.captionBar()); // nothing to switch to: the system's bar stays (or comes back)
+    }
+
+    /** Taen replaces the system's bar only when the picker has something to offer: another Taen language or another keyboard. */
+    boolean wantsOwnImeSwitcher() {
+        return ImeSwitcher.INSTANCE.shouldRequest(mRichImm.hasMultipleEnabledIMEsOrSubtypes(true));
     }
 
     @Override
@@ -1445,6 +1452,14 @@ public class LatinIME extends InputMethodService implements
 
     // called when language switch key is pressed (either the keyboard key, or long-press comma)
     public void switchToNextSubtype() {
+        if (ImeSwitcher.INSTANCE.getRequested()) { // the key is the system's switcher (Android 16 and later)
+            switch (ImeSwitcher.INSTANCE.tap(mRichImm.hasMultipleEnabledSubtypesInThisIme(true), mRichImm.hasMultipleEnabledIMEsOrSubtypes(true))) {
+                case NEXT_LANGUAGE -> mSubtypeState.switchSubtype(mRichImm);
+                case NEXT_KEYBOARD -> ImeCompat.INSTANCE.switchInputMethod(this);
+                case NOTHING -> { }
+            }
+            return;
+        }
         final boolean switchSubtype = mSettings.getCurrent().mLanguageSwitchKeyToOtherSubtypes;
         final boolean switchIme = mSettings.getCurrent().mLanguageSwitchKeyToOtherImes;
 

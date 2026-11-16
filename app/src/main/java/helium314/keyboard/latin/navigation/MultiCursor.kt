@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.navigation
 
+import helium314.keyboard.latin.common.lastGrapheme
+import java.security.MessageDigest
+
 /** A range of the field text, [start] inclusive, [end] exclusive; a caret when both are equal. */
 data class TextRange(val start: Int, val end: Int)
 
@@ -34,7 +37,8 @@ sealed interface MultiCursorResult {
  * when the field changes, the screen locks, or the user moves the cursor. An edit replaces the region from the first to the last
  * range with one commit inside one batch edit, after checking that the region still holds what it held when the ranges were
  * made. The field text is read only when [allowed] says so (never in password or incognito fields) and is never kept beyond the
- * region of the current ranges and the undo of the last edit, which ends after [UNDO_MILLIS].
+ * region of the current ranges and the undo of the last edit, which ends after [UNDO_MILLIS]. The undo also keeps a SHA-256 digest of
+ * the whole field as the edit left it (no text): any other change of the field, wherever it is, makes the undo unavailable.
  */
 class MultiCursor(private val port: FieldPort, private val clock: () -> Long, private val allowed: () -> Boolean) {
     private var ranges: List<TextRange> = emptyList()
@@ -47,7 +51,10 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
     private val ownSelections = HashSet<TextRange>()
     private var editedInSession = false
 
-    private class UndoRecord(val start: Int, val original: String, val written: String, val time: Long)
+    private class UndoRecord(val start: Int, val original: String, val written: String, val time: Long, val fieldDigest: ByteArray) {
+        /** True while [text] is the whole field exactly as the edit left it. */
+        fun holds(text: String) = digestOf(text).contentEquals(fieldDigest)
+    }
 
     /** True while more than one range is held: typed text goes to all of them. */
     val isActive get() = ranges.size > 1
@@ -83,7 +90,7 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
      * shorter than the column gets no caret: lines are never padded.
      */
     fun addCaretOnNextLine(selStart: Int, selEnd: Int): MultiCursorResult {
-        if (needle != null) clear()
+        if (needle != null || (columnOrigin < 0 && ranges.isNotEmpty())) clear() // carets of an ended column start again from the caret
         val text = read().let { it as? String ?: return it as MultiCursorResult }
         if (columnOrigin < 0) {
             if (selStart != selEnd) return MultiCursorResult.Refused.NOTHING_TO_MATCH
@@ -98,7 +105,10 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
             }
         }
         val lineStarts = lineStarts(text, columnOrigin, columnLines + 1)
-        if (lineStarts.size <= columnLines) return MultiCursorResult.Refused.NO_MORE_LINES
+        if (lineStarts.size <= columnLines) {
+            if (ranges.isEmpty()) clear() // a first caret with no line below is no column
+            return MultiCursorResult.Refused.NO_MORE_LINES
+        }
         if (columnLines >= MAX_RANGES) return MultiCursorResult.Refused.TOO_MANY
         columnLines++
         val carets = columnCarets(text, columnOrigin, columnLines).map { TextRange(it, it) }
@@ -109,11 +119,11 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
     /** Replaces every held range with [insert]; afterwards each range is a caret after its insertion. */
     fun type(insert: String): MultiCursorResult = edit { text, r -> Edit(r.start, r.end, insert) }
 
-    /** Deletes every non-empty range, or the code point before every caret. */
+    /** Deletes every non-empty range, or the whole grapheme before every caret (an emoji sequence, a flag or a letter with its accents is one). */
     fun deleteBackward(): MultiCursorResult = edit { text, r ->
         if (r.start != r.end) Edit(r.start, r.end, "")
         else if (r.start == 0) Edit(0, 0, "")
-        else Edit(r.start - Character.charCount(Character.codePointBefore(text, r.start)), r.start, "")
+        else Edit(r.start - text.substring(maxOf(0, r.start - GRAPHEME_WINDOW), r.start).lastGrapheme.length, r.start, "")
     }
 
     /** Restores the region of the last edit, only while the field still holds exactly what the edit wrote. */
@@ -123,7 +133,7 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
         if (clock() - record.time > UNDO_MILLIS || !allowed()) return null
         val text = read() as? String ?: return null
         val end = record.start + record.written.length
-        if (end > text.length || text.substring(record.start, end) != record.written) return null
+        if (!record.holds(text) || end > text.length) return null
         write(record.start, end, record.original, record.start + record.original.length)
         clear()
         return MultiCursorResult.Undone
@@ -186,6 +196,11 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
         write(start, end, written, carets.last().start)
         undo = undoRecordFor(text, start, end, written)
         editedInSession = true
+        if (columnOrigin >= 0) {
+            // the column the carets now sit at; a change of the line structure ends the column mode (the carets stay for typing)
+            if (text.substring(start, end).count { it == '\n' } == written.count { it == '\n' }) columnOrigin = carets.first().start
+            else { columnOrigin = -1; columnLines = 0 }
+        }
         ranges = carets
         regionText = written.substring(carets.first().start - start, carets.last().end - start)
         return MultiCursorResult.Written
@@ -197,14 +212,15 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
      */
     private fun undoRecordFor(text: String, start: Int, end: Int, written: String): UndoRecord {
         val prev = undo
-        val prevEnd = prev?.let { it.start + it.written.length } ?: -1
-        if (prev == null || !editedInSession || prevEnd > text.length || text.substring(prev.start, prevEnd) != prev.written)
-            return UndoRecord(start, text.substring(start, end), written, clock())
+        val after = text.substring(0, start) + written + text.substring(end)
+        if (prev == null || !editedInSession || !prev.holds(text))
+            return UndoRecord(start, text.substring(start, end), written, clock(), digestOf(after))
+        val prevEnd = prev.start + prev.written.length
         val from = minOf(start, prev.start)
         val to = maxOf(end, prevEnd)
         val original = text.substring(from, prev.start) + prev.original + text.substring(prevEnd, to)
-        val after = text.substring(from, start) + written + text.substring(end, to)
-        return UndoRecord(from, original, after, clock())
+        val region = text.substring(from, start) + written + text.substring(end, to)
+        return UndoRecord(from, original, region, clock(), digestOf(after))
     }
 
     private fun write(start: Int, end: Int, replacement: String, caret: Int) {
@@ -263,6 +279,9 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
         const val MAX_CHARS = 20_000
         const val MAX_RANGES = 100
         const val UNDO_MILLIS = 120_000L
+        private const val GRAPHEME_WINDOW = 64 // longest emoji sequence looked at before a caret, in chars
+
+        private fun digestOf(text: String): ByteArray = MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8))
 
         private fun String.regionOf(ranges: List<TextRange>): String? {
             if (ranges.isEmpty()) return null

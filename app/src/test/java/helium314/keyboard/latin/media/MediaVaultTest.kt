@@ -2,6 +2,7 @@
 package helium314.keyboard.latin.media
 
 import helium314.keyboard.latin.privacy.filesContaining
+import helium314.keyboard.latin.privacy.indexOfSub
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
 import kotlin.test.assertContentEquals
@@ -202,6 +203,37 @@ class MediaVaultTest {
 
     private val oldSet = setOf(MediaFixtures.jpegClean.toList() to listOf("old"))
     private val newSet = setOf(MediaFixtures.gifClean.toList() to listOf("a"), MediaFixtures.pngClean.toList() to listOf("b"))
+
+    private val canaries = listOf(MediaFixtures.EXIF, MediaFixtures.XMP, MediaFixtures.ICC, MediaFixtures.TEXT, MediaFixtures.TRAIL)
+
+    /** A list as an export holds it, for pictures of any content (the vault's own list format: version 1, then id, format, size and tags of each). */
+    private fun exportedList(vararg pictures: Triple<String, MediaFormat, ByteArray>): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        java.io.DataOutputStream(out).use { o ->
+            o.writeByte(1)
+            o.writeInt(pictures.size)
+            for ((id, format, bytes) in pictures) { o.writeUTF(id); o.writeByte(format.ordinal); o.writeInt(bytes.size); o.writeByte(0) }
+        }
+        return out.toByteArray()
+    }
+
+    @Test fun anImportedPictureThatStillCarriesMetadataIsStoredWithoutIt() {
+        val dirty = listOf(
+            Triple("0000000000000001", MediaFormat.JPEG, MediaFixtures.jpegDirty), Triple("0000000000000002", MediaFormat.PNG, MediaFixtures.pngDirty),
+            Triple("0000000000000003", MediaFormat.GIF, MediaFixtures.gifDirty), Triple("0000000000000004", MediaFormat.WEBP, MediaFixtures.webpDirty),
+        )
+        val clean = mapOf(MediaFormat.JPEG to MediaFixtures.jpegClean, MediaFormat.PNG to MediaFixtures.pngClean, MediaFormat.GIF to MediaFixtures.gifClean, MediaFormat.WEBP to MediaFixtures.webpClean)
+        for ((_, _, bytes) in dirty) assertTrue(canaries.any { bytes.indexOfSub(MediaFixtures.ascii(it)) >= 0 }, "positive control: the fixture carries metadata")
+        val snapshot = MediaVault.Snapshot(exportedList(*dirty.toTypedArray()), dirty.associate { it.first to it.third })
+        assertTrue(vault.replaceAll(snapshot))
+        val stored = items()
+        assertEquals(4, stored.size)
+        for (item in stored) {
+            assertContentEquals(clean.getValue(item.format), vault.read(item.id), "${item.format}")
+            assertEquals(clean.getValue(item.format).size, item.size, "the list holds the stored size")
+        }
+        for (text in canaries) assertEquals(emptyList(), filesContaining(storage.dir, text), text)
+    }
 
     @Test fun aCrashAtAnyPointOfAnImportLeavesTheOldOrTheNewCollectionComplete() {
         val snapshot = incoming()

@@ -26,8 +26,11 @@ Version 2.0.0 (versionCode 9). Android 11 and newer, 64-bit ARM. Application ID 
 - Cursor navigation on the space bar: one swipe moves across characters and up and down lines; hold Shift with another finger,
   or switch on the selection-mode toolbar key, to select. Toolbar keys add the next occurrence of a word (like Ctrl+G in an IDE)
   or a cursor at the same column on the next line; typed text and backspace then edit every cursor at once.
-- On Android 16 and later with gesture navigation, the system's keyboard-switch button below the keyboard is replaced by Taen's
-  language key: a tap cycles Taen's languages, a long press opens the system's keyboard picker.
+- On Android 16 and later with gesture navigation, Taen asks the system to leave out its bar below the keyboard (the keyboard-switch
+  and hide-keyboard buttons), but only when there is something to switch to: another Taen language or another keyboard. Taen's language
+  key is then the switcher and is shown even when the setting hides it: a tap cycles Taen's languages, or goes to the next keyboard when
+  Taen has only one language; a long press opens the system's keyboard picker. Without the bar there is no hide-keyboard button: the
+  back gesture closes the keyboard.
 - Offline GIFs and stickers from your own pictures (metadata removed), emoji on a held key, a quick settings panel, templates and saved
   profiles of the settings, and an encrypted export.
 

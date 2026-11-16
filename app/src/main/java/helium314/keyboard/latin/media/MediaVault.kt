@@ -143,7 +143,7 @@ class MediaVault(
 
     /**
      * Replaces the whole collection by [snapshot] (an import). The old collection stays until the new one is complete: every imported picture is written
-     * to a new store under a new id next to the old ones (each store write is itself verified) and read back, and only then the list is
+     * to a new store under a new id next to the old ones, with its metadata stripped again (each store write is itself verified), and read back, and only then the list is
      * replaced, in one atomic store write: that write is the switch. The old pictures are removed after it. A crash before the switch leaves the old
      * collection (the new stores are unlisted and removed after the next successful import, [sweep]); a crash after it leaves the new one. Pictures are written and checked one at a
      * time, so no copy of the old collection is held. False, and the old collection untouched, on any failure before the switch.
@@ -165,11 +165,13 @@ class MediaVault(
         val renamed = ArrayList<MediaItem>(incoming.size)
         for (item in incoming) {
             val bytes = snapshot.items.getValue(item.id) // validate() checked that every listed picture is there
+            // what is stored is always what the metadata strip gives, whatever the backup held (an export of this app is already clean; a changed one may not be)
+            val stripped = try { MetadataStrip.strip(bytes, item.format) } catch (_: MediaParseException) { return abandon() }
             val id = newId(taken)
             val store = storage.open(itemName(id)) ?: return abandon()
             written.add(id)
             try {
-                store.write(bytes)
+                store.write(stripped)
             } catch (_: VaultLockedException) {
                 return abandon()
             } catch (_: StoreWriteException) {
@@ -177,7 +179,7 @@ class MediaVault(
             }
             // read back from disk: AES-GCM authenticates the bytes under the store's name, so a picture that decrypts is the one written
             if (store.read() !is StoreContent.Data) return abandon()
-            MediaItem(id, item.format, item.size, item.tags).also { renamed.add(it); taken.add(it) }
+            MediaItem(id, item.format, stripped.size, item.tags).also { renamed.add(it); taken.add(it) }
         }
         if (!writeIndex(renamed)) return abandon() // the switch
         sweep(renamed.map(MediaItem::id).toSet())

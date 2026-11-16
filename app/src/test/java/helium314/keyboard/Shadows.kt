@@ -39,13 +39,11 @@ object ShadowLocaleManagerCompat {
 @Implements(InputMethodManager::class)
 class ShadowInputMethodManager2 : ShadowInputMethodManager() {
     @Implementation
-    override fun getInputMethodList() = listOf(
-        if (BuildConfig.BUILD_TYPE == "debug" || BuildConfig.BUILD_TYPE == "debugNoMinify")
-            InputMethodInfo("helium314.keyboard.debug", "LatinIME", "HeliBoard debug", null)
-        else InputMethodInfo("helium314.keyboard", "LatinIME", "HeliBoard", null),
-    )
+    override fun getInputMethodList() = listOf(InputMethodInfo(BuildConfig.APPLICATION_ID, "LatinIME", "Taen", null)) // the application's own package, as the system lists it
     @Implementation
     fun getShortcutInputMethodsAndSubtypes() = emptyMap<InputMethodInfo, List<InputMethodSubtype>>()
+    @Implementation
+    fun getEnabledInputMethodSubtypeList(imi: InputMethodInfo?, allowsImplicitlySelectedSubtypes: Boolean): List<InputMethodSubtype> = emptyList() // other keyboards: no subtypes
     @Implementation
     override fun getCurrentInputMethodSubtype() = InputMethodSubtype.InputMethodSubtypeBuilder()
         .setSubtypeLocale("en")
@@ -145,6 +143,8 @@ class ShadowInputMethodService {
         /** Every getExtractedText call the keyboard made, and whether the fake field answers with its text. */
         var extractedTextCalls = 0
         var extractedTextWithText = false
+        /** How often the keyboard asked the system to go to the next input method (switchToNextInputMethod). */
+        var switchedToNextKeyboard = 0
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -172,7 +172,14 @@ class ShadowInputMethodService {
             keyDownCodes.clear()
             extractedTextCalls = 0
             extractedTextWithText = false
+            switchedToNextKeyboard = 0
         }
+    }
+
+    @Implementation
+    fun switchToNextInputMethod(onlyCurrentIme: Boolean): Boolean {
+        switchedToNextKeyboard++
+        return true
     }
 
     @Implementation

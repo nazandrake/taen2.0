@@ -3,6 +3,7 @@
 
   tools/device-scan.py --canary TAENcanary-Qx93 --canary ТАЕНканарче --expect 'no_backup/taen/learned_*.enc' \
       --forbid 'files/UserHistoryDictionary*' [--package io.github.nazandrake.taen.debug] [--serial SERIAL]
+  The phone is the --serial argument, else the ANDROID_SERIAL environment variable, else adb's only device.
   tools/device-scan.py --selftest        # no phone needed: checks the scanner itself (positive and negative controls)
 
 The data is read with `adb exec-out run-as <package> tar` (only a debuggable build allows it), never stored: the tar is
@@ -16,6 +17,7 @@ the directory cannot be listed for another reason than not existing).
 import argparse
 import fnmatch
 import io
+import os
 import subprocess
 import sys
 import tarfile
@@ -75,6 +77,11 @@ def scan_tar(data, canaries, forbid=(), expect=()):
 # the voice model (public data, 670 MB, no_backup/taen-voice) is not user data: the tar leaves it out and the audit checks its file list and sizes instead
 # (tools/leak_audit/device_voice.py, V6: exactly the four pinned names and sizes, nothing else in that directory).
 MODEL_DIR = "./no_backup/taen-voice"
+
+
+def device_serial(arg, env):
+    """The serial of the phone: the argument, else ANDROID_SERIAL, else None (adb's only device)."""
+    return arg or env.get("ANDROID_SERIAL") or None
 
 
 def fetch(serial, package, base):
@@ -152,6 +159,10 @@ def selftest():
     check(external_problems(base, base + "/files/crash_report_2026.txt\n", "") == ["external file present: " + base + "/files/crash_report_2026.txt"], "one external file")
     check(len(external_problems(base, "a\nb\n", "")) == 2, "two external files")
     check(len(external_problems(base, "", "find: Permission denied")) == 1, "unlistable external dir")
+    # the phone is named by the argument or by ANDROID_SERIAL, the argument first; none means adb's only device
+    check(device_serial("A", {"ANDROID_SERIAL": "B"}) == "A", "serial argument first")
+    check(device_serial(None, {"ANDROID_SERIAL": "B"}) == "B", "serial from the environment")
+    check(device_serial(None, {}) is None and device_serial("", {"ANDROID_SERIAL": ""}) is None, "no serial")
     for f in failures:
         print("SELFTEST FAIL:", f)
     print("SELFTEST PASS" if not failures else "SELFTEST FAILED")
@@ -171,10 +182,11 @@ def main():
         return selftest()
     if not args.canary:
         ap.error("give at least one --canary")
+    serial = device_serial(args.serial, os.environ)
     total = {c: 0 for c in args.canary}
     problems = []
     for label, base in (("user", "/data/user/0/{pkg}"), ("user_de", "/data/user_de/0/{pkg}")):
-        data = fetch(args.serial, args.package, base)
+        data = fetch(serial, args.package, base)
         rows, hits, probs = scan_tar(data, args.canary, list(LEGACY_FORBID) + [p.replace("user/", "", 1) for p in args.forbid], [p.replace("user/", "", 1) for p in args.expect])
         for path, size, counts in rows:
             print("%s/%s %d %r" % (label, path, size, counts))
@@ -182,7 +194,7 @@ def main():
             total[c] += n
         # expectations are for one of the two directories; report a missing file only if it is in neither
         problems.append((label, probs))
-    external = scan_external(args.serial, args.package)
+    external = scan_external(serial, args.package)
     for p in external:
         print("PROBLEM:", p)
     print("TOTAL hits", total, "external problems", len(external))
