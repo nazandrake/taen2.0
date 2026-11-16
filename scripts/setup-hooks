@@ -1,0 +1,6 @@
+#!/bin/sh
+# Enables the repository's git hooks (pre-commit, commit-msg, pre-push). Run once per clone.
+top=$(git rev-parse --show-toplevel) || exit 1
+command -v python3 >/dev/null 2>&1 || echo "warning: python3 is required by the hooks" >&2
+git -C "$top" config core.hooksPath githooks
+echo "git hooks enabled: core.hooksPath=githooks"

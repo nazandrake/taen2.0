@@ -1,0 +1,21 @@
+# Allow-list for scripts/public-check. Every entry needs a reason.
+# allow<TAB>class (or *)<TAB>path glob<TAB>regex on the matched text<TAB>reason
+# licence-ignore<TAB>path glob<TAB>reason   (files whose licence lines are not recorded)
+# licence-waive<TAB>regex on the normalised line<TAB>reason   (a recorded line may be removed)
+# The glob star also matches slashes.
+licence-ignore	scripts/*	the check tool, its data files and its tests describe licence handling and are not upstream text
+licence-ignore	githooks/*	the hooks only call the check tool
+allow	ai-tool	app/src/main/assets/emoji_search/*	^gem[i]ni$	the zodiac sign emoji name in the emoji search word lists
+allow	ai-tool	app/src/main/res/values*/strings-emoji-descriptions.xml	^gem[i]ni$	the zodiac sign emoji description in the translated emoji descriptions
+allow	ai-tool	tools/make-emoji-keys/src/main/resources/emoji/*	^gem[i]ni$	the zodiac sign emoji name in the Unicode emoji data files
+allow	ai-tool	tools/leak_audit/device_voice.py	^op[u]s$	an audio codec file extension in the list of audio file names
+allow	*	app/src/main/assets/nextword/*/vocab.json	.	unchanged tokenizer vocabulary of a third-party language model: every word piece of the language
+allow	*	app/src/main/assets/nextword/*/merges.txt	.	unchanged tokenizer merge list of a third-party language model: every word piece of the language
+licence-waive	^(?:After the gesture data gathering phase|As a reminder, this data is going to be publicly shared|By gathering and submitting gesture typing data|string name="gesture_data_)	upstream user-interface text of the gesture data collection screen, removed together with that feature (NOTICE, "Not included")
+licence-waive	^HeliBoard \(as a fork of OpenBoard\) is licensed	upstream README text; the README was replaced and NOTICE states the licence and origin
+licence-waive	^Permissions of this strong copyleft license are conditioned	upstream README text; the README was replaced and LICENSE carries the full GPL-3.0 text
+licence-waive	^See repo's \[LICENSE\]	upstream README text; the README was replaced
+licence-waive	^Since the app is based on Apache 2.0 licensed AOSP Keyboard	upstream README text; the README was replaced and NOTICE names the Apache-2.0 origin
+licence-waive	^The icon is licensed under \[Creative Commons BY-SA 4.0\]	upstream README text about the upstream icon, which is not shipped
+licence-waive	^\[License\]\(#license\)	upstream README table of contents
+licence-ignore	app/src/main/assets/nextword/*	tokenizer vocabularies of third-party models: every word piece, including the words licence and copyright, on one line

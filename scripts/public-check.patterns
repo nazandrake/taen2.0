@@ -1,0 +1,53 @@
+# Patterns read by scripts/public-check. Format: <class> <scope> <hints> <regex>
+# Scope "all" applies to file text, file names, commit messages, author fields and PR/issue text.
+# Scope "msg" applies to commit messages and PR/issue text only.
+# Every regex is case-insensitive. One letter of each word sits in a bracket pair so that this file
+# does not match its own patterns (the test suite checks this).
+# Hints are comma-separated lowercase literals; a file is only searched with the regex when it contains
+# one of them (a speed gate, so each match must contain a hint). A tilde inside a hint is removed
+# before use and an underscore becomes a space. "-" means no gate. The test suite runs a sample of every pattern through the gate.
+
+task-id        all  t-0,t-1,t-2,t-3,t-4,t-5,t-6,t-7,t-8,t-9  \b[T]-\d{6}\b
+
+session-url    all  cla~ude.ai            [c]laude\.ai
+session-url    all  chat~gpt.com          [c]hatgpt\.com
+session-url    all  op~enai.com           [c]hat\.[o]penai\.com
+session-url    all  anthro~pic.com        [a]nthropic\.com
+session-url    all  gem~ini.goo~gle.com    [g]emini\.google\.com
+session-url    all  aistu~dio.google.com  [a]istudio\.google\.com
+
+ai-tool        all  cap~tain,cla~ude,cod~ex,op~us,son~net,hai~ku,chat~gpt,co~pilot,gem~ini,anthro~pic,open~ai,anti~gravity  \b(?:[C]aptain|[C]laude|[C]odex|[O]pus|[S]onnet|[H]aiku|[C]hat[G]PT|[C]opilot|[G]emini|[A]nthropic|[O]pen[A]I|[A]ntigravity)\b
+ai-tool        all  g~pt                  \b[G]PT-?\d
+ai-phrase      all  gener~ated,writ~ten,assis~ted,author~ed,produ~ced,crea~ted  \b[A]I[- ](?:[g]enerated|[w]ritten|[a]ssisted|[a]uthored|[p]roduced|[c]reated)\b
+ai-phrase      all  l~lm,language_mo~del,chat~bot,ag~ent,a~i  \b(?:[g]enerated|[w]ritten|[p]roduced|[c]reated|[a]ssisted)\s+(?:by|with|using)\s+(?:an?\s+)?(?:[A]I|[L]LM|[l]anguage model|[c]hatbot|[a]gent)\b
+ai-phrase      all  a~i,language_mo~del  \b(?:[a]s an|[I] am an|[I]'m an)\s+(?:[A]I|[l]anguage model)\b
+ai-phrase      all  vi~be                 \b[v]ibe[- ]?cod
+
+agent-file     all  agen~ts.md,cla~ude.md,gem~ini.md,cod~ex.md  \b(?:[A]GENTS|[C]LAUDE|[G]EMINI|[C]ODEX)\.md\b
+agent-file     all  .cla~ude,.cod~ex,.cap~tain  (?<![\w)\]])\.(?:[c]laude|[c]odex|[c]aptain)\b
+agent-file     all  copi~lot-instructions  \b[c]opilot-instructions\b
+agent-file     all  .cur~sorrules         \.[c]ursorrules\b
+
+person-word    all  foun~der              \b[f]ounders?\b
+process-word   all  rev~iew               \b[r]eview[- ]?rounds?\b
+process-word   all  rev~iewer             \b[r]eviewers?\b
+process-word   all  veri~fier             \b[v]erifiers?\b
+process-word   all  block~ing_finding     \b[b]locking finding
+process-word   all  desi~gn_section       \b[d]esign section\b
+process-word   all  evid~ence/            \b[e]vidence/
+process-word   all  by_the_b~uilder       \b(?:[t]ested|[m]easured|[c]hecked|[v]erified|[d]one|[r]un) by the [b]uilder\b
+process-word   all  owner's                   \bthe [o]wner's (?:[s]equence|[s]teps?|[o]rder|[b]rief)\b
+test-label     all  pass                  (?://|#|/\*|^\s*\*)\s*[p]ass\s*[12]\b
+
+internal-path  all  /ho~me/               [/]home/
+internal-path  all  /us~ers/              [/]Users/\w
+internal-path  all  c:\us~ers\            [C]:\\Users\\
+internal-path  all  .ca~che/t             [.]cache/t\d
+internal-path  all  .cap~tain             ~/\.[c]aptain
+
+device-serial  all  --serial,adb_-,serial=  (?:--[s]erial[ =]|\b[a]db (?:-[ed] )?-s |\b[A]NDROID_[S]ERIAL=)["']?(?=[a-z0-9]{8,24}\b)[a-z]*\d[a-z0-9]*
+
+trailer        msg  -                     ^[C]o-Authored-By\s*:
+trailer        msg  -                     ^[G]enerated\s+(?:with|by)\b
+trailer        msg  -                     ^[C]laude-Session\s*:
+trailer        msg  -                     \U0001F916
