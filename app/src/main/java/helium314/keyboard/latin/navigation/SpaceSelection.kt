@@ -21,7 +21,7 @@ interface CursorPort {
 enum class Arrow { LEFT, RIGHT, UP, DOWN }
 
 /**
- * Cursor and selection moves of the space bar. Horizontal steps are characters (a surrogate pair is one step); vertical steps
+ * Cursor and selection moves of the space bar. Horizontal steps are grapheme clusters (an emoji sequence, a flag or a letter with its accents is one step), so the focus never lands inside one; vertical steps
  * are lines, sent as one arrow key each and only in multi-line fields: in a single-line field an up or down key can move the
  * focus to another view. While [selecting], horizontal steps move the focus of a selection whose anchor stays where the
  * selection started; after a vertical step the editor owns the selection, so later horizontal steps are arrow keys too.
@@ -57,20 +57,44 @@ class SpaceSelection(private val port: CursorPort) {
             return true
         }
         if (anchor < 0) {
+            if (!snapSelectionToClusters()) return false
             anchor = port.selectionStart
             focus = port.selectionEnd
         }
         val end = port.selectionEnd
         val newFocus = if (steps > 0) {
-            val ahead = (if (focus >= end) port.textAfter(steps * 4) else textBetween(focus, end)) ?: return false
-            focus + charCount(ahead, steps)
+            val window = steps * Graphemes.STEP_WINDOW
+            val fromField = focus >= end
+            val ahead = (if (fromField) port.textAfter(window) else textBetween(focus, end)) ?: return false
+            val cut = fromField && Graphemes.mayBeCut(ahead, window) { port.textAfter(it) }
+            focus + Graphemes.forward(ahead, steps, cut)
         } else {
-            val behind = textBeforeFocus(-steps * 4) ?: return false
-            focus - charCountBackwards(behind, -steps)
+            val window = -steps * Graphemes.STEP_WINDOW
+            val (behind, maybeCut) = textBeforeFocus(window) ?: return false
+            focus - Graphemes.backward(behind, -steps, maybeCut)
         }
         if (newFocus == focus) return true
         focus = newFocus
         port.setSelection(anchor, focus)
+        return true
+    }
+
+    /**
+     * The editor may report a caret or selection end inside a cluster (between the halves of an emoji): the start moves to the start
+     * of its cluster and the end to the end of its cluster before a selection grows from it. False when the text cannot be read.
+     */
+    private fun snapSelectionToClusters(): Boolean {
+        val start = port.selectionStart
+        val end = port.selectionEnd
+        val window = Graphemes.STEP_WINDOW
+        val before = port.textBefore(window) ?: return false
+        val after = port.textAfter(window) ?: return false
+        val selected = port.selectedText()
+        val head = before.toString() + (selected ?: after).take(window)
+        val newStart = start - (before.length - Graphemes.snapDown(head, before.length))
+        val tail = (selected ?: before).takeLast(window).toString()
+        val newEnd = end + (Graphemes.snapUp(tail + after, tail.length) - tail.length)
+        if (newStart != start || newEnd != end) port.setSelection(newStart, newEnd)
         return true
     }
 
@@ -87,36 +111,15 @@ class SpaceSelection(private val port: CursorPort) {
         return selected.subSequence((from - start).coerceIn(0, selected.length), (to - start).coerceIn(0, selected.length))
     }
 
-    private fun textBeforeFocus(n: Int): CharSequence? {
+    /** The text before the focus (at most [n] chars before the selection start, plus the selection part) and whether the field has more before it. */
+    private fun textBeforeFocus(n: Int): Pair<CharSequence, Boolean>? {
         val start = port.selectionStart
-        val before = port.textBefore(n) ?: return null
-        if (focus <= start) return before.subSequence(0, (before.length - (start - focus)).coerceAtLeast(0))
+        val back = maxOf(0, start - focus)
+        val before = port.textBefore(n + back) ?: return null
+        val maybeCut = Graphemes.mayBeCut(before, n + back) { port.textBefore(it) }
+        if (focus <= start) return before.subSequence(0, (before.length - back).coerceAtLeast(0)) to maybeCut
         val selected = port.selectedText() ?: ""
         val inSelection = selected.subSequence(0, (focus - start).coerceIn(0, selected.length))
-        return before.toString() + inSelection
-    }
-
-    companion object {
-        /** Characters of [steps] code points from the start of [text]. */
-        fun charCount(text: CharSequence, steps: Int): Int {
-            var i = 0
-            var n = 0
-            while (n < steps && i < text.length) {
-                i += Character.charCount(Character.codePointAt(text, i))
-                n++
-            }
-            return i
-        }
-
-        /** Characters of [steps] code points from the end of [text]. */
-        fun charCountBackwards(text: CharSequence, steps: Int): Int {
-            var i = text.length
-            var n = 0
-            while (n < steps && i > 0) {
-                i -= Character.charCount(Character.codePointBefore(text, i))
-                n++
-            }
-            return text.length - i
-        }
+        return (before.toString() + inSelection) to maybeCut
     }
 }

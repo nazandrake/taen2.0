@@ -79,13 +79,15 @@ def load_patterns(path, what="patterns", allow_empty=False):
 
 def load_extra_patterns(path):
     """Patterns kept outside the tree (default: the git directory), for words that must not be written into the repository.
-    No file means no extra patterns; a file that exists but cannot be read or parsed is an error, never a pass."""
+    No default file means no extra patterns; a file that exists but cannot be read or parsed is an error, never a pass, and so
+    is a file named with --extra that does not exist."""
+    named = path is not None
     if path is None:
         out = run_git(["rev-parse", "--path-format=absolute", "--git-path", "info/public-check-extra"], check=False)
         path = out.decode("utf-8", "replace").strip()
         if not path:
             return []
-    if not os.path.lexists(path):
+    if not named and not os.path.lexists(path):
         return []
     return load_patterns(path, "public-check-extra", allow_empty=True)
 

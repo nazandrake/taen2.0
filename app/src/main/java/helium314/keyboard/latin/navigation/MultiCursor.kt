@@ -66,8 +66,11 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
         if (columnOrigin >= 0) clear()
         val text = read().let { it as? String ?: return it as MultiCursorResult }
         if (ranges.isEmpty()) {
-            val first = if (selStart == selEnd) wordAt(text, selStart) else TextRange(minOf(selStart, selEnd), maxOf(selStart, selEnd))
-            if (first == null || first.start == first.end || first.end > text.length) return MultiCursorResult.Refused.NOTHING_TO_MATCH
+            if (maxOf(selStart, selEnd) > text.length || minOf(selStart, selEnd) < 0) return MultiCursorResult.Refused.NOTHING_TO_MATCH
+            // a range starts and ends between grapheme clusters: a selection or word that cuts one is widened to whole clusters
+            val raw = if (selStart == selEnd) wordAt(text, Graphemes.snapDown(text, selStart)) else TextRange(minOf(selStart, selEnd), maxOf(selStart, selEnd))
+            val first = raw?.let { TextRange(Graphemes.snapDown(text, it.start), Graphemes.snapUp(text, it.end)) }
+            if (first == null || first.start == first.end) return MultiCursorResult.Refused.NOTHING_TO_MATCH
             needle = text.substring(first.start, first.end)
             wholeWord = selStart == selEnd
             ownSelections.add(TextRange(minOf(selStart, selEnd), maxOf(selStart, selEnd))) // a late report of the selection before
@@ -86,15 +89,16 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
     }
 
     /**
-     * Adds a caret on the next line at the column of the first caret (the characters after the previous line break). A line
-     * shorter than the column gets no caret: lines are never padded.
+     * Adds a caret on the next line at the column of the first caret (the grapheme clusters after the previous line break). A
+     * line shorter than the column gets no caret: lines are never padded. Carets already held stay where they are.
      */
     fun addCaretOnNextLine(selStart: Int, selEnd: Int): MultiCursorResult {
         if (needle != null || (columnOrigin < 0 && ranges.isNotEmpty())) clear() // carets of an ended column start again from the caret
         val text = read().let { it as? String ?: return it as MultiCursorResult }
         if (columnOrigin < 0) {
             if (selStart != selEnd) return MultiCursorResult.Refused.NOTHING_TO_MATCH
-            columnOrigin = selStart
+            if (selStart < 0 || selStart > text.length) return MultiCursorResult.Refused.NOTHING_TO_MATCH
+            columnOrigin = Graphemes.snapDown(text, selStart) // a caret never sits inside a cluster
             columnLines = 1
             ownSelections.add(TextRange(selStart, selStart)) // a late report of the caret before
         } else {
@@ -110,8 +114,10 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
             return MultiCursorResult.Refused.NO_MORE_LINES
         }
         if (columnLines >= MAX_RANGES) return MultiCursorResult.Refused.TOO_MANY
+        val added = columnCaretAt(text, columnOrigin, columnLines)
         columnLines++
-        val carets = columnCarets(text, columnOrigin, columnLines).map { TextRange(it, it) }
+        val carets = (if (ranges.isEmpty()) listOf(TextRange(columnOrigin, columnOrigin)) else ranges) +
+            listOfNotNull(added?.let { TextRange(it, it) })
         setRanges(text, carets, carets.last())
         return MultiCursorResult.Lines(carets.size)
     }
@@ -267,9 +273,10 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
 
     private fun occurrences(text: String, n: String): List<Int> {
         val out = ArrayList<Int>()
+        val onBoundary = Graphemes.boundaryTest(text) // an occurrence never starts or ends inside a cluster ("e" in "e" + accent)
         var i = text.indexOf(n)
         while (i >= 0) {
-            if (!wholeWord || (!isWordBefore(text, i) && !isWordAt(text, i + n.length))) out.add(i)
+            if (onBoundary(i) && onBoundary(i + n.length) && (!wholeWord || (!isWordBefore(text, i) && !isWordAt(text, i + n.length)))) out.add(i)
             i = text.indexOf(n, i + 1)
         }
         return out
@@ -318,16 +325,21 @@ class MultiCursor(private val port: FieldPort, private val clock: () -> Long, pr
         }
 
         /**
-         * Carets at the column of [caret] (characters after the previous line break) on [lineCount] lines from the line of
+         * Carets at the column of [caret] (grapheme clusters after the previous line break) on [lineCount] lines from the line of
          * [caret]. A line shorter than the column gets none.
          */
-        fun columnCarets(text: String, caret: Int, lineCount: Int): List<Int> {
-            val starts = lineStarts(text, caret, lineCount)
-            val column = caret - starts.first()
-            return starts.mapNotNull { start ->
-                val end = text.indexOf('\n', start).let { if (it < 0) text.length else it }
-                if (end - start >= column) start + column else null
-            }
+        fun columnCarets(text: String, caret: Int, lineCount: Int): List<Int> =
+            (0 until lineCount).mapNotNull { columnCaretAt(text, caret, it) }
+
+        /** The caret offset on line [lineIndex] (0 = the line of [caret]) at the column of [caret], or null when that line is shorter. */
+        fun columnCaretAt(text: String, caret: Int, lineIndex: Int): Int? {
+            val starts = lineStarts(text, caret, lineIndex + 1)
+            if (starts.size <= lineIndex) return null
+            val column = Graphemes.columnOf(lineOf(text, starts.first()), caret - starts.first())
+            val start = starts[lineIndex]
+            return Graphemes.offsetOfColumn(lineOf(text, start), column)?.let { start + it }
         }
+
+        private fun lineOf(text: String, start: Int): String = text.substring(start, text.indexOf('\n', start).let { if (it < 0) text.length else it })
     }
 }

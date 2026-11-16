@@ -314,6 +314,15 @@ class ExtraPatternsTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout)
         self.assertIn("f.txt:1: [private-word]", r.stdout)
 
+    def test_an_extra_file_that_does_not_exist_is_an_error_not_a_pass(self):
+        repo = make_repo({"f.txt": "x %s\n" % self.SECRET})
+        missing = os.path.join(temp_dir("pc-extra-"), "missing")
+        r = check(repo, "--extra", missing)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("public-check-extra", r.stderr)
+        # positive control: the same repository without the option is not an error (no default file)
+        self.assertEqual(check(repo).returncode, 0)
+
 
 class NegativeControlTest(unittest.TestCase):
     def test_gpl_text_heliboard_headers_and_kotlin_pass(self):

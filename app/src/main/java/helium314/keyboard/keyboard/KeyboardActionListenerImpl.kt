@@ -23,12 +23,12 @@ import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.common.InputPointers
 import helium314.keyboard.latin.common.StringUtils
 import helium314.keyboard.latin.common.combiningRange
-import helium314.keyboard.latin.common.moveStepsToCharCount
 import helium314.keyboard.latin.inputlogic.InputLogic
 import helium314.keyboard.latin.navigation.Arrow
 import helium314.keyboard.latin.navigation.CursorPort
 import helium314.keyboard.latin.navigation.FieldPort
 import helium314.keyboard.latin.navigation.FieldText
+import helium314.keyboard.latin.navigation.Graphemes
 import helium314.keyboard.latin.navigation.MultiCursor
 import helium314.keyboard.latin.navigation.MultiCursorResult
 import helium314.keyboard.latin.navigation.SpaceSelection
@@ -366,9 +366,13 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     private fun actualSteps(steps: Int): Int {
-        val text = if (steps > 0) connection.getSelectedText(0) ?: return steps
-        else connection.getTextBeforeCursor(-steps * 4, 0) ?: return steps
-        return moveStepsToCharCount(text, steps)
+        if (steps > 0) {
+            val selected = connection.getSelectedText(0) ?: return steps
+            return Graphemes.forward(selected, steps, maybeCut = false)
+        }
+        val window = -steps * Graphemes.STEP_WINDOW
+        val text = connection.getTextBeforeCursor(window, 0) ?: return steps
+        return -Graphemes.backward(text, -steps, Graphemes.mayBeCut(text, window) { connection.getTextBeforeCursor(it, 0) })
     }
 
     override fun onUpWithDeletePointerActive() {
@@ -427,8 +431,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         val steps = if (rtl) -rawSteps else rawSteps
         val moveSteps: Int
         if (steps < 0) {
-            val text = connection.getTextBeforeCursor(-steps * 4, 0) ?: return false
-            moveSteps = moveStepsToCharCount(text, steps)
+            val window = -steps * Graphemes.STEP_WINDOW
+            val text = connection.getTextBeforeCursor(window, 0) ?: return false
+            moveSteps = -Graphemes.backward(text, -steps, Graphemes.mayBeCut(text, window) { connection.getTextBeforeCursor(it, 0) })
             if (moveSteps == 0) {
                 // some apps don't return any text via input connection, and the cursor can't be moved
                 // we fall back to virtually pressing the left/right key one or more times instead
@@ -443,8 +448,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             }
             gestureMoveBackHaptics()
         } else {
-            val text = connection.getTextAfterCursor(steps * 4, 0) ?: return false
-            moveSteps = moveStepsToCharCount(text, steps)
+            val window = steps * Graphemes.STEP_WINDOW
+            val text = connection.getTextAfterCursor(window, 0) ?: return false
+            moveSteps = Graphemes.forward(text, steps, Graphemes.mayBeCut(text, window) { connection.getTextAfterCursor(it, 0) })
             if (moveSteps == 0) {
                 // some apps don't return any text via input connection, and the cursor can't be moved
                 // we fall back to virtually pressing the left/right key one or more times instead

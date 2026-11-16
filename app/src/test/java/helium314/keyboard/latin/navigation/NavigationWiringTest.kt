@@ -100,6 +100,17 @@ class NavigationWiringTest {
         assertEquals(ShadowInputMethodService.selectionStart, ShadowInputMethodService.selectionEnd)
     }
 
+    @Test fun aPlainSpaceSwipeMovesTheCursorOverAWholeLongEmoji() = withKeyboard { ime ->
+        val family = "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67" // 8 chars, more than four per step
+        field(ime, "a${family}b", 1, InputType.TYPE_CLASS_TEXT)
+        assertTrue(ime.mKeyboardActionListener.onHorizontalSpaceSwipe(1))
+        assertEquals(9 to 9, selection)
+        assertTrue(ime.mKeyboardActionListener.onHorizontalSpaceSwipe(-1))
+        assertEquals(1 to 1, selection)
+        assertTrue(ime.mKeyboardActionListener.onHorizontalSpaceSwipe(2)) // positive control: two steps are the emoji and the "b"
+        assertEquals(10 to 10, selection)
+    }
+
     @Test fun theNextOccurrenceKeyAndTypingEditEveryOccurrence() = withKeyboard { ime ->
         ShadowInputMethodService.extractedTextWithText = true
         field(ime, "ab ab xab ab", 1, multiLine)

@@ -137,6 +137,158 @@ class MultiCursorTest {
         assertEquals("c c?", letters.text)
     }
 
+    // ---- carets stay on grapheme boundaries ---------------------------------------------------------------------
+
+    private val clusters = listOf(
+        "emoji" to "\uD83D\uDE00", // a face, one surrogate pair
+        "family" to "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67", // three people joined by zero-width joiners
+        "skin tone" to "\uD83D\uDC4D\uD83C\uDFFD",
+        "flag" to "\uD83C\uDDE7\uD83C\uDDEC", // two regional indicators
+        "keycap" to "1\uFE0F\u20E3",
+        "accent" to "e\u0301", // a letter and a combining acute accent
+        "hebrew points" to "\u05E9\u05C1\u05B8", // shin with a shin dot and a qamats
+        "arabic mark" to "\u0645\u064E", // meem with a fatha
+    )
+
+    @Test fun aCaretBelowNeverLandsInsideAClusterOfTheLineBelow() {
+        for ((name, g) in clusters) {
+            // the caret after "xy" is column 2; the line below starts with three clusters, so it gets a caret after two of them
+            val field = FakeField("xyz\n$g$g${g}x", 2)
+            val multi = cursor(field)
+            assertEquals(MultiCursorResult.Lines(2), multi.addCaretOnNextLine(2, 2), name)
+            val belowCaret = 4 + 2 * g.length
+            assertEquals(listOf(TextRange(2, 2), TextRange(belowCaret, belowCaret)), multi.heldRanges, name)
+            assertEquals(MultiCursorResult.Written, multi.type("!"), name)
+            assertEquals("xy!z\n$g$g!${g}x", field.text, name)
+            val after = belowCaret + 1 + 1 // one "!" in the line above shifts the line below by one
+            assertEquals(listOf(TextRange(3, 3), TextRange(after, after)), multi.heldRanges, name)
+        }
+    }
+
+    @Test fun theColumnIsCountedInClustersNotInUtf16Units() {
+        for ((name, g) in clusters) {
+            // the caret after the first cluster is column 1 whatever the cluster's length
+            val field = FakeField("${g}a\nbcd", g.length)
+            val multi = cursor(field)
+            assertEquals(MultiCursorResult.Lines(2), multi.addCaretOnNextLine(g.length, g.length), name)
+            assertEquals(listOf(TextRange(g.length, g.length), TextRange(g.length + 3, g.length + 3)), multi.heldRanges, name)
+            multi.type("!")
+            assertEquals("$g!a\nb!cd", field.text, name)
+        }
+    }
+
+    @Test fun aLineWithTooFewClustersGetsNoCaretEvenWhenItHasEnoughChars() {
+        for ((name, g) in clusters) {
+            val field = FakeField("xyz\n$g$g", 3) // column 3; the line below has two clusters but 4 or more chars
+            val multi = cursor(field)
+            assertEquals(MultiCursorResult.Lines(1), multi.addCaretOnNextLine(3, 3), name)
+            assertEquals(listOf(TextRange(3, 3)), multi.heldRanges, name)
+            assertEquals(MultiCursorResult.Refused.NO_MORE_LINES, multi.addCaretOnNextLine(field.selStart, field.selEnd), name)
+        }
+        // positive control: three clusters are enough
+        val g = clusters[1].second
+        val field = FakeField("xyz\n$g$g$g", 3)
+        assertEquals(MultiCursorResult.Lines(2), cursor(field).addCaretOnNextLine(3, 3))
+    }
+
+    @Test fun theReportedInputPutsTheCaretAfterTheEmojiAndTypingKeepsItWhole() {
+        val field = FakeField("a\n\uD83D\uDE00x", 1)
+        val multi = cursor(field)
+        assertEquals(MultiCursorResult.Lines(2), multi.addCaretOnNextLine(1, 1))
+        assertEquals(listOf(TextRange(1, 1), TextRange(4, 4)), multi.heldRanges)
+        assertEquals(MultiCursorResult.Written, multi.type("z"))
+        assertEquals("az\n\uD83D\uDE00zx", field.text)
+        assertEquals(listOf(TextRange(2, 2), TextRange(6, 6)), multi.heldRanges)
+    }
+
+    @Test fun columnsWorkInBulgarianAndRightToLeftLines() {
+        val bulgarian = FakeField("\u0417\u0434\u0440\u0430\u0432\u0435\u0439\n\u0421\u0431\u043E\u0433\u043E\u043C", 2) // Здравей / Сбогом
+        val multi = cursor(bulgarian)
+        multi.addCaretOnNextLine(2, 2)
+        multi.type("\u044A")
+        assertEquals("\u0417\u0434\u044A\u0440\u0430\u0432\u0435\u0439\n\u0421\u0431\u044A\u043E\u0433\u043E\u043C", bulgarian.text)
+
+        // Latin line above, Hebrew below: shalom with points is 4 clusters of 4+... chars, the caret goes after two clusters
+        val hebrew = "\u05E9\u05C1\u05B8\u05DC\u05D5\u05B9\u05DD" // shin-dot-qamats, lamed, vav-holam, final mem
+        val mixed = FakeField("ab\n$hebrew", 2)
+        val second = cursor(mixed)
+        assertEquals(MultiCursorResult.Lines(2), second.addCaretOnNextLine(2, 2))
+        assertEquals(listOf(TextRange(2, 2), TextRange(3 + 4, 3 + 4)), second.heldRanges) // after shin-dot-qamats and lamed
+        // Arabic above, Latin below: the column is 2 clusters of mark-carrying letters = 4 chars
+        val arabic = "\u0645\u064E\u0631\u0652\u062D" // meem+fatha, reh+sukun, hah
+        val rtl = FakeField("$arabic\nabc", 4)
+        val third = cursor(rtl)
+        assertEquals(MultiCursorResult.Lines(2), third.addCaretOnNextLine(4, 4))
+        assertEquals(listOf(TextRange(4, 4), TextRange(6 + 2, 6 + 2)), third.heldRanges)
+    }
+
+    @Test fun aCaretInsideAClusterIsMovedToItsStartBeforeTheColumnIsTaken() {
+        val field = FakeField("x\uD83D\uDE00\nyz", 2) // between the two halves of the emoji
+        val multi = cursor(field)
+        assertEquals(MultiCursorResult.Lines(2), multi.addCaretOnNextLine(2, 2))
+        assertEquals(listOf(TextRange(1, 1), TextRange(5, 5)), multi.heldRanges)
+        multi.type("!")
+        assertEquals("x!\uD83D\uDE00\ny!z", field.text)
+    }
+
+    @Test fun anOccurrenceNeverStartsOrEndsInsideACluster() {
+        // "e" alone is at 3; at 0 and 5 it is the base of an accented letter
+        val accent = FakeField("e\u0301 e e\u0301", 3, 4)
+        val multi = cursor(accent)
+        assertEquals(MultiCursorResult.Ranges(1, 1), multi.next(accent))
+        assertEquals(MultiCursorResult.AllSelected(1), multi.next(accent))
+
+        // a flag next to the first half of another: "BA" at 0; at 7 only the middle of "A","B","A" matches
+        val flag = "\uD83C\uDDE7\uD83C\uDDE6" // regional B, A
+        val flags = FakeField("$flag \uD83C\uDDE6\uD83C\uDDE7\uD83C\uDDE6", 0, 4)
+        val second = cursor(flags)
+        assertEquals(MultiCursorResult.Ranges(1, 1), second.next(flags))
+        assertEquals(MultiCursorResult.AllSelected(1), second.next(flags))
+
+        // positive control: the same text as a real second occurrence is found
+        val twice = FakeField("e\u0301 e e\u0301", 0, 2)
+        val third = cursor(twice)
+        assertEquals(MultiCursorResult.Ranges(1, 2), third.next(twice))
+        assertEquals(MultiCursorResult.Ranges(2, 2), third.next(twice))
+        assertEquals(listOf(TextRange(0, 2), TextRange(5, 7)), third.heldRanges)
+    }
+
+    @Test fun aSelectionThatCutsAClusterIsWidenedToWholeClusters() {
+        val family = "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67" // 8 chars
+        val partial = "\uD83D\uDC68\u200D\uD83D\uDC69" // the first two people: a prefix of the family
+        val field = FakeField("$family $partial $family", 0, 5) // the selection ends after the second person, inside the family
+        val multi = cursor(field)
+        assertEquals(MultiCursorResult.Ranges(1, 2), multi.next(field))
+        assertEquals(TextRange(0, 8), TextRange(field.selStart, field.selEnd))
+        assertEquals(MultiCursorResult.Ranges(2, 2), multi.next(field))
+        assertEquals(listOf(TextRange(0, 8), TextRange(15, 23)), multi.heldRanges)
+        multi.type("x")
+        assertEquals("x $partial x", field.text)
+    }
+
+    @Test fun aCaretInsideAClusterTakesTheWholeWord() {
+        val field = FakeField("x 1\uFE0F\u20E3 x", 4) // between the variation selector and the keycap
+        val multi = cursor(field)
+        assertEquals(MultiCursorResult.Ranges(1, 1), multi.next(field))
+        assertEquals(TextRange(2, 5), TextRange(field.selStart, field.selEnd))
+    }
+
+    @Test fun aCaretAddedBelowKeepsTheCaretsAlreadyHeldAndSkipsNoLineAgain() {
+        // column 3: the second line is too short and is skipped; after backspace the column is 2 and that line would fit
+        val field = FakeField("xyz\nxy\nxyz\nxyz", 3)
+        val multi = cursor(field)
+        assertEquals(MultiCursorResult.Lines(1), multi.addCaretOnNextLine(3, 3))
+        assertEquals(MultiCursorResult.Lines(2), multi.addCaretOnNextLine(field.selStart, field.selEnd))
+        assertEquals(listOf(TextRange(3, 3), TextRange(10, 10)), multi.heldRanges)
+        assertEquals(MultiCursorResult.Written, multi.deleteBackward())
+        assertEquals("xy\nxy\nxy\nxyz", field.text)
+        assertEquals(listOf(TextRange(2, 2), TextRange(8, 8)), multi.heldRanges)
+        assertEquals(MultiCursorResult.Lines(3), multi.addCaretOnNextLine(field.selStart, field.selEnd))
+        assertEquals(listOf(TextRange(2, 2), TextRange(8, 8), TextRange(11, 11)), multi.heldRanges)
+        multi.type("!")
+        assertEquals("xy!\nxy\nxy!\nxy!z", field.text)
+    }
+
     // ---- the whole contract -------------------------------------------------------------------------------------
 
     @Test fun aSelectionMatchesSubstringsAndMatchingIsCaseSensitive() {
