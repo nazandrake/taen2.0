@@ -1325,7 +1325,7 @@ New dictionary:
     <string name="media_delete_failed">Some pictures could not be deleted.</string>
     <string name="media_starter_title">Starter stickers and GIFs</string>
     <string name="media_starter_summary">A small set of emoji stickers (Microsoft Fluent Emoji, MIT licence) that is part of the app. Off until you turn it on; they are never stored or exported.</string>
-    <string name="media_starter_gif_summary">It also holds animated GIFs (Noto Animated Emoji by Google, CC BY 4.0, resized). The panel plays the GIFs that are on screen.</string>
+    <string name="media_starter_gif_summary">It also holds 36 animated GIFs: Noto Animated Emoji by Google, licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Changed for Taen: scaled from 512 to 128 px and re-encoded (10 frames per second, 64 colours). The panel plays the GIFs that are on screen.</string>
     <string name="media_panel_locked">Locked. Unlock the phone to use your pictures.</string>
     <string name="media_panel_damaged">The picture list is damaged. Open Settings, GIFs and stickers.</string>
     <string name="media_panel_empty">No pictures yet. Import them under Settings, GIFs and stickers.</string>

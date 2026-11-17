@@ -811,7 +811,7 @@
     <string name="media_delete_failed">"Някои снимки не можаха да се изтрият."</string>
     <string name="media_starter_title">"Стартови стикери и GIF"</string>
     <string name="media_starter_summary">"Малък набор стикери с емотикони (Microsoft Fluent Emoji, лиценз MIT), част от приложението. Изключени, докато не ги включите; никога не се съхраняват и не се изнасят."</string>
-    <string name="media_starter_gif_summary">"Съдържа и анимирани GIF (Noto Animated Emoji на Google, CC BY 4.0, с променен размер). Панелът възпроизвежда GIF файловете, които се виждат на екрана."</string>
+    <string name="media_starter_gif_summary">"Съдържа и 36 анимирани GIF: Noto Animated Emoji на Google, лиценз CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Променени за Taen: смалени от 512 на 128 px и прекодирани (10 кадъра в секунда, 64 цвята). Панелът възпроизвежда GIF файловете, които се виждат на екрана."</string>
     <string name="media_panel_locked">"Заключено. Отключете телефона, за да ползвате снимките си."</string>
     <string name="media_panel_damaged">"Списъкът със снимки е повреден. Отворете Настройки, GIF и стикери."</string>
     <string name="media_panel_empty">"Още няма снимки. Внесете ги в Настройки, GIF и стикери."</string>
