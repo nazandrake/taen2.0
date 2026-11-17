@@ -147,6 +147,7 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.SELECT_MODE -> R.drawable.ic_select
                     ToolbarKey.NEXT_OCCURRENCE -> R.drawable.ic_next_occurrence
                     ToolbarKey.CARET_BELOW -> R.drawable.ic_caret_below
+                    ToolbarKey.CLEAR_ALL -> R.drawable.ic_clear_all
                     ToolbarKey.LEFT -> R.drawable.ic_dpad_left
                     ToolbarKey.RIGHT -> R.drawable.ic_dpad_right
                     ToolbarKey.UP -> R.drawable.ic_dpad_up
@@ -215,6 +216,7 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.SELECT_MODE -> R.drawable.ic_select
                     ToolbarKey.NEXT_OCCURRENCE -> R.drawable.ic_next_occurrence
                     ToolbarKey.CARET_BELOW -> R.drawable.ic_caret_below
+                    ToolbarKey.CLEAR_ALL -> R.drawable.ic_clear_all
                     ToolbarKey.LEFT -> R.drawable.ic_dpad_left
                     ToolbarKey.RIGHT -> R.drawable.ic_dpad_right
                     ToolbarKey.UP -> R.drawable.ic_dpad_up
@@ -283,6 +285,7 @@ class KeyboardIconsSet private constructor() {
                     ToolbarKey.SELECT_MODE -> R.drawable.ic_select_rounded
                     ToolbarKey.NEXT_OCCURRENCE -> R.drawable.ic_next_occurrence
                     ToolbarKey.CARET_BELOW -> R.drawable.ic_caret_below
+                    ToolbarKey.CLEAR_ALL -> R.drawable.ic_clear_all
                     ToolbarKey.LEFT -> R.drawable.ic_dpad_left_rounded
                     ToolbarKey.RIGHT -> R.drawable.ic_dpad_right_rounded
                     ToolbarKey.UP -> R.drawable.ic_dpad_up_rounded

@@ -154,6 +154,10 @@ class ShadowInputMethodService {
         /** Every getExtractedText call the keyboard made, and whether the fake field answers with its text. */
         var extractedTextCalls = 0
         var extractedTextWithText = false
+        /** How often the keyboard read the text of the field (before the cursor, after it, the selection or the extracted text). */
+        var textReads = 0
+        /** The context menu actions (select all) the keyboard asked the field to perform. */
+        val contextMenuActions = ArrayList<Int>()
         /** How often the keyboard asked the system to go to the next input method (switchToNextInputMethod). */
         var switchedToNextKeyboard = 0
         /** The system's answer to shouldOfferSwitchingToNextInputMethod: it knows every enabled keyboard, also those the app cannot see. */
@@ -188,6 +192,8 @@ class ShadowInputMethodService {
             contentCommits.clear()
             editorActions.clear()
             keyDownCodes.clear()
+            contextMenuActions.clear()
+            textReads = 0
             extractedTextCalls = 0
             extractedTextWithText = false
             switchedToNextKeyboard = 0
@@ -230,12 +236,14 @@ class ShadowInputMethodService {
     private val ic = object : InputConnection {
         // pretty clear (though this may be slow depending on the editor)
         // bad return value here is likely the cause for that weird bug improved/fixed by fixIncorrectLength
-        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence = textBeforeCursor.take(p0)
+        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence { textReads++; return textBeforeCursor.take(p0) }
         // pretty clear (though this may be slow depending on the editor)
-        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence = textAfterCursor.take(p0)
+        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence { textReads++; return textAfterCursor.take(p0) }
         // pretty clear
-        override fun getSelectedText(p0: Int): CharSequence? = if (selectionStart == selectionEnd) null
-        else text.substring(selectionStart, selectionEnd)
+        override fun getSelectedText(p0: Int): CharSequence? {
+            textReads++
+            return if (selectionStart == selectionEnd) null else text.substring(selectionStart, selectionEnd)
+        }
         // inserts text at cursor (right?), and sets it as composing text
         // this REPLACES currently composing text (even if at a different position)
         // moves the cursor: positive means relative to composing text start, negative means relative to start
@@ -361,6 +369,7 @@ class ShadowInputMethodService {
         // implementation is only to work with getTextBeforeCursorAndDetectLaggyConnection
         override fun getExtractedText(p0: ExtractedTextRequest?, p1: Int): ExtractedText {
             extractedTextCalls++
+            textReads++
             return ExtractedText().also {
                 if (extractedTextWithText) it.text = text
                 it.startOffset = 0
@@ -375,7 +384,14 @@ class ShadowInputMethodService {
         override fun deleteSurroundingTextInCodePoints(p0: Int, p1: Int): Boolean = throw UnsupportedOperationException()
         override fun commitCompletion(p0: CompletionInfo?): Boolean = throw UnsupportedOperationException()
         override fun performEditorAction(p0: Int): Boolean { editorActions.add(p0); return true }
-        override fun performContextMenuAction(p0: Int): Boolean = throw UnsupportedOperationException()
+        /** Only "select all" is simulated; it is what the select all and clear all keys use. */
+        override fun performContextMenuAction(p0: Int): Boolean {
+            if (p0 != android.R.id.selectAll) throw UnsupportedOperationException()
+            contextMenuActions.add(p0)
+            selectionStart = 0
+            selectionEnd = text.length
+            return true
+        }
         override fun clearMetaKeyStates(p0: Int): Boolean = throw UnsupportedOperationException()
         override fun reportFullscreenMode(p0: Boolean): Boolean = throw UnsupportedOperationException()
         override fun performPrivateCommand(p0: String?, p1: Bundle?): Boolean = throw UnsupportedOperationException()

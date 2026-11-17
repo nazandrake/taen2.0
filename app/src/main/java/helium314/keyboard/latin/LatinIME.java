@@ -930,6 +930,8 @@ public class LatinIME extends InputMethodService implements
         switcher.updateKeyboardTheme(mDisplayContext);
         MainKeyboardView mainKeyboardView = switcher.getMainKeyboardView();
         currentSettingsValues = mSettings.getCurrent(); // settingsValues may have been reloaded
+        if (hasSuggestionStripView())
+            mSuggestionStripView.updateFieldKeys(); // paste, select all and clear all on the strip of a number, phone or date field
 
         if (editorInfo == null) {
             Log.e(TAG, "Null EditorInfo in onStartInputView()");

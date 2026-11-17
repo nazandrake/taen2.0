@@ -46,6 +46,7 @@ import helium314.keyboard.latin.define.DebugFlags
 import helium314.keyboard.latin.settings.DebugSettings
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.utils.FieldText
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.voice.VoiceSession
 import helium314.keyboard.latin.utils.ToolbarMode
@@ -133,6 +134,9 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         resources.getDimensionPixelSize(R.dimen.config_suggestions_strip_edge_key_width),
         LinearLayout.LayoutParams.MATCH_PARENT
     )
+
+    /** The keys added to the pinned row while the field is a number, phone or date field (see [updateFieldKeys]). */
+    private val fieldKeys = ArrayList<View>()
 
     init {
         val colors = Settings.getValues().mColors
@@ -549,6 +553,28 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         }
     }
 
+    /**
+     * A number, phone or date field has no suggestions, so its strip carries paste, select all and clear all: one tap, no need to open the toolbar.
+     * A key the user pinned already is not added again. Other fields get their own pinned keys back.
+     */
+    fun updateFieldKeys() {
+        val numeric = FieldText.isNumericField(Settings.getValues().mInputAttributes.mInputType)
+        if (!numeric) {
+            fieldKeys.forEach { pinnedKeys.removeView(it) }
+            fieldKeys.clear()
+            return
+        }
+        if (fieldKeys.isNotEmpty()) return
+        for (key in listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL)) {
+            if (pinnedKeys.findViewWithTag<View>(key) != null) continue
+            val button = createToolbarKey(context, key)
+            button.layoutParams = toolbarKeyLayoutParams
+            setupKey(button, Settings.getValues().mColors)
+            pinnedKeys.addView(button)
+            fieldKeys.add(button)
+        }
+    }
+
     fun updateVoiceKey() {
         val show = Settings.getValues().mShowsVoiceInputKey
         toolbar.findViewWithTag<View>(ToolbarKey.VOICE)?.isVisible = show
@@ -557,6 +583,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     private fun updateKeys() {
         updateVoiceKey()
+        updateFieldKeys()
         val settingsValues = Settings.getValues()
 
         val toolbarIsExpandable = settingsValues.mToolbarMode == ToolbarMode.EXPANDABLE

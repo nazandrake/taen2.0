@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package helium314.keyboard.latin
+
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.text.InputType
+import android.view.View
+import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.widget.FrameLayout
+import android.widget.TextView
+import helium314.keyboard.ShadowInputMethodManager2
+import helium314.keyboard.ShadowInputMethodService
+import helium314.keyboard.ShadowLocaleManagerCompat
+import helium314.keyboard.keyboard.KeyboardSwitcher
+import helium314.keyboard.keyboard.clipboard.ClipboardHistoryView
+import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
+import helium314.keyboard.latin.common.Constants
+import helium314.keyboard.latin.database.ClipboardDao
+import helium314.keyboard.latin.privacy.Privacy
+import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.suggestions.SuggestionStripView
+import helium314.keyboard.latin.utils.ToolbarKey
+import helium314.keyboard.latin.utils.prefs
+import org.junit.runner.RunWith
+import org.robolectric.Robolectric
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * Number, phone and date fields through the running keyboard: the strip carries paste, select all and clear all (a tap on them reaches the field
+ * through the strip's own listener), the clipboard paths (paste key, suggestion, history entry) paste what the field accepts, and a text field
+ * keeps its strip as it was. Remove the strip keys, the paste filter or the clear all branch and a test here fails.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(shadows = [ShadowLocaleManagerCompat::class, ShadowInputMethodManager2::class, ShadowInputMethodService::class, ShadowFacilitator2::class])
+class NumberFieldWiringTest {
+    private val number = InputType.TYPE_CLASS_NUMBER
+    private val decimal = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+    private val text = InputType.TYPE_CLASS_TEXT
+
+    private fun withKeyboard(test: (LatinIME) -> Unit) {
+        Privacy.forgetCachedState()
+        ClipboardDao.forgetInstance()
+        ShadowInputMethodService.reset()
+        val ime = Robolectric.setupService(LatinIME::class.java)
+        Settings.init(ime)
+        KeyboardSwitcher.getInstance().onCreateInputView(ime, true)
+        try {
+            test(ime)
+        } finally {
+            Privacy.unlock(ime)
+            Privacy.forgetCachedState()
+            ClipboardDao.forgetInstance()
+            ShadowInputMethodService.reset()
+        }
+    }
+
+    private fun startField(ime: LatinIME, inputType: Int, content: String = "") {
+        ShadowInputMethodService.currentInputType = inputType
+        ShadowInputMethodService.text = content
+        ShadowInputMethodService.selectionStart = content.length
+        ShadowInputMethodService.selectionEnd = content.length
+        ShadowInputMethodService.composingStart = -1
+        ShadowInputMethodService.composingEnd = -1
+        val ei = EditorInfo().apply {
+            this.inputType = inputType
+            initialSelStart = content.length
+            initialSelEnd = content.length
+        }
+        ime.mHandler.onStartInput(ei, false)
+        ime.mHandler.onStartInputView(ei, false)
+    }
+
+    private fun strip(ime: LatinIME) = assertNotNull(
+        LatinIME::class.java.getDeclaredField("mSuggestionStripView").apply { isAccessible = true }.get(ime) as SuggestionStripView?
+    )
+
+    private fun pinned(ime: LatinIME) = strip(ime).findViewById<ViewGroup>(R.id.pinned_keys)
+    private fun pinnedKeys(ime: LatinIME) = pinned(ime).let { group -> (0 until group.childCount).map { group.getChildAt(it).tag } }
+    private fun tap(ime: LatinIME, key: ToolbarKey) = assertNotNull(pinned(ime).findViewWithTag<View>(key), "$key is on the strip").performClick()
+
+    @Test fun theStripOfANumberPhoneOrDateFieldCarriesPasteSelectAllAndClearAll() = withKeyboard { ime ->
+        for (type in listOf(number, decimal, InputType.TYPE_CLASS_PHONE, InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_DATE)) {
+            startField(ime, type)
+            val keys = pinnedKeys(ime)
+            assertTrue(ToolbarKey.PASTE in keys && ToolbarKey.SELECT_ALL in keys && ToolbarKey.CLEAR_ALL in keys, "type $type: $keys")
+            assertEquals(1, keys.count { it == ToolbarKey.PASTE }, "type $type: one paste key")
+        }
+    }
+
+    @Test fun aTextFieldStripHasNoneOfThemAndTheyLeaveWhenTheFieldChanges() = withKeyboard { ime ->
+        startField(ime, text)
+        val before = pinnedKeys(ime)
+        assertTrue(ToolbarKey.VOICE in before, "positive control: the pinned key of the strip is there: $before")
+        assertTrue(ToolbarKey.PASTE !in before && ToolbarKey.SELECT_ALL !in before && ToolbarKey.CLEAR_ALL !in before, "$before")
+        startField(ime, number)
+        assertTrue(ToolbarKey.CLEAR_ALL in pinnedKeys(ime))
+        startField(ime, text)
+        assertEquals(before, pinnedKeys(ime))
+    }
+
+    @Test fun aKeyTheUserPinnedIsNotAddedTwice() = withKeyboard { ime ->
+        ime.prefs().edit().putString(Settings.PREF_PINNED_TOOLBAR_KEYS, helium314.keyboard.latin.utils.defaultPinnedToolbarPref.replace("PASTE:false", "PASTE:true")).commit()
+        ime.setInputView(KeyboardSwitcher.getInstance().onCreateInputView(ime, true)) // the strip reads the pinned keys when it is created
+        startField(ime, text)
+        val textKeys = pinnedKeys(ime)
+        assertEquals(1, textKeys.count { it == ToolbarKey.PASTE }, "positive control: the setting pinned the paste key in a text field: $textKeys")
+        startField(ime, number)
+        val numberKeys = pinnedKeys(ime)
+        assertEquals(1, numberKeys.count { it == ToolbarKey.PASTE }, "$numberKeys")
+        assertTrue(ToolbarKey.SELECT_ALL in numberKeys && ToolbarKey.CLEAR_ALL in numberKeys, "$numberKeys")
+    }
+
+    @Test fun tappingClearAllOnTheStripEmptiesTheField() = withKeyboard { ime ->
+        startField(ime, number, "123456")
+        tap(ime, ToolbarKey.CLEAR_ALL)
+        assertEquals("", ShadowInputMethodService.text)
+    }
+
+    @Test fun tappingSelectAllOnTheStripSelectsTheField() = withKeyboard { ime ->
+        startField(ime, number, "123456")
+        tap(ime, ToolbarKey.SELECT_ALL)
+        assertEquals("123456", ShadowInputMethodService.selectedText)
+    }
+
+    @Test fun tappingPasteOnTheStripPastesWhatTheFieldAccepts() = withKeyboard { ime ->
+        (ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("t", "+1 (2) 3x"))
+        startField(ime, number, "9")
+        tap(ime, ToolbarKey.PASTE)
+        assertEquals("9123", ShadowInputMethodService.text)
+        startField(ime, InputType.TYPE_CLASS_PHONE, "9")
+        tap(ime, ToolbarKey.PASTE)
+        assertEquals("9+1 (2) 3", ShadowInputMethodService.text)
+    }
+
+    /** A clip copied just now. A clip is stamped when it is made; the test framework's clock starts near 0, so it is moved to the wall clock first. */
+    private fun recentClip(text: String): ClipData {
+        org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(System.currentTimeMillis()))
+        return ClipData.newPlainText("t", text)
+    }
+
+    private fun suggestion(ime: LatinIME, inputType: Int, clip: String): View? {
+        ime.prefs().edit().putBoolean(Settings.PREF_SUGGEST_CLIPBOARD_CONTENT, true).commit()
+        startField(ime, inputType)
+        (ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(recentClip(clip))
+        val ei = EditorInfo().apply { this.inputType = inputType }
+        return ime.clipboardHistoryManager.getClipboardSuggestionView(ei, FrameLayout(ime))
+    }
+
+    @Test fun theClipboardSuggestionOfANumberFieldOffersWhatItAcceptsAndPastesIt() = withKeyboard { ime ->
+        val view = assertNotNull(suggestion(ime, decimal, "1,5"), "positive control: a number is offered")
+        assertEquals("1,5", view.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
+        view.findViewById<View>(R.id.clipboard_suggestion_text).performClick()
+        assertEquals("1,5", ShadowInputMethodService.text)
+    }
+
+    @Test fun theClipboardSuggestionIsFilteredLikeAPaste() = withKeyboard { ime ->
+        val view = assertNotNull(suggestion(ime, number, "12abc3"))
+        assertEquals("123", view.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
+        view.findViewById<View>(R.id.clipboard_suggestion_text).performClick()
+        assertEquals("123", ShadowInputMethodService.text)
+    }
+
+    @Test fun theClipboardSuggestionIsNotOfferedWhenTheFieldTakesNothingOfIt() = withKeyboard { ime ->
+        assertNull(suggestion(ime, number, "NaN"))
+        assertNull(suggestion(ime, number, "no digits"))
+        assertNotNull(suggestion(ime, text, "no digits"), "positive control: a text field is offered the same text")
+    }
+
+    @Test fun aHistoryEntryPastedIntoANumberFieldIsFiltered() = withKeyboard { ime ->
+        startField(ime, number)
+        val dao = assertNotNull(ClipboardDao.getInstance(ime))
+        dao.addClip(System.currentTimeMillis(), "12abc")
+        ime.mKeyboardActionListener.onCodeInput(KeyCode.CLIPBOARD, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false)
+        val view = KeyboardSwitcher::class.java.getDeclaredField("mClipboardHistoryView").apply { isAccessible = true }.get(KeyboardSwitcher.getInstance()) as ClipboardHistoryView
+        assertEquals(1, dao.count(), "positive control: the entry is in the history")
+        view.onKeyUp(dao.getAt(0).id)
+        assertEquals("12", ShadowInputMethodService.text)
+        assertEquals(1, dao.count()) // pasting stores nothing new
+        assertFalse(dao.getAt(0).pinned)
+    }
+}

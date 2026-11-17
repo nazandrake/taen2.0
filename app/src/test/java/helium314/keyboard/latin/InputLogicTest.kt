@@ -4,6 +4,7 @@ package helium314.keyboard.latin
 import android.os.Handler
 import android.os.Message
 import android.text.InputType
+import android.view.KeyEvent
 import android.view.inputmethod.*
 import androidx.core.content.edit
 import helium314.keyboard.ShadowInputMethodManager2
@@ -851,6 +852,182 @@ class InputLogicTest {
         assertEquals(5, cursor)
         latinIME.mKeyboardActionListener.onHorizontalSpaceSwipe(1)
         assertEquals(5, cursor)
+    }
+
+    // ---- number fields: paste, select all, clear all -------------------------------------------------
+
+    private val clipboard get() = latinIME.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    private fun setClip(text: String) = clipboard.setPrimaryClip(android.content.ClipData.newPlainText("test", text))
+    private fun press(keyCode: Int) = latinIME.onEvent(Event.createSoftwareKeypressEvent(Event.NOT_A_CODE_POINT, keyCode, 0, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false))
+    private val flagSigned = InputType.TYPE_NUMBER_FLAG_SIGNED
+    private val flagDecimal = InputType.TYPE_NUMBER_FLAG_DECIMAL
+
+    @Test fun pasteInANumberFieldKeepsOnlyTheDigits() {
+        currentInputType = InputType.TYPE_CLASS_NUMBER
+        setText("")
+        setClip("12abc3")
+        functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
+        assertEquals("123", text)
+        assertEquals(3, cursor)
+    }
+
+    @Test fun pasteInATextFieldKeepsEverything() { // positive control: the filter belongs to number fields only
+        currentInputType = InputType.TYPE_CLASS_TEXT
+        setText("")
+        setClip("12abc3")
+        functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
+        assertEquals("12abc3", text)
+    }
+
+    @Test fun pasteReplacesTheSelectionOfANumberField() {
+        currentInputType = InputType.TYPE_CLASS_NUMBER
+        setText("1599")
+        setCursorPosition(1, 3) // "59" is selected
+        setClip("2-3")
+        functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
+        assertEquals("1239", text)
+        assertEquals(3, cursor)
+    }
+
+    @Test fun pasteOfTextTheFieldDoesNotTakeChangesNothing() {
+        currentInputType = InputType.TYPE_CLASS_NUMBER
+        setText("42")
+        setClip("no digits here")
+        functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
+        assertEquals("42", text)
+        setClip("7") // positive control: the same key pastes what the field takes
+        functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
+        assertEquals("427", text)
+    }
+
+    @Test fun pasteFollowsTheTypeOfTheField() {
+        val cases = listOf(
+            Triple(InputType.TYPE_CLASS_NUMBER or flagSigned or flagDecimal, "-1,234.50 EUR", "-1234.50"),
+            Triple(InputType.TYPE_CLASS_NUMBER or flagDecimal, "-1,234.50 EUR", "1234.50"),
+            Triple(InputType.TYPE_CLASS_NUMBER, "-1,234.50 EUR", "123450"),
+            Triple(InputType.TYPE_CLASS_PHONE, "ab+359 88 12", "+359 88 12"),
+            Triple(InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_DATE, "17.11.2026 r", "17.11.2026"),
+            Triple(InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_TIME, "10:30 PM!", "10:30 PM"),
+        )
+        for ((type, clip, expected) in cases) {
+            reset()
+            currentInputType = type
+            setText("")
+            setClip(clip)
+            functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
+            assertEquals(expected, text, "type $type, clip $clip")
+        }
+    }
+
+    @Test fun anImageClipIsNotPastedIntoANumberFieldButIsIntoATextField() {
+        clipboard.setPrimaryClip(android.content.ClipData("image", arrayOf("image/png"), android.content.ClipData.Item(android.net.Uri.parse("content://example/1"))))
+        currentInputType = InputType.TYPE_CLASS_NUMBER
+        setText("5")
+        functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
+        assertEquals("5", text)
+        assertEquals(emptyList(), ShadowInputMethodService.keyDownCodes)
+        reset() // positive control: a text field gets the paste key event
+        functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
+        assertEquals(listOf(KeyEvent.KEYCODE_PASTE), ShadowInputMethodService.keyDownCodes)
+    }
+
+    @Test fun pasteInAPasswordNumberFieldLearnsAndRecordsNothing() {
+        currentInputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        setText("")
+        setClip("1-2 3")
+        val history = helium314.keyboard.latin.database.ClipboardDao.getInstance(latinIME)?.count()
+        val learned = ShadowFacilitator2.added.size
+        functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
+        assertEquals("123", text)
+        assertEquals(history, helium314.keyboard.latin.database.ClipboardDao.getInstance(latinIME)?.count())
+        assertEquals(learned, ShadowFacilitator2.added.size)
+        assertEquals("1-2 3", clipboard.primaryClip?.getItemAt(0)?.text?.toString()) // the clipboard itself is not touched
+    }
+
+    @Test fun selectAllSelectsTheWholeNumberField() {
+        currentInputType = InputType.TYPE_CLASS_NUMBER
+        setText("12345")
+        setCursorPosition(2)
+        press(KeyCode.CLIPBOARD_SELECT_ALL)
+        assertEquals(listOf(android.R.id.selectAll), ShadowInputMethodService.contextMenuActions)
+        assertEquals("12345", selectedText)
+        latinIME.onUpdateSelection(2, 2, selectionStart, selectionEnd, -1, -1) // the field reports its new selection
+        handleMessages()
+        assertEquals(0, connection.expectedSelectionStart)
+        assertEquals(5, connection.expectedSelectionEnd)
+    }
+
+    @Test fun clearAllEmptiesTheField() {
+        currentInputType = InputType.TYPE_CLASS_NUMBER
+        setText("12345")
+        functionalKeyPress(KeyCode.CLEAR_ALL)
+        assertEquals("", text)
+        assertEquals(0, cursor)
+        assertEquals(0, connection.expectedSelectionStart)
+        assertEquals(listOf(android.R.id.selectAll), ShadowInputMethodService.contextMenuActions)
+    }
+
+    @Test fun clearAllEmptiesAFieldWhateverTheCursorAndSelectionAre() {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        setText("one\ntwo three")
+        setCursorPosition(5) // in the middle
+        functionalKeyPress(KeyCode.CLEAR_ALL)
+        assertEquals("", text)
+        setText("abc")
+        setCursorPosition(0, 2) // a part is selected
+        functionalKeyPress(KeyCode.CLEAR_ALL)
+        assertEquals("", text)
+        functionalKeyPress(KeyCode.CLEAR_ALL) // already empty: nothing breaks
+        assertEquals("", text)
+        input('x') // typing goes on from the empty field
+        assertEquals("x", text)
+    }
+
+    @Test fun clearAllReadsNothingWritesNothingAndLearnsNothingInAPasswordField() {
+        currentInputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        setText("s3cret")
+        setClip("keep me")
+        val history = helium314.keyboard.latin.database.ClipboardDao.getInstance(latinIME)?.count()
+        val learned = ShadowFacilitator2.added.size
+        val lastLearned = lastAddedWord
+        val readsBefore = ShadowInputMethodService.textReads
+        latinIME.currentInputConnection.getTextBeforeCursor(1, 0)
+        assertEquals(readsBefore + 1, ShadowInputMethodService.textReads) // positive control: a read is counted
+        press(KeyCode.CLEAR_ALL)
+        assertEquals("", text)
+        assertEquals(readsBefore + 1, ShadowInputMethodService.textReads, "the clear read no text")
+        assertEquals(0, ShadowInputMethodService.extractedTextCalls)
+        handleMessages()
+        assertEquals(readsBefore + 1, ShadowInputMethodService.textReads, "the strip update after it read no text either")
+        assertEquals("keep me", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
+        assertEquals(history, helium314.keyboard.latin.database.ClipboardDao.getInstance(latinIME)?.count())
+        assertEquals(learned, ShadowFacilitator2.added.size)
+        assertEquals(lastLearned, lastAddedWord)
+    }
+
+    @Test fun clearAllEndsTheWordBeingTyped() {
+        setText("")
+        chainInput("hello")
+        assertEquals("hello", composingText) // positive control: the word is still being composed
+        functionalKeyPress(KeyCode.CLEAR_ALL)
+        assertEquals("", text)
+        assertEquals("", composingText)
+        input('x') // a new word, not a continuation of the cleared one
+        assertEquals("x", text)
+    }
+
+    @Test fun clearAllDoesNotLearnTheWordItRemoves() {
+        setText("")
+        chainInput("hello")
+        input(' ')
+        assertEquals("hello", lastAddedWord) // positive control: the space learned the word
+        lastAddedWord = ""
+        val learned = ShadowFacilitator2.added.size
+        functionalKeyPress(KeyCode.CLEAR_ALL)
+        handleMessages()
+        assertEquals("", text)
+        assertEquals("", lastAddedWord)
+        assertEquals(learned, ShadowFacilitator2.added.size)
     }
 
     // ------- helper functions ---------

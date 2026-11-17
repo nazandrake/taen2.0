@@ -829,6 +829,7 @@
     <string name="select_mode" tools:keep="@string/select_mode">Режим на избиране</string>
     <string name="next_occurrence" tools:keep="@string/next_occurrence">Избери следващото срещане</string>
     <string name="caret_below" tools:keep="@string/caret_below">Курсор на следващия ред</string>
+    <string name="clear_all" tools:keep="@string/clear_all">Изчистване на целия текст</string>
     <string name="nav_select_on">Режимът на избиране е включен: интервалът избира</string>
     <string name="nav_select_off">Режимът на избиране е изключен</string>
     <string name="nav_ranges">Избрани %1$d от %2$d</string>

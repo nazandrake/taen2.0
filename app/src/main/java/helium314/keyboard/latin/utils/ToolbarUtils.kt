@@ -96,6 +96,7 @@ fun getCodeForToolbarKey(key: ToolbarKey) = Settings.getInstance().getCustomTool
     SELECT_MODE -> KeyCode.SELECT_MODE
     NEXT_OCCURRENCE -> KeyCode.NEXT_OCCURRENCE
     CARET_BELOW -> KeyCode.CARET_BELOW
+    CLEAR_ALL -> KeyCode.CLEAR_ALL
 }
 
 fun getCodeForToolbarKeyLongClick(key: ToolbarKey) = Settings.getInstance().getCustomToolbarLongpressCode(key) ?: when (key) {
@@ -121,7 +122,7 @@ fun getCodeForToolbarKeyLongClick(key: ToolbarKey) = Settings.getInstance().getC
 enum class ToolbarKey {
     VOICE, CLIPBOARD, NUMPAD, DPAD, UNDO, REDO, SETTINGS, SELECT_ALL, SELECT_WORD, COPY, CUT, PASTE, ONE_HANDED, FLOATING, SPLIT,
     INCOGNITO, AUTOCORRECT, CLEAR_CLIPBOARD, CLOSE_HISTORY, EMOJI, LEFT, RIGHT, UP, DOWN, WORD_LEFT, WORD_RIGHT,
-    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, QUICK_SETTINGS, MEDIA, SELECT_MODE, NEXT_OCCURRENCE, CARET_BELOW
+    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, QUICK_SETTINGS, MEDIA, SELECT_MODE, NEXT_OCCURRENCE, CARET_BELOW, CLEAR_ALL
 }
 
 enum class ToolbarMode {
@@ -131,7 +132,7 @@ enum class ToolbarMode {
 val toolbarKeyStrings = entries.associateWithTo(EnumMap(ToolbarKey::class.java)) { it.toString().lowercase(Locale.US) }
 
 val defaultToolbarPref by lazy {
-    val default = listOf(SETTINGS, QUICK_SETTINGS, VOICE, CLIPBOARD, INCOGNITO, UNDO, REDO, SELECT_WORD, SELECT_MODE, NEXT_OCCURRENCE, CARET_BELOW, COPY, PASTE, LEFT, RIGHT) // incognito one tap away
+    val default = listOf(SETTINGS, QUICK_SETTINGS, VOICE, CLIPBOARD, INCOGNITO, UNDO, REDO, SELECT_WORD, SELECT_ALL, CLEAR_ALL, SELECT_MODE, NEXT_OCCURRENCE, CARET_BELOW, COPY, PASTE, LEFT, RIGHT) // incognito one tap away
     val others = entries.filterNot { it in default || it == CLOSE_HISTORY }
     default.joinToString(Separators.ENTRY) { it.name + Separators.KV + true } + Separators.ENTRY +
             others.joinToString(Separators.ENTRY) { it.name + Separators.KV + false }
@@ -159,11 +160,11 @@ fun upgradeToolbarPrefs(prefs: SharedPreferences) {
 private fun upgradeToolbarPref(prefs: SharedPreferences, pref: String, default: String) {
     if (!prefs.contains(pref)) return
     val list = prefs.getString(pref, default)!!.split(Separators.ENTRY).toMutableList()
-    val splitDefault = defaultToolbarPref.split(Separators.ENTRY)
-    splitDefault.forEach { entry ->
+    // a key that is new to the preference starts as this preference's default says (on only where the default has it on)
+    default.split(Separators.ENTRY).forEach { entry ->
         val keyWithSeparator = entry.substringBefore(Separators.KV) + Separators.KV
         if (list.none { it.startsWith(keyWithSeparator) })
-            list.add("${keyWithSeparator}false")
+            list.add(entry)
     }
     // likely not needed, but better prepare for possibility of key removal
     list.removeAll {

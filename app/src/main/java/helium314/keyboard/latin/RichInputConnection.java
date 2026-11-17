@@ -767,6 +767,22 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         } else mIC.performContextMenuAction(android.R.id.selectAll);
     }
 
+    /**
+     * Empties the field without reading any of its text (a password field too): the whole text is selected and replaced by nothing.
+     * The caches are emptied, not reloaded.
+     */
+    public void clearAll() {
+        mIC = mParent.getCurrentInputConnection();
+        if (!isConnected()) return;
+        mIC.finishComposingText();
+        mIC.performContextMenuAction(android.R.id.selectAll);
+        mIC.commitText("", 1);
+        mCommittedTextBeforeComposingText.setLength(0);
+        mComposingText.setLength(0);
+        mExpectedSelStart = 0;
+        mExpectedSelEnd = 0;
+    }
+
     public void selectWord(final SpacingAndPunctuations spacingAndPunctuations, final String script) {
         if (!isConnected()) return;
         if (mExpectedSelStart != mExpectedSelEnd) { // already something selected

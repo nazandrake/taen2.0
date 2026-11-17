@@ -65,6 +65,7 @@ import helium314.keyboard.latin.settings.SpacingAndPunctuations;
 import helium314.keyboard.latin.suggestions.SuggestionStripViewAccessor;
 import helium314.keyboard.latin.utils.AsyncResultHolder;
 import helium314.keyboard.latin.utils.DictionaryInfoUtils;
+import helium314.keyboard.latin.utils.FieldText;
 import helium314.keyboard.latin.utils.InputTypeUtils;
 import helium314.keyboard.latin.utils.IntentUtils;
 import helium314.keyboard.latin.utils.Log;
@@ -751,6 +752,16 @@ public final class InputLogic {
                 break;
             case KeyCode.CLIPBOARD_SELECT_ALL:
                 mConnection.selectAll();
+                break;
+            case KeyCode.CLEAR_ALL:
+                // the text is neither read, copied nor learned: the field is selected as a whole and replaced by nothing
+                resetComposingState(true /* alsoResetLastComposedWord */);
+                mConnection.clearAll();
+                mSpaceState = SpaceState.NONE;
+                mEnteredText = null;
+                inputTransaction.setDidAffectContents();
+                inputTransaction.requireShiftUpdate(InputTransaction.SHIFT_UPDATE_NOW);
+                inputTransaction.setRequiresUpdateSuggestions();
                 break;
             case KeyCode.CLIPBOARD_SELECT_WORD:
                 mConnection.selectWord(sv.mSpacingAndPunctuations, currentKeyboardScript);
@@ -2664,10 +2675,14 @@ public final class InputLogic {
         // we try to deal with this by committing the text if the clipboard content is simply text,
         // and use KeyEvent.KEYCODE_PASTE otherwise except for apps that are known to ignore it
         String primaryClip = mLatinIME.getClipboardHistoryManager().getPrimaryClipIfText();
+        // a number, phone or date field takes only the characters it accepts of the text (other fields take all of it)
+        final int inputType = Settings.getValues().mInputAttributes.mInputType;
         if (primaryClip != null) {
-            mConnection.commitText(primaryClip, 1);
+            final String text = FieldText.forField(primaryClip, inputType);
+            if (!text.isEmpty()) mConnection.commitText(text, 1);
             return;
         }
+        if (FieldText.isNumericField(inputType)) return; // nothing but text can be pasted there
         Log.d(TAG, "pasting non-text content");
         if (AppWorkarounds.INSTANCE.doesntCareAboutKeycodePaste(packageName) || Build.VERSION.SDK_INT < Build.VERSION_CODES.N)
             sendDownUpKeyEventWithMetaState(KeyEvent.KEYCODE_V, KeyEvent.META_CTRL_ON);

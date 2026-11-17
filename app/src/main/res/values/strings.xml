@@ -1344,6 +1344,7 @@ New dictionary:
     <string name="select_mode" tools:keep="@string/select_mode">Selection mode</string>
     <string name="next_occurrence" tools:keep="@string/next_occurrence">Select next occurrence</string>
     <string name="caret_below" tools:keep="@string/caret_below">Cursor on the next line</string>
+    <string name="clear_all" tools:keep="@string/clear_all">Clear all text</string>
     <string name="nav_select_on">Selection mode on: the space bar selects</string>
     <string name="nav_select_off">Selection mode off</string>
     <string name="nav_ranges">%1$d of %2$d selected</string>

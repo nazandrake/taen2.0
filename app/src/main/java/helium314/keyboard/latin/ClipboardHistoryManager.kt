@@ -7,7 +7,6 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.text.InputType
-import android.text.TextUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -23,14 +22,13 @@ import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.common.ColorType
 import helium314.keyboard.latin.common.Constants
-import helium314.keyboard.latin.common.isValidNumber
 import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.databinding.ClipboardSuggestionBinding
 import helium314.keyboard.latin.privacy.ClipboardCapture
 import helium314.keyboard.latin.privacy.PrivacyPolicy
 import helium314.keyboard.latin.settings.SettingsValues
 import helium314.keyboard.latin.utils.prefs
-import helium314.keyboard.latin.utils.InputTypeUtils
+import helium314.keyboard.latin.utils.FieldText
 import helium314.keyboard.latin.utils.Log
 import helium314.keyboard.latin.utils.ToolbarKey
 
@@ -196,16 +194,17 @@ class ClipboardHistoryManager(
         clipIcon?.setBounds(0, 0, textView.lineHeight, textView.lineHeight) // scale the icon to the text
         textView.setCompoundDrawablesRelative(clipIcon, null, null, null)
         val inputType = editorInfo?.inputType ?: InputType.TYPE_NULL
+        // a number, phone or date field is offered, and pastes, what it accepts of the text (the same filter as the paste key)
+        val pasteText = if (hasText) FieldText.forField(content, inputType) else ""
         if (hasText) {
-            if (TextUtils.isEmpty(content)) return null
-            if (InputTypeUtils.isNumberInputType(inputType) && !content.isValidNumber()) return null
-            val shortenedContent = content.take(200) // for display only
+            if (pasteText.isEmpty()) return null
+            val shortenedContent = pasteText.take(200) // for display only
             KeyboardTypeface.applyToTextView(textView)
             textView.text = (if (isClipSensitive()) "*".repeat(shortenedContent.length) else shortenedContent)
         }
         val onClickListener = View.OnClickListener {
             dontShowCurrentSuggestion = true
-            if (hasText) latinIME.onTextInput(content.toString())
+            if (hasText) latinIME.onTextInput(pasteText)
             else latinIME.onEvent(Event.createSoftwareKeypressEvent(KeyCode.CLIPBOARD_PASTE, 0,
                 Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false))
             AudioAndHapticFeedbackManager.getInstance().performHapticAndAudioFeedback(KeyCode.NOT_SPECIFIED, it, HapticEvent.KEY_PRESS)
@@ -214,7 +213,7 @@ class ClipboardHistoryManager(
         textView.setOnClickListener(onClickListener)
 
         if (hasImage) {
-            if (InputTypeUtils.isNumberInputType(inputType)) return null
+            if (FieldText.isNumericField(inputType)) return null
             val imageView = binding.clipboardSuggestionImage
             imageView.isVisible = true
             try {
