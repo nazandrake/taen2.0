@@ -38,7 +38,7 @@ Not included
 
 Bundled data and libraries
 --------------------------
-Dictionaries, app/src/main/assets/dicts/main_*.dict (3 files):
+Dictionaries, app/src/main/assets/dicts/main_*.dict (2 files):
 - main_en-GB.dict and main_bg.dict: main_en_gb__experimental.dict and main_bg__experimental.dict of
   https://codeberg.org/Helium314/aosp-dictionaries at commit ff0cd52be8d9530200fefe8b296c53d4f662091e (unchanged copies, SHA-256 in
   tools/downloads.lock). "created using wordlist.py and wordlist_combined.py, using word lists available at
@@ -46,12 +46,6 @@ Dictionaries, app/src/main/assets/dicts/main_*.dict (3 files):
   wordlists/main_en_GB__experimental.source and wordlists/main_bg__experimental.source at that commit). Attribution: Leipzig
   Corpora Collection, Universitaet Leipzig (https://wortschatz.uni-leipzig.de), CC BY 4.0; the compiled dictionaries are derived works
   of those lists. app/src/test/resources/glide/en.tsv.gz and bg.tsv.gz are the word lists of these two files (tools/gen-glide-fixtures.sh).
-- main_bn.dict: dictionaries/main_bn.dict of https://codeberg.org/Helium314/aosp-dictionaries at the same commit
-  ff0cd52be8d9530200fefe8b296c53d4f662091e (unchanged copy, SHA-256 dd555eee57aceec08200cc293ffafd29a13bb531156e3a36e5a16ff6895d13a6).
-  Lines 1 and 2 of wordlists/main_bn.source at that commit: "created using wordlist.py and wordlist_combined.py, based on word lists
-  from the Leipzig Corpora Collection (https://wortschatz.uni-leipzig.de/en/download), then thoroughly proofread and corrected",
-  "license: source lists under CC BY 4.0". Attribution: Leipzig Corpora Collection, Universitaet Leipzig, CC BY 4.0; the compiled
-  dictionary is a derived work of those lists.
 The other HeliBoard dictionaries (the older AOSP and OpenBoard word lists) are not bundled because no licence statement is published
 for them. Other languages can be added by the user from a dictionary file (Settings > Languages).
 Emoji data: app/src/main/assets/emoji/*.txt are lists of emoji code points (the Unicode emoji set), no text of a licence
@@ -106,12 +100,17 @@ Voice typing: speech is recognised on the phone, nothing is sent anywhere
 - Test audio: the host smoke test uses 20 English and 20 Bulgarian utterances of the FLEURS test split (google/fleurs, CC BY 4.0, public read speech,
   no personal data); tools/voice/prepare_samples.py cuts them, they are never committed or shipped. Voice activity detection (Silero) is not used.
 
-Starter stickers: part of the APK, off until the user turns them on
+Starter stickers and GIFs: part of the APK, off until the user turns them on
 ---------------------------------------------------------------------------------------
 - app/src/main/assets/stickers/*.png (38 files): Fluent Emoji, 3D style, Microsoft Corporation (https://github.com/microsoft/fluentui-emoji), MIT License,
   Copyright (c) Microsoft Corporation (licence file of commit 1ffb34c752ecf5d402f04cfb4b392c77f57c54bc, read 2026-11-16). Unchanged copies of the published PNG files;
   tools/sticker-pack.lock lists name, size, SHA-256 and the pinned address of each, tools/make-sticker-pack.sh rebuilds them. Credit shown in Settings > GIFs and stickers.
-  The Noto Animated Emoji set (CC BY 4.0) is not used: its GIFs have no commit-pinned address.
+- app/src/main/assets/stickers/*_animated.gif (36 files, 2.1 MB): Noto Animated Emoji, Google (https://googlefonts.github.io/noto-emoji-animation/), licensed under
+  Creative Commons Attribution 4.0 International (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/legalcode; the publisher states the licence in the FAQ of that site,
+  read 2026-11-17). Modified: each 512 px GIF of the publisher was scaled to 128 px, reduced to 10 frames per second and 64 colours (ffmpeg n9.0.2); nothing else
+  was changed. The publisher serves the files from fonts.gstatic.com without a commit-pinned address, so tools/sticker-gifs.lock pins each source and each result by size and
+  SHA-256, and tools/make-sticker-pack.sh stops if one differs. The pictures are separate data files under their own licence, not part of the program code. Credit shown in
+  Settings > GIFs and stickers.
 
 Optional dictionary downloads: NOT in the APK, fetched by the user with the browser
 -------------------------------------------------------------------------------------------------------

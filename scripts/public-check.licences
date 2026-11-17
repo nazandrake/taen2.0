@@ -104,6 +104,7 @@
 1	Copyright [yyyy] [name of copyright owner]
 1	Copyright © 2015 the original authors.
 1	Copyright © 2015-2024 Unicode, Inc.
+1	Creative Commons Attribution 4.0 International (CC BY 4.0, https://creativecommons.org/licenses/by/4.0/legalcode; the publisher states the licence in the FAQ of that site,
 1	Creative Commons public licenses does not create a lawyer-client or
 1	Creative Commons public licenses provide a standard set of terms and
 1	Derivative Works a copy of this License; and
@@ -133,6 +134,7 @@
 1	LICENCE_FALLBACK = {
 1	LICENSE-CC-BY-SA-4.0 (the HeliBoard icon and name) stays in the repository until the upstream icon files and any
 1	Later license versions may give you additional or different
+1	Licence: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode), stated by the publisher in the FAQ of https://googlefonts.github.io/noto-emoji-animation/ ("Animated Noto Emoji is licensed under CC BY 4.0", read 2026-11-17). Credit: NOTICE.
 1	Licence: CC-BY-4.0 (NVIDIA, https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3; the ONNX files are made by k2-fsa/sherpa-onnx, Apache-2.0).
 1	Licence: MIT, Copyright (c) Microsoft Corporation (https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/LICENSE, read 2026-11-16). Credit: NOTICE.
 2	License
@@ -182,10 +184,11 @@
 1	Rights include other Copyright and Similar Rights.
 1	Rights that is derived from or based upon the Licensed Material
 1	SHA-256 of every file, the app checks them before installing. Repository licence file: GNU General Public License v3 (LICENSE, first line "GNU GENERAL PUBLIC LICENSE
+1	SHA-256, and tools/make-sticker-pack.sh stops if one differs. The pictures are separate data files under their own licence, not part of the program code. Credit shown in
 67	SPDX-FileCopyrightText: Material Design Authors / Google LLC
 348	SPDX-License-Identifier: Apache-2.0
 334	SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
-377	SPDX-License-Identifier: GPL-3.0-only
+393	SPDX-License-Identifier: GPL-3.0-only
 1	SPDX-License-Identifier: MIT
 1	SPDX-License-Identifier: Unicode-3.0
 1	Section 3 -- License Conditions.
@@ -199,6 +202,7 @@
 1	Technological Measures. For purposes of this Public License,
 1	Text(stringResource(R.string.downloads_licence, row.entry.licence), style = MaterialTheme.typography.bodySmall)
 1	Text(stringResource(R.string.voice_license_note), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(16.dp))
+1	The English gate is 79.5 % (Bulgarian 70 %): with the licensed dictionaries the English sample measures 79.6 %, which is within the
 1	The GNU General Public License does not permit incorporating your program
 1	The GNU General Public License is a free, copyleft license for
 1	The icon is licensed under [Creative Commons BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). A [license file](LICENSE-CC-BY-SA-4.0) is also included.
@@ -251,6 +255,7 @@
 1	any other exception or limitation to Copyright and Similar Rights
 1	app/src/main/assets/nextword/*/vocab.json and merges.txt: unchanged copies of the two models' tokenizer files (same repositories and commits as the ONNX files, Apache License
 1	app/src/main/assets/stickers/*.png (38 files): Fluent Emoji, 3D style, Microsoft Corporation (https://github.com/microsoft/fluentui-emoji), MIT License,
+1	app/src/main/assets/stickers/*_animated.gif (36 files, 2.1 MB): Noto Animated Emoji, Google (https://googlefonts.github.io/noto-emoji-animation/), licensed under
 1	applies beyond the Unicode Terms of Use. The HeliBoard emoji search dictionaries (CLDR annotations, Unicode License v3,
 1	apply to Your use of the Licensed Material:
 1	applying our licenses so that the public can reuse the
@@ -397,7 +402,7 @@
 1	may provide additional or different license terms and conditions
 2	model-bg model bg 617687478 d93222c672992a398eeea3a4a1ca025738efd9a18ba5f1691419ff8ae23a8e75 https://huggingface.co/onnx-community/Qwen3-0.6B-ONNX/resolve/79346d370dfae34801d26993fda9ae2372900fd0/onnx/model_int8.onnx Apache-2.0 (Qwen3-0.6B, Qwen team) Qwen/Qwen3-0.6B at c1899de2: model card "license: apache-2.0" and LICENSE; the ONNX export onnx-community/Qwen3-0.6B-ONNX names it as its base model
 2	model-en model en 135658354 50ba80511ce74634d232a043b6c37775cca756b826b49d0a4a8eff958c4bbcc9 https://huggingface.co/onnx-community/SmolLM2-135M-ONNX/resolve/d0ae6834f1df45e0e95b5fdae95e536f9ca7cd3f/onnx/model_int8.onnx Apache-2.0 (SmolLM2-135M, Hugging Face) HuggingFaceTB/SmolLM2-135M at 93efa2f0: model card "license: apache-2.0"; the ONNX export onnx-community/SmolLM2-135M-ONNX names it as its base model
-458	modified
+465	modified
 1	modify any covered work. These actions infringe copyright if you do
 1	necessary to exercise the Licensed Rights, including
 1	non-sublicensable, non-exclusive, irrevocable license to

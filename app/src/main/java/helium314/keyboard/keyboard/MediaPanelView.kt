@@ -47,7 +47,7 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
         fun editorInfo(): EditorInfo?
     }
 
-    /** One tile: where the bytes are, its type and length, and its tags (empty for a starter sticker). */
+    /** One tile: where the bytes are, its type and length, and its tags (a starter picture has the one of [StarterPack.tags]). */
     class Cell(val key: String, val source: MediaSource, val format: MediaFormat, val size: Int, val tags: List<String>)
 
     private val palette = Settings.getValues().mColors
@@ -142,7 +142,7 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
             if (starterOn) for (path in StarterPack.list(ctx)) {
                 val bytes = StarterPack.read(ctx, path) ?: continue
                 val format = MediaFormat.sniff(bytes) ?: continue
-                cells.add(Cell(path, MediaSource.Asset(path), format, bytes.size, emptyList()))
+                cells.add(Cell(path, MediaSource.Asset(path), format, bytes.size, StarterPack.tags(format)))
             }
             main.post {
                 if (mine != generation) return@post

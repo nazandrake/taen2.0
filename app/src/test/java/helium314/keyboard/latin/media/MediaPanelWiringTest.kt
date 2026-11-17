@@ -153,4 +153,29 @@ class MediaPanelWiringTest {
         assertTrue(panel.shown.isNotEmpty())
         assertTrue(panel.shown.all { it.source is MediaSource.Asset })
     }
+
+    @Test fun theAnimatedStarterPicturesAreTaggedGifAndAreSentAsGifThroughTheInserter() = withKeyboard { ime, ctx ->
+        ctx.prefs().edit().putBoolean(Settings.PREF_MEDIA_STARTER_PACK, true).commit()
+        val panel = assertNotNull(KeyboardSwitcher.getInstance().mediaPanelView)
+        press(ime, KeyCode.MEDIA_PANEL)
+        settle { panel.shown.isNotEmpty() }
+        val gifs = panel.shown.filter { it.format == MediaFormat.GIF }
+        assertEquals(36, gifs.size, "the animated starter set is listed")
+        assertTrue(gifs.all { it.tags == listOf("gif") && it.source is MediaSource.Asset }, "tagged for the tag chips")
+        val stills = panel.shown.filter { it.format == MediaFormat.PNG }
+        assertEquals(38, stills.size)
+        assertTrue(stills.all { it.tags == listOf("sticker") })
+
+        // positive control: a field that announces only image/gif takes a starter GIF, once, read-only, and the token serves exactly the asset bytes
+        val gif = gifs.first { it.key == "stickers/fire_animated.gif" }
+        ShadowInputMethodService.currentContentMimeTypes = arrayOf("image/gif")
+        panel.send(gif)
+        val (uri, mime, _) = ShadowInputMethodService.contentCommits.single()
+        assertEquals("image/gif", mime)
+        val token = assertNotNull(MediaShareProvider.tokenOf(uri))
+        assertEquals(StarterPack.read(ctx, gif.key)!!.toList(), MediaTokens.bytes(token)?.toList())
+        // the same field refuses a starter still (PNG is not announced): nothing is sent
+        panel.send(stills.first())
+        assertEquals(1, ShadowInputMethodService.contentCommits.size)
+    }
 }

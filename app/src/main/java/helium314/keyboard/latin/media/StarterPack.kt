@@ -5,7 +5,7 @@ import android.content.Context
 import java.io.IOException
 
 /**
- * The starter stickers that ship inside the APK (assets/stickers/, at most 4 MiB, made by tools/make-sticker-pack.sh from pinned sources, credit in NOTICE).
+ * The starter stickers (still PNG) and GIFs (animated) that ship inside the APK (assets/stickers/, at most 4 MiB, made by tools/make-sticker-pack.sh from pinned sources, credit in NOTICE).
  * Off until the user turns the setting on. They are public files: never stored in the vault, never exported, never imported; a token can point at one so that it
  * is sent like any picture. [read] answers only for a plain file name inside the folder.
  */
@@ -26,4 +26,7 @@ object StarterPack {
 
     /** The format of a starter file by its content. */
     fun format(bytes: ByteArray): MediaFormat? = MediaFormat.sniff(bytes)
+
+    /** The tags of a starter picture for the tag chips of the panel: the animated GIFs are "gif", the still stickers are "sticker". */
+    fun tags(format: MediaFormat): List<String> = if (format == MediaFormat.GIF) listOf("gif") else listOf("sticker")
 }

@@ -3,7 +3,7 @@
 # Pinned commit of microsoft/fluentui-emoji: 1ffb34c752ecf5d402f04cfb4b392c77f57c54bc (main on 2026-11-16). Every URL is raw.githubusercontent.com at that commit.
 # Columns (tab separated): file name in app/src/main/assets/stickers, size in bytes, SHA-256, URL. tools/make-sticker-pack.sh downloads on the build PC, checks size and SHA-256 and writes the files.
 # No single official archive of a free GIF or sticker set could be pinned (the Fluent repository is several hundred MB as a whole), so the pack ships inside the APK, off until the user turns it on.
-# Not used: Noto Animated Emoji (CC BY 4.0): its GIFs are served from fonts.gstatic.com without a commit-pinned address.
+# The animated starter pictures are listed in tools/sticker-gifs.lock.
 grinning_face.png	38711	175d214df45fe18f6f106a9a094b695689d98abe6f343295fcbd690a7ee4f0ab	https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Grinning%20face/3D/grinning_face_3d.png
 face_with_tears_of_joy.png	44153	8af20fb0c64c44a8d8c8d047c1410c5e529a37c3158d496832b380198ed2e9c3	https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Face%20with%20tears%20of%20joy/3D/face_with_tears_of_joy_3d.png
 red_heart.png	29389	7218cb9f08ed1ef38fcd83fe699a1125d07f50725f4c87a68cb7c9f4efb3c32b	https://raw.githubusercontent.com/microsoft/fluentui-emoji/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets/Red%20heart/3D/red_heart_3d.png

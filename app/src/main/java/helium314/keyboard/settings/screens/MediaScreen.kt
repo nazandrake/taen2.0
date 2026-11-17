@@ -138,7 +138,7 @@ private fun MediaContent() {
                 name = stringResource(R.string.media_starter_title),
                 key = Settings.PREF_MEDIA_STARTER_PACK,
                 default = Defaults.PREF_MEDIA_STARTER_PACK,
-                description = stringResource(R.string.media_starter_summary),
+                description = stringResource(R.string.media_starter_summary) + " " + stringResource(R.string.media_starter_gif_summary),
             )
         }
         when (current) {

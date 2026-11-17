@@ -23,7 +23,7 @@ The current version is 2.0.0. It needs Android 11 or newer on a 64-bit ARM phone
 - Glide typing uses an open-source engine instead of Google's closed library.
 - No contacts access, no list of installed apps, no Android backup. Backups are an encrypted export protected by a passphrase.
 
-English and Bulgarian (phonetic and BDS) are enabled on a new install. Dictionaries for English, Bulgarian and Bengali are
+English and Bulgarian (phonetic and BDS) are enabled on a new install. Dictionaries for English and Bulgarian are
 included; the other HeliBoard layouts work once you add a dictionary file.
 
 ## Optional downloads
@@ -84,7 +84,7 @@ described in `SECURITY.md`; other contributions are covered in `CONTRIBUTING.md`
   [dictionaries repository](https://codeberg.org/Helium314/aosp-dictionaries).
 - Voice typing uses ONNX Runtime (MIT) and the NVIDIA Parakeet model (CC BY 4.0). The next-word models are SmolLM2 and Qwen3
   (Apache-2.0). None of the models are in the APK.
-- The starter stickers are Microsoft Fluent Emoji (MIT).
+- The starter stickers are Microsoft Fluent Emoji (MIT); the starter GIFs are Noto Animated Emoji by Google (CC BY 4.0, resized).
 
 `NOTICE` has the full list with versions and sources.
 
