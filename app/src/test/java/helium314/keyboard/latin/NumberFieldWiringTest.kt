@@ -119,6 +119,42 @@ class NumberFieldWiringTest {
         assertTrue(ToolbarKey.SELECT_ALL in numberKeys && ToolbarKey.CLEAR_ALL in numberKeys, "$numberKeys")
     }
 
+    /**
+     * The strip keys of a number field come from the field type, not from the pinned-key setting: a long press on the same key in the open toolbar
+     * (quick pin on) pins it as the user's key and never removes the field's key, and the next refresh of the strip still has all three.
+     */
+    @Test fun aLongPressInTheToolbarDoesNotRemoveTheKeysOfANumberField() = withKeyboard { ime ->
+        ime.prefs().edit().putBoolean(Settings.PREF_QUICK_PIN_TOOLBAR_KEYS, true).commit()
+        startField(ime, number)
+        assertTrue(Settings.getValues().mQuickPinToolbarKeys, "positive control: quick pin is on")
+        val toolbar = strip(ime).findViewById<ViewGroup>(R.id.toolbar)
+        for (key in listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL)) {
+            assertNotNull(toolbar.findViewWithTag<View>(key), "$key is in the toolbar").performLongClick()
+            assertEquals(1, pinnedKeys(ime).count { it == key }, "$key stays on the strip after the long press: ${pinnedKeys(ime)}")
+            assertTrue(key in helium314.keyboard.latin.utils.getPinnedToolbarKeys(ime.prefs()), "the long press pinned $key")
+        }
+        startField(ime, number) // the strip is refreshed for the field
+        val keys = pinnedKeys(ime)
+        for (key in listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL))
+            assertEquals(1, keys.count { it == key }, "$key once on the refreshed strip: $keys")
+        // a second long press unpins the user's key; the field keeps its own
+        toolbar.findViewWithTag<View>(ToolbarKey.PASTE).performLongClick()
+        assertFalse(ToolbarKey.PASTE in helium314.keyboard.latin.utils.getPinnedToolbarKeys(ime.prefs()), "the second long press unpinned paste")
+        assertEquals(1, pinnedKeys(ime).count { it == ToolbarKey.PASTE }, "${pinnedKeys(ime)}")
+        startField(ime, text)
+        assertFalse(ToolbarKey.PASTE in pinnedKeys(ime), "a text field has no paste key once it is unpinned: ${pinnedKeys(ime)}")
+        assertTrue(ToolbarKey.CLEAR_ALL in pinnedKeys(ime), "the user's pin of clear all stays in a text field: ${pinnedKeys(ime)}")
+    }
+
+    @Test fun theKeysOfANumberFieldComeBackWhenThePinnedRowWasEmptied() = withKeyboard { ime ->
+        startField(ime, number)
+        assertTrue(ToolbarKey.PASTE in pinnedKeys(ime), "positive control: ${pinnedKeys(ime)}")
+        pinned(ime).removeAllViews() // the row lost its views (as when it is rebuilt)
+        startField(ime, number)
+        val keys = pinnedKeys(ime)
+        assertTrue(ToolbarKey.PASTE in keys && ToolbarKey.SELECT_ALL in keys && ToolbarKey.CLEAR_ALL in keys, "$keys")
+    }
+
     @Test fun tappingClearAllOnTheStripEmptiesTheField() = withKeyboard { ime ->
         startField(ime, number, "123456")
         tap(ime, ToolbarKey.CLEAR_ALL)

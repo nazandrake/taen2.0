@@ -384,7 +384,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             onLongClickToolbarKey(view) { code, isRepeat -> listener.onCodeInput(code, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, isRepeat) }
         } else if (view.parent === toolbar) {
             AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS)
-            val pinnedKeyView = pinnedKeys.findViewWithTag<View>(tag)
+            // the keys of a number field are not the user's pins: only a key the user pinned is unpinned
+            val pinnedKeyView = (0 until pinnedKeys.childCount).map { pinnedKeys.getChildAt(it) }.firstOrNull { it.tag == tag && it !in fieldKeys }
             if (pinnedKeyView == null) {
                 addKeyToPinnedKeys(tag)
                 toolbar.findViewWithTag<View>(tag).background = enabledToolKeyBackground
@@ -394,6 +395,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 toolbar.findViewWithTag<View>(tag).background = defaultToolbarBackground.constantState?.newDrawable(resources)
                 pinnedKeys.removeView(pinnedKeyView)
             }
+            updateFieldKeys()
         }
     }
 
@@ -555,16 +557,13 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     /**
      * A number, phone or date field has no suggestions, so its strip carries paste, select all and clear all: one tap, no need to open the toolbar.
-     * A key the user pinned already is not added again. Other fields get their own pinned keys back.
+     * A key the user pinned already is not added again. Other fields get their own pinned keys back. The keys are worked out from the field type at
+     * every call, whatever happened to the pinned row since (a key pinned or unpinned by a long press, the row rebuilt).
      */
     fun updateFieldKeys() {
-        val numeric = FieldText.isNumericField(Settings.getValues().mInputAttributes.mInputType)
-        if (!numeric) {
-            fieldKeys.forEach { pinnedKeys.removeView(it) }
-            fieldKeys.clear()
-            return
-        }
-        if (fieldKeys.isNotEmpty()) return
+        fieldKeys.forEach { pinnedKeys.removeView(it) }
+        fieldKeys.clear()
+        if (!FieldText.isNumericField(Settings.getValues().mInputAttributes.mInputType)) return
         for (key in listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL)) {
             if (pinnedKeys.findViewWithTag<View>(key) != null) continue
             val button = createToolbarKey(context, key)
