@@ -44,10 +44,14 @@ class ShadowInputMethodManager2 : ShadowInputMethodManager() {
     fun getShortcutInputMethodsAndSubtypes() = emptyMap<InputMethodInfo, List<InputMethodSubtype>>()
     @Implementation
     fun getEnabledInputMethodSubtypeList(imi: InputMethodInfo?, allowsImplicitlySelectedSubtypes: Boolean): List<InputMethodSubtype> = emptyList() // other keyboards: no subtypes
+    /** The system's current subtype: the last one the keyboard switched the system to, else an English one. */
     @Implementation
-    override fun getCurrentInputMethodSubtype() = InputMethodSubtype.InputMethodSubtypeBuilder()
-        .setSubtypeLocale("en")
-        .build()
+    override fun getCurrentInputMethodSubtype(): InputMethodSubtype = ShadowInputMethodService.systemCurrent
+        ?: InputMethodSubtype.InputMethodSubtypeBuilder().setSubtypeLocale("en").build()
+    @Implementation
+    fun setAdditionalInputMethodSubtypes(imiId: String, subtypes: Array<InputMethodSubtype>) {
+        ShadowInputMethodService.additionalSubtypeCalls.add(imiId to subtypes.toList())
+    }
     @Implementation
     fun showInputMethodPicker() { pickersShown++ }
 
@@ -154,6 +158,11 @@ class ShadowInputMethodService {
         var switchedToNextKeyboard = 0
         /** The system's answer to shouldOfferSwitchingToNextInputMethod: it knows every enabled keyboard, also those the app cannot see. */
         var offersNextKeyboard = false
+        /** Every subtype the keyboard switched the system to (switchInputMethod(id, subtype)), and every set of additional subtypes it registered. */
+        val systemSubtypes = ArrayList<InputMethodSubtype>()
+        /** The subtype the system shows now: set by switchInputMethod, or by a test for a change the system made by itself. */
+        var systemCurrent: InputMethodSubtype? = null
+        val additionalSubtypeCalls = ArrayList<Pair<String, List<InputMethodSubtype>>>()
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -183,6 +192,9 @@ class ShadowInputMethodService {
             extractedTextWithText = false
             switchedToNextKeyboard = 0
             offersNextKeyboard = false
+            systemSubtypes.clear()
+            systemCurrent = null
+            additionalSubtypeCalls.clear()
         }
     }
 
@@ -194,6 +206,12 @@ class ShadowInputMethodService {
 
     @Implementation
     fun shouldOfferSwitchingToNextInputMethod(): Boolean = offersNextKeyboard
+
+    @Implementation
+    fun switchInputMethod(id: String, subtype: InputMethodSubtype) {
+        systemSubtypes.add(subtype)
+        systemCurrent = subtype
+    }
 
     @Implementation
     fun getCurrentInputEditorInfo() = EditorInfo().apply {

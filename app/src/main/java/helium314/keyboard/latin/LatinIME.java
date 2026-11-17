@@ -847,9 +847,11 @@ public class LatinIME extends InputMethodService implements
     public void onCurrentInputMethodSubtypeChanged(InputMethodSubtype subtype) {
         // Note that the calling sequence of onCreate() and onCurrentInputMethodSubtypeChanged()
         // is not guaranteed. It may even be called at the same time on a different thread.
-        if (subtype.hashCode() == 0x7000000f) {
+        if (RichInputMethodManager.isSystemOnlySubtype(subtype)) {
             // For some reason sometimes the system wants to set the dummy subtype, which messes with the currently enabled subtype.
             // Now that the dummy subtype has a fixed id, we can easily avoid enabling it.
+            // The same for the language-only subtype that tells the system Taen's language: the system shows the language in use again.
+            if (mRichImm != null) mRichImm.reportLanguageToSystem(this); // null before onCreate
             return;
         }
         InputMethodSubtype oldSubtype = mRichImm.getCurrentSubtype().getRawSubtype();
@@ -875,6 +877,7 @@ public class LatinIME extends InputMethodService implements
     /** alias to onCurrentInputMethodSubtypeChanged with a better name, as it's also used for internal switching */
     public void switchToSubtype(final InputMethodSubtype subtype) {
         onCurrentInputMethodSubtypeChanged(subtype);
+        mRichImm.reportLanguageToSystem(this); // the spell checker and apps read the typing language from the system
     }
 
     private void onStartInputInternal(EditorInfo editorInfo, boolean restarting) {
@@ -908,6 +911,7 @@ public class LatinIME extends InputMethodService implements
         // also wouldn't be consuming gesture data.
         mGestureConsumer = GestureConsumer.NULL_GESTURE_CONSUMER;
         mRichImm.refreshSubtypeCaches();
+        mRichImm.reportLanguageToSystem(this); // the system may have reset its subtype since (another keyboard, a restart)
         final KeyboardSwitcher switcher = mKeyboardSwitcher;
 
         // If we are starting input in a different text field from before, we'll have to reload

@@ -125,6 +125,21 @@ class RichInputMethodManager private constructor() {
         scope.launch { updateShortcutIme() }
     }
 
+    /**
+     * Tells the system the language in use. Taen's languages are its own (the system only knows the subtype of method_dummy.xml, which has no
+     * language), but the system spell checker and apps (translation offers) take the typing language from the current subtype, so a language-only
+     * subtype stands for the current one. The system knows exactly one such subtype: it overrides the implicitly enabled ones, so the system's
+     * switcher and next-keyboard order keep one Taen entry, and that entry is always the current subtype.
+     * Nothing is called while the system already shows that language: registering rewrites the system's subtype file.
+     */
+    fun reportLanguageToSystem(inputMethodService: InputMethodService) {
+        val subtype = systemSubtypeFor(currentSubtype.rawSubtype) ?: return
+        if (inputMethodManager.currentInputMethodSubtype == subtype) return
+        val id = inputMethodInfoOfThisIme.id
+        imm.setAdditionalInputMethodSubtypes(id, arrayOf(subtype))
+        inputMethodService.switchInputMethod(id, subtype)
+    }
+
     fun switchToShortcutIme(inputMethodService: InputMethodService) = scope.launch {
         val imiId = shortcuts.firstOrNull()?.imi?.id ?: return@launch
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -233,6 +248,34 @@ class RichInputMethodManager private constructor() {
 
         @JvmStatic
         fun isInitialized() = instance.isInitializedInternal
+
+        /** Marks the language-only subtype that stands for Taen's current one in the system (see reportLanguageToSystem). */
+        const val SYSTEM_LANGUAGE_EXTRA_VALUE = "SystemLanguage"
+
+        /** The language-only subtype the system is told about while [subtype] is in use, null for a subtype without language. */
+        fun systemSubtypeFor(subtype: InputMethodSubtype): InputMethodSubtype? {
+            val locale = subtype.locale()
+            if (locale.language.isEmpty() || locale.language == SubtypeLocaleUtils.NO_LANGUAGE) return null
+            return InputMethodSubtype.InputMethodSubtypeBuilder()
+                .setSubtypeNameResId(R.string.subtype_generic)
+                .setSubtypeIconResId(R.drawable.ic_ime_switcher)
+                .setSubtypeLocale(locale.toString())
+                .setLanguageTag(locale.toLanguageTag())
+                .setSubtypeMode(Constants.Subtype.KEYBOARD_MODE)
+                .setSubtypeExtraValue(SYSTEM_LANGUAGE_EXTRA_VALUE)
+                .setIsAuxiliary(false)
+                .setOverridesImplicitlyEnabledSubtype(true)
+                .setIsAsciiCapable(subtype.isAsciiCapable)
+                .build()
+        }
+
+        /** Whether the system hands back a subtype of its own rather than one of Taen's languages: the dummy or the language-only one. */
+        @JvmStatic
+        fun isSystemOnlySubtype(subtype: InputMethodSubtype) =
+            subtype.hashCode() == DUMMY_SUBTYPE_ID || subtype.extraValue == SYSTEM_LANGUAGE_EXTRA_VALUE
+
+        /** The only subtype in method_dummy.xml. */
+        private const val DUMMY_SUBTYPE_ID = 0x7000000f
 
         private var forcedSubtypeForTesting: RichInputMethodSubtype? = null
 
