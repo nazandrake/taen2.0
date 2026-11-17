@@ -1,0 +1,10 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="taen.audit.helper">
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <application android:label="Taen audit helper" android:allowBackup="false" android:debuggable="true">
+        <activity android:name="taen.audit.FieldActivity" android:exported="true" android:windowSoftInputMode="stateAlwaysVisible|adjustPan"/>
+        <service android:name="taen.audit.ReadService" android:exported="true" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/a11y"/>
+        </service>
+    </application>
+</manifest>

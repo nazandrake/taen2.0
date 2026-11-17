@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "id": "bulgarian_daily",
+  "version": 1,
+  "title": "template_bulgarian_daily_title",
+  "summary": "template_bulgarian_daily_summary",
+  "values": {
+    "enabled_subtypes": "en-US§KeyboardLayoutSet=MAIN:qwerty;bg§KeyboardLayoutSet=MAIN:bulgarian",
+    "show_language_switch_key": true,
+    "smart_quotes": true,
+    "gesture_input": true,
+    "show_emoji_key": true,
+    "emoji_hold": "comma",
+    "use_personalized_dicts": true
+  }
+}

@@ -1,0 +1,14 @@
+# Optional downloads of Taen. Dictionaries of Helium314/aosp-dictionaries (Codeberg), pinned to commit ff0cd52be8d9530200fefe8b296c53d4f662091e (2026-10-08).
+# Columns (tab separated): id, kind, locale, size in bytes, SHA-256, URL (https, commit-pinned), licence, source of the licence statement.
+# This file is app/src/main/assets/catalog/downloads.tsv too; DownloadCatalogTest keeps them equal and checks every row. Hashes were measured by downloading the files with curl on 2026-11-16.
+# The two dictionaries are also the ones bundled in the APK (app/src/main/assets/dicts/main_bg.dict and main_en-GB.dict, the same bytes); the rows let a user
+# reinstall them. Measured with tools/dict-eval.sh (words / pairs / OOV / typo fix / next word):
+#   bg  8086140 B: 898049 words / 129913 pairs / OOV 8.68 pct / typo fix 84.0 pct / next word 6.9 pct
+#   en-GB 3344583 B: 386504 / 123996 / 2.10 pct / 91.5 pct / 5.0 pct
+# Not listed: main_en_us__experimental.dict (279914 words but only 104702 pairs, next word 5.5 pct).
+dict-bg	dictionary	bg	8086140	9a64cdf81cc873885df78c14a061eff8ab1bd8b8795f5e595a9e2030f83d2c58	https://codeberg.org/Helium314/aosp-dictionaries/raw/commit/ff0cd52be8d9530200fefe8b296c53d4f662091e/dictionaries/main_bg__experimental.dict	CC BY 4.0 (Leipzig Corpora Collection word lists)	wordlists/main_bg__experimental.source line 2 at ff0cd52b: "license: source lists under CC BY 4.0"
+dict-en-gb	dictionary	en-GB	3344583	17f8b5ff2227167d3a0a3cb436c8982b8957a94fe0e41bb11561c8cf4b51541f	https://codeberg.org/Helium314/aosp-dictionaries/raw/commit/ff0cd52be8d9530200fefe8b296c53d4f662091e/dictionaries/main_en_gb__experimental.dict	CC BY 4.0 (Leipzig Corpora Collection word lists)	wordlists/main_en_GB__experimental.source line 2 at ff0cd52b: "license: source lists under CC BY 4.0"
+# Next-word models (ONNX, int8, Transformers.js export layout), measured with tools/nextword-eval.sh on the held-out Leipzig text of tools/dict-eval.sh
+# (the same 1000 contexts; top-3 next word: dictionary alone against dictionary plus model). Tokenizer files are in the APK (assets/nextword).
+model-en	model	en	135658354	50ba80511ce74634d232a043b6c37775cca756b826b49d0a4a8eff958c4bbcc9	https://huggingface.co/onnx-community/SmolLM2-135M-ONNX/resolve/d0ae6834f1df45e0e95b5fdae95e536f9ca7cd3f/onnx/model_int8.onnx	Apache-2.0 (SmolLM2-135M, Hugging Face)	HuggingFaceTB/SmolLM2-135M at 93efa2f0: model card "license: apache-2.0"; the ONNX export onnx-community/SmolLM2-135M-ONNX names it as its base model
+model-bg	model	bg	617687478	d93222c672992a398eeea3a4a1ca025738efd9a18ba5f1691419ff8ae23a8e75	https://huggingface.co/onnx-community/Qwen3-0.6B-ONNX/resolve/79346d370dfae34801d26993fda9ae2372900fd0/onnx/model_int8.onnx	Apache-2.0 (Qwen3-0.6B, Qwen team)	Qwen/Qwen3-0.6B at c1899de2: model card "license: apache-2.0" and LICENSE; the ONNX export onnx-community/Qwen3-0.6B-ONNX names it as its base model

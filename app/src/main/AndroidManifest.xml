@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright (C) 2012 The Android Open Source Project
+modified
+SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
+-->
+
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Voice typing: asked for only by VoicePermissionActivity, after a tap on the voice key when a model is on the device (P20) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Taen never touches the network (invariant P1). Remove anything a library may merge in. -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" tools:node="remove" />
+
+    <application android:label="@string/english_ime_name"
+            android:name="helium314.keyboard.latin.App"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:supportsRtl="true"
+            android:allowBackup="false"
+            android:fullBackupContent="@xml/backup_rules"
+            android:dataExtractionRules="@xml/data_extraction_rules"
+            android:defaultToDeviceProtectedStorage="true"
+            android:directBootAware="true"
+            android:enableOnBackInvokedCallback="true"
+            android:localeConfig="@xml/locales_config"
+            tools:remove="android:appComponentFactory"
+            tools:targetApi="33">
+
+        <!-- Services -->
+        <service android:name="LatinIME"
+                android:label="@string/english_ime_name"
+                android:permission="android.permission.BIND_INPUT_METHOD"
+                android:directBootAware="true"
+                android:exported="true">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+            <meta-data android:name="android.view.im" android:resource="@xml/method_dummy" />
+        </service>
+
+        <service android:name=".spellcheck.AndroidSpellCheckerService"
+                 android:label="@string/spell_checker_service_name"
+                 android:permission="android.permission.BIND_TEXT_SERVICE"
+                 android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.textservice.SpellCheckerService" />
+            </intent-filter>
+            <meta-data android:name="android.view.textservice.scs"
+                    android:resource="@xml/spellchecker" />
+        </service>
+
+        <!-- Activities -->
+        <activity android:name="helium314.keyboard.settings.SettingsActivity"
+                android:theme="@style/platformActivityTheme"
+                android:icon="@mipmap/ic_launcher"
+                android:windowSoftInputMode="adjustResize"
+                android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- separate activity that's used internally, only necessary in case the launcher icon is disabled on Android < 10 -->
+        <activity android:name="helium314.keyboard.settings.SettingsActivity2"
+            android:theme="@style/platformActivityTheme"
+            android:icon="@mipmap/ic_launcher"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="true">
+            <!-- intent filter for opening .dict files -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="application/octet-stream" android:scheme="content" android:host="*" android:pathPattern=".*\\.dict" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".spellcheck.SpellCheckerSettingsActivity"
+                android:theme="@style/platformActivityTheme"
+                android:label="@string/spell_checker_service_name"
+                android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name="helium314.keyboard.keyboard.emoji.EmojiSearchActivity" android:exported="false"
+            android:theme="@style/TransparentActivityTheme" android:excludeFromRecents="true" android:noHistory="true"
+            android:windowSoftInputMode="adjustResize|stateAlwaysVisible" android:configChanges="orientation|screenSize"/>
+
+        <!-- PIN screen of the app lock: started by the settings and by the keyboard's clipboard key -->
+        <activity android:name="helium314.keyboard.settings.UnlockActivity" android:exported="false"
+            android:theme="@style/platformActivityTheme" android:excludeFromRecents="true" android:noHistory="true"/>
+
+        <!-- the system dialog for the microphone permission (the keyboard service cannot show one) -->
+        <activity android:name="helium314.keyboard.latin.voice.VoicePermissionActivity" android:exported="false"
+            android:theme="@style/TransparentActivityTheme" android:excludeFromRecents="true"/>
+
+        <!-- Self-destruct: the neutral confirmation (trigger in confirm mode, panic) and the daily inactivity check -->
+        <activity android:name="helium314.keyboard.settings.WipeConfirmActivity" android:exported="false"
+            android:theme="@style/TransparentActivityTheme" android:excludeFromRecents="true" android:noHistory="true"/>
+        <service android:name=".privacy.InactivityJobService" android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE"/>
+
+        <!-- The one content provider of the app. It is not exported; only the app that the keyboard hands one picture to (commitContent, read grant for that one URI) can open it.
+             The path is a random token that lives in memory (MediaTokens); the bytes go through a pipe, never a file. -->
+        <provider android:name="helium314.keyboard.latin.media.MediaShareProvider" android:authorities="${applicationId}.mediashare"
+            android:exported="false" android:grantUriPermissions="true"/>
+
+        <!-- Broadcast receivers -->
+        <receiver android:name="SystemBroadcastReceiver"
+                android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.USER_INITIALIZE" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver android:name="DictionaryPackInstallBroadcastReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="helium314.keyboard.dictionarypack.aosp.UNKNOWN_CLIENT" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

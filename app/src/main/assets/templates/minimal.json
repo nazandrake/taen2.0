@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "id": "minimal",
+  "version": 1,
+  "title": "template_minimal_title",
+  "summary": "template_minimal_summary",
+  "values": {
+    "show_number_row": false,
+    "show_hints": false,
+    "show_popup_hints": false,
+    "sound_on": false,
+    "vibrate_on": true,
+    "show_emoji_key": true,
+    "emoji_hold": "none"
+  }
+}

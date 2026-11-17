@@ -1,0 +1,591 @@
+# Recorded licence, copyright, SPDX and "modified" lines. Format: <count><TAB><normalised line>
+# Written by: scripts/public-check --licence-update (adds only). A removed or changed line fails the check.
+1	"""Resolved runtime dependencies of the release build (from Gradle) and their licences (from the POMs in the local Gradle cache, offline)."""
+1	"""The first <license><name> of the POM, else of its parent POM; '' when none is found."""
+1	"""deps: ['group:artifact:version']; licences: {'group:artifact': licence text or ''}."""
+1	"%d URL string(s), %d outside licence and namespace hosts" % (len(urls), len(other)), ["url: " + u for u in urls])
+1	"%d runtime dependencies, no denylisted group, every licence recognised" % len(deps), details)
+1	"Copyright" also means copyright-like laws that apply to other kinds of
+1	"License" shall mean the terms and conditions for use, reproduction,
+1	"Licensor" shall mean the copyright owner or entity authorized by
+1	"The Program" refers to any copyrightable work licensed under this
+1	"This License" refers to version 3 of the GNU General Public License.
+1	"aggregate" if the compilation and its resulting copyright are not
+1	"org.bouncycastle:bcprov-jdk18on": "Bouncy Castle Licence (MIT-style, OSI-listed as MIT)",
+1	$licFile = Join-Path $sdk 'licenses\android-sdk-license'
+1	$licText = Join-Path $Prefix 'android-sdk-licences.txt'
+1	& $sm "--sdk_root=$sdk" --licenses
+1	& $sm "--sdk_root=$sdk" --licenses *> $null
+1	((1..80) | ForEach-Object { 'y' }) | & $sm "--sdk_root=$sdk" --licenses *> $licText
+1	(1) assert copyright on the software, and (2) offer you this License
+1	(except as stated in this section) patent license to make, have made,
+1	(https://github.com/AnySoftKeyboard/AnySoftKeyboard/pull/1870, Apache License 2.0, SPDX verified from the repository).
+1	(https://github.com/florisboard/florisboard, Apache License 2.0). Its headers are kept.
+1	.PARAMETER AcceptLicenses Accept the Android SDK licences without asking (otherwise you read and answer them).
+6	00A9 ; unqualified # © E0.6 copyright
+6	00A9 FE0F ; fully-qualified # ©️ E0.6 copyright
+1	1. If You Share the Licensed Material (including in modified
+1	1. Install the SDK to a directory you own, for example `~/Android/Sdk`, and accept the licences:
+1	1. Subject to the terms and conditions of this Public License,
+1	1. The Adapter's License You apply must be a Creative Commons
+1	11 of the WIPO copyright treaty adopted on 20 December 1996, or
+1	13. Use with the GNU Affero General Public License.
+1	14. Revised Versions of this License.
+1	2. Grant of Copyright License. Subject to the terms and conditions of
+1	2. Patent and trademark rights are not licensed under this
+1	2.0 (licence verified in that commit: LICENSE and README), Copyright 2020-2024 Patrick Goldinger and the FlorisBoard
+1	3. Grant of Patent License. Subject to the terms and conditions of
+1	3. Term. The term of this Public License is specified in Section
+1	6. No endorsement. Nothing in this Public License constitutes or
+1	6. Trademarks. This License does not grant permission to use the trade
+1	;; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+1	;; Copyright (c) 2024 rank_coder
+1	;; MIT License
+1	;; The above copyright notice and this permission notice shall be included in all
+1	;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+1	@rem Copyright 2015 the original author or authors.
+1	@rem Licensed under the Apache License, Version 2.0 (the "License");
+1	@rem SPDX-License-Identifier: Apache-2.0
+1	@rem See the License for the specific language governing permissions and
+1	@rem You may obtain a copy of the License at
+1	@rem distributed under the License is distributed on an "AS IS" BASIS,
+1	@rem https://www.apache.org/licenses/LICENSE-2.0
+1	@rem limitations under the License.
+1	@rem you may not use this file except in compliance with the License.
+1	A "contributor" is a copyright holder who authorizes use under this
+1	A patent license is "discriminatory" if it does not include within
+1	ANY KIND CONCERNING THE LICENSED MATERIAL, WHETHER EXPRESS,
+1	AOSP keyboard (Apache-2.0), see `LICENSE-Apache-2.0`.
+1	APPENDIX: How to apply the Apache License to your work.
+1	APPLICABLE LAW. EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT
+1	Adapted Material is always produced where the Licensed Material is
+1	Adapter's License You apply. You may satisfy this condition
+1	After the gesture data gathering phase has ended, the accumulated data set from all users will be published under the Creative Commons BY-SA 4.0 license.\n\n
+1	All rights granted under this License are granted for the term of
+1	Although not required by our licenses, you are encouraged to
+1	Android Open Source Project (AOSP) LatinIME keyboard, Apache License 2.0 (see LICENSE-Apache-2.0).
+1	Apache License
+1	As a reminder, this data is going to be publicly shared under the CC BY-SA 4.0 license, and you won\'t be listed as an author to protect your privacy.\n\n
+1	Attribution-ShareAlike 4.0 International Public License ("Public
+1	Bouncy Castle (org.bouncycastle:bcprov-jdk18on 1.81, https://www.bouncycastle.org), the Bouncy Castle licence (an MIT licence, SPDX MIT),
+1	Building in this image means accepting the Android SDK licences; that is the builder's own act.
+1	Bulgarian: Qwen3-0.6B, Qwen team, Alibaba Cloud (https://huggingface.co/Qwen/Qwen3-0.6B, commit c1899de289a04d12100db370d81485cdf75e47ca), Apache License 2.0 (the licence
+1	By exercising the Licensed Rights (defined below), You accept and agree
+1	By gathering and submitting gesture typing data you can contribute to an open set of gesture data that will used for library development. The dataset will be published under a CC BY-SA 4.0 license some time after the data gathering phase is finished on %s.
+1	CLDR annotations (Unicode License v3, see NOTICE) bundled as assets/emoji_search/<lang>.txt and built by
+1	COPYRIGHT AND PERMISSION NOTICE
+1	COSTS, EXPENSES, OR DAMAGES ARISING OUT OF THIS PUBLIC LICENSE OR
+2	Columns (tab separated): id, kind, locale, size in bytes, SHA-256, URL (https, commit-pinned), licence, source of the licence statement.
+1	Commons as essentially the equivalent of this Public License.
+1	Considerations for licensors: Our public licenses are
+1	Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org
+99	Copyright (C) 2008 The Android Open Source Project
+6	Copyright (C) 2009 The Android Open Source Project
+1	Copyright (C) 2009, The Android Open Source Project
+17	Copyright (C) 2010 The Android Open Source Project
+54	Copyright (C) 2011 The Android Open Source Project
+122	Copyright (C) 2012 The Android Open Source Project
+157	Copyright (C) 2013 The Android Open Source Project
+84	Copyright (C) 2013, The Android Open Source Project
+120	Copyright (C) 2014 The Android Open Source Project
+24	Copyright (C) 2014, The Android Open Source Project
+92	Copyright (C) 2015 The Android Open Source Project
+1	Copyright (C) 2019 The Android Open Source Project
+2	Copyright (C) 2020 Patrick Goldinger
+5	Copyright (C) 2021 Patrick Goldinger
+1	Copyright (C) 2021 The Android Open Source Project
+1	Copyright (C) <year> <name of author
+10	Copyright (C) The Android Open Source Project
+1	Copyright (C) the Taen authors, and the copyright holders named in the individual source files.
+1	Copyright (c) 2000-2023 The Legion of the Bouncy Castle Inc.: used for Argon2id only (the encrypted export, the PIN and the trigger word).
+1	Copyright (c) Microsoft Corporation (licence file of commit 1ffb34c752ecf5d402f04cfb4b392c77f57c54bc, read 2026-11-16). Unchanged copies of the published PNG files;
+1	Copyright 2014, The Android Open Source Project
+1	Copyright 2020 The Android Open Source Project
+1	Copyright [yyyy] [name of copyright owner]
+1	Copyright © 2015 the original authors.
+1	Copyright © 2015-2024 Unicode, Inc.
+1	Creative Commons public licenses does not create a lawyer-client or
+1	Creative Commons public licenses provide a standard set of terms and
+1	Derivative Works a copy of this License; and
+1	EXTENT POSSIBLE, THE LICENSOR OFFERS THE LICENSED MATERIAL AS-IS
+1	Emoji data: app/src/main/assets/emoji/*.txt are lists of emoji code points (the Unicode emoji set), no text of a licence
+1	English: SmolLM2-135M, Hugging Face (https://huggingface.co/HuggingFaceTB/SmolLM2-135M, commit 93efa2f097d58c2a74874c7e644dbc9b0cee75a2), Apache License 2.0 (the licence field
+1	Except as contained in this notice, the name of a copyright holder shall
+1	Files derived from AOSP keep their "Copyright (C) The Android Open Source Project" headers and
+1	Files or Software, or (b) this copyright and permission notice appear in
+2	For terms of use and license, see https://www.unicode.org/terms_of_use.html
+1	GNU GENERAL PUBLIC LICENSE
+1	GNU General Public License for more details.
+1	GNU General Public License for most of our software; it applies also to
+1	GNU General Public License v3.0 only (`LICENSE`). Code derived from AOSP is also available under Apache-2.0 (`LICENSE-Apache-2.0`).
+1	GNU General Public License, you may choose any version ever published
+1	HeliBoard (GPL-3.0-only), forked at tag `v4.2`. Copyright notices of HeliBoard, OpenBoard and AOSP contributors are kept in the
+1	HeliBoard (as a fork of OpenBoard) is licensed under GNU General Public License v3.0.
+1	However, if you cease all violation of this License, then your
+1	IN NO EVENT SHALL THE COPYRIGHT HOLDER OR HOLDERS INCLUDED IN THIS NOTICE
+1	INTERNET, no network class is in the dex): Settings > Voice typing > Download the model hands the pinned URL of the one archive (`VoiceModelSpec.archive`, equal to `tools/voice-model-archive.lock`; each single file has its own pinned URL, `tools/voice-model.lock`) to the **browser**, which does the download; Install downloaded model takes what was downloaded from the system document picker (one-time grant, not persisted): the document is opened once and read once: its compressed bytes are hashed as the decoder reads them (never more than the pinned size), the four model files are read out of its tar (`VoiceArchiveInstaller`; own bzip2 decoder `Bzip2InputStream`, no library; only the pinned names, no link, no path outside the folder, no unexpected entry, pinned sizes; nothing is ever written under a name taken from the archive), each file is checked against its own pinned SHA-256 and staged under a temporary name, and the files are renamed into place only after the stream was read to its end and the archive's size and SHA-256 equal the pinned ones, so the decoder never sees bytes that were not hashed and a provider that serves other bytes later changes nothing; single files are recognised by content under any name and any subset can be installed per round, the state per file is shown on the page. Each file is installed atomically on its own (the temporary name `<file>.part` while it is written); the archive is installed all-or-nothing (when a rename fails the files that commit created are removed again; only a crash between two renames can leave a subset, which is a valid state: every file is pinned on its own and the next install starts clean). One install or delete runs per model directory (a second one is refused at once, `VoiceModelStore.exclusive`), because the temporary names are shared. The downloaded copies that were installed are deleted afterwards (default on). A wrong file installs nothing and does not undo good ones (`VoiceModelInstaller`, VoiceModelInstallerTest, VoiceArchiveInstallerTest). An install shows progress, can be cancelled and ends when the file provider sends no data for 60 seconds (`InstallControl`). The model can also be fetched on the build machine and imported (`BUILDING.md` section 8). See `NOTICE` for licences and pinned versions.
+1	If you convey a covered work, knowingly relying on a patent license,
+1	In the following three paragraphs, a "patent license" is any express
+1	Input method table: app/src/main/assets/bn-khipro.mim, MIT License, Copyright (c) 2024 rank_coder (header kept in the file).
+1	Input: the CLDR JSON files (https://github.com/unicode-org/cldr-json, tag 49.0.0, Unicode License v3), fetched on the
+1	Java); S9 dependency list with licences and a tracker denylist (from the Gradle runtime classpath and the cached POMs); S10 dependency
+1	Keep licence, copyright, SPDX and "modified" lines of every file. Files derived from AOSP keep their Apache-2.0
+1	LICENCE_FALLBACK = {
+1	LICENSE-CC-BY-SA-4.0 (the HeliBoard icon and name) stays in the repository until the upstream icon files and any
+1	Later license versions may give you additional or different
+1	Licence: CC-BY-4.0 (NVIDIA, https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3; the ONNX files are made by k2-fsa/sherpa-onnx, Apache-2.0).
+1	Licence: MIT, Copyright (c) Microsoft Corporation (https://github.com/microsoft/fluentui-emoji/blob/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/LICENSE, read 2026-11-16). Credit: NOTICE.
+2	License
+1	License and any other pertinent obligations, then as a consequence you may
+1	License by making exceptions from one or more of its conditions.
+1	License does not apply, and You do not need to comply with
+1	License of the Program or a work on which the Program is based. The
+1	License to anyone who comes into possession of a copy. This
+1	License will continue to apply to the part which is the covered work,
+1	License will therefore apply, along with any applicable section 7
+1	License would be to refrain entirely from conveying the Program.
+1	License"). To the extent this Public License may be interpreted as a
+1	License, you may add to a covered work material governed by the terms
+2	License.
+1	License. Each licensee is addressed as "you". "Licensees" and
+1	License. However, in accepting such obligations, You may act only
+1	Licensed Material and that the Licensor has authority to license.
+1	Licensed Material if doing so restricts exercise of the
+1	Licensed Material not stated herein are separate from and
+1	Licensed Material under separate terms or conditions or stop
+1	Licensed Rights by any recipient of the Licensed
+1	Licensed Rights under the terms and conditions of this
+261	Licensed under the Apache License, Version 2.0 (the "License");
+1	Licensor authorizes You to exercise the Licensed Rights in
+1	Licensor. For purposes of this Public License, where the Licensed
+1	Microsoft Corporation (licence from the project's GitHub licence file and the POM; checked 2026-11-12). Prebuilt libonnxruntime.so and
+1	Model: NVIDIA parakeet-tdt-0.6b-v3 (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3), CC BY 4.0 (the licence field of the model repository), Copyright
+8	Modified
+1	Moreover, your license from a particular copyright holder is
+1	NOT the newest 23.0: its sdkmanager downloads the "Android CLI" (usage metrics on unless --no-metrics) and accepts the SDK licences
+1	Not 23.0: its sdkmanager downloads the Android CLI with usage metrics and has no --licenses (same pin as tools/build-linux.sh).
+1	Nothing in this License shall be construed as excluding or limiting
+1	Notwithstanding any other provision of this License, for material you
+1	Notwithstanding any other provision of this License, you have
+1	ONNX Runtime 1.27.0 (com.microsoft.onnxruntime:onnxruntime-android, https://github.com/microsoft/onnxruntime), MIT License, Copyright (c)
+1	OPEN_LICENCE_WORDS = ("apache", "mit license", "the mit", "bsd", "gpl", "lgpl", "mpl", "mozilla", "eclipse public", "epl", "isc", "unicode", "bouncy castle", "public domain", "cc0", "creative commons", "zlib", "bouncycastle")
+1	OPT_YES=0; OPT_NO_SYSTEM=0; OPT_ACCEPT_LICENSES=0; OPT_WITH_ADB=0; OPT_KEYGEN=0; OPT_SIGN=0
+1	Object form, made available under the License, as indicated by a
+1	POM licence lookups that are missing or non-standard in the artifact's POM (verified against the project pages, 2026-11-12)
+1	Permissions of this strong copyleft license are conditioned on making available complete source code of licensed works and modifications, which include larger works using a licensed work, under the same license. Copyright and license notices must be preserved. Contributors provide an express grant of patent rights.
+1	Public License "or any later version" applies to it, you have the
+1	Public License are Attribution and ShareAlike.
+1	Public License instead of this License. But first, please read
+1	Public License, and include the text of, or the URI or
+2	Public License.
+1	RUN yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null \
+1	Rights include other Copyright and Similar Rights.
+1	Rights that is derived from or based upon the Licensed Material
+1	SHA-256 of every file, the app checks them before installing. Repository licence file: GNU General Public License v3 (LICENSE, first line "GNU GENERAL PUBLIC LICENSE
+67	SPDX-FileCopyrightText: Material Design Authors / Google LLC
+348	SPDX-License-Identifier: Apache-2.0
+334	SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
+377	SPDX-License-Identifier: GPL-3.0-only
+1	SPDX-License-Identifier: MIT
+1	SPDX-License-Identifier: Unicode-3.0
+1	Section 3 -- License Conditions.
+1	See repo's [LICENSE](/LICENSE) file.
+261	See the License for the specific language governing permissions and
+1	Setting(context, SettingsWithoutKey.LICENSE, R.string.license, R.string.gnu_gpl) {
+1	SettingsWithoutKey.LICENSE,
+1	Similar Rights licensed here. However, if You fail to comply with
+1	Since the app is based on Apache 2.0 licensed AOSP Keyboard, an [Apache 2.0](LICENSE-Apache-2.0) license file is provided.
+1	Taen is licensed under the GNU General Public License v3.0 only (see LICENSE).
+1	Technological Measures. For purposes of this Public License,
+1	Text(stringResource(R.string.downloads_licence, row.entry.licence), style = MaterialTheme.typography.bodySmall)
+1	Text(stringResource(R.string.voice_license_note), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(16.dp))
+1	The GNU General Public License does not permit incorporating your program
+1	The GNU General Public License is a free, copyleft license for
+1	The icon is licensed under [Creative Commons BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). A [license file](LICENSE-CC-BY-SA-4.0) is also included.
+1	The in-APK catalogue of the optional downloads, assets/catalog/downloads.tsv (tab separated: id, kind, locale, size, SHA-256, URL, licence, source;
+1	The licenses for most software and other practical works are designed
+1	The other HeliBoard dictionaries (the older AOSP and OpenBoard word lists) are not bundled because no licence statement is published
+1	The other POM licences were read for sh.calvin.reorderable and colorpicker-compose only; the AndroidX, Compose and Kotlin
+1	To apply the Apache License to your work, attach the following
+1	U+00A9 U+FE0F # copyright
+1	UNICODE LICENSE V3
+1	USE OF THE LICENSED MATERIAL, EVEN IF THE LICENSOR HAS BEEN
+1	Unicode License v3, Copyright (c) 2015-2024 Unicode, Inc.; SPDX Unicode-3.0). The licence text is app/src/main/assets
+1	Unicode License v3, built by tools/gen-emoji-search.py). The logic is tested on a small fixture whose expected order
+1	Using Creative Commons Public Licenses
+1	WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS
+1	Where the Licensed Rights include Sui Generis Database Rights that
+1	Write-Info "accepting the licences because -AcceptLicenses was given; the text is saved in $licText"
+1	Write-Info 'sdkmanager shows each licence; answer y to accept it or n to stop.'
+1	Write-Step 'Android SDK licences'
+1	You are not required to accept this License in order to receive or
+1	You may add Your own copyright statement to Your modifications and
+261	You may obtain a copy of the License at
+1	You should have received a copy of the GNU General Public License
+1	Your exercise of the Licensed Rights is expressly made subject to the
+1	[ -f "$sdk/licenses/android-sdk-license" ] || die "the Android SDK licences are not accepted. Run in a terminal and answer y, or add --accept-licenses."
+1	[License](#license)
+1	[switch]$AcceptLicenses,
+1	`Failed to install the following Android SDK packages as some licences have not been accepted`: run `sdkmanager --licenses`.
+1	`scripts/public-check.allow` together with a reason. After importing third-party files, record their licence
+1	`sdkmanager --licenses` (accepting is your decision).
+1	a removed or changed licence, copyright, SPDX or "modified" line, compared with the recorded baseline
+1	a user id in ANDROID_USER_HOME) and accepts the SDK licences without asking (observed 2026-11-14), which breaks "no telemetry".
+1	a. Adapted Material means material subject to Copyright and Similar
+1	a. For the avoidance of doubt, this Public License does not, and
+1	a. License grant.
+1	a. Offer from the Licensor -- Licensed Material. Every
+1	a. This Public License applies for the term of the Copyright and
+1	a. reproduce and Share the Licensed Material, in whole or
+1	accept-licenses accept the Android SDK licences without asking (otherwise you read and answer them)
+1	accept-licenses|--accept-licences) OPT_ACCEPT_LICENSES=1;;
+1	accordance with the terms and conditions of this Public License.
+1	actual knowledge that, but for the patent license, your conveying the
+1	add to a covered work, you may (if authorized by the copyright holders of
+1	all Copyright and Similar Rights that apply to Your use of the
+1	along with this program. If not, see <https://www.gnu.org/licenses/>.
+1	and certain other rights specified in the public license below. The
+1	and conditions of the license they choose before applying it.
+1	and in which the Licensed Material is translated, altered,
+1	any implied license or other defenses to infringement that may
+1	any other exception or limitation to Copyright and Similar Rights
+1	app/src/main/assets/nextword/*/vocab.json and merges.txt: unchanged copies of the two models' tokenizer files (same repositories and commits as the ONNX files, Apache License
+1	app/src/main/assets/stickers/*.png (38 files): Fluent Emoji, 3D style, Microsoft Corporation (https://github.com/microsoft/fluentui-emoji), MIT License,
+1	applies beyond the Unicode Terms of Use. The HeliBoard emoji search dictionaries (CLDR annotations, Unicode License v3,
+1	apply to Your use of the Licensed Material:
+1	applying our licenses so that the public can reuse the
+1	appropriately publish on each copy an appropriate copyright notice;
+1	are, or that Your use of the Licensed Material is, connected
+1	as modifying the License.
+1	assertEquals("©\uFE0F", getFullEmojiAtEnd("©\uFE0F")) // ©️
+1	author or copyright holder as a result of your choosing to follow a
+1	authorization of the copyright holder.
+1	b. Adapter's License means the license You apply to Your Copyright
+1	b. To the extent possible, if any provision of this Public License is
+1	b. Where Your right to use the Licensed Material has terminated under
+1	b. indicate if You modified the Licensed Material and
+1	be made without permission under this Public License.
+1	be treated as though they were included in this License, to the extent
+1	but the special requirements of the GNU Affero General Public License,
+1	by this License, of making, using, or selling its contributor version,
+1	c) You must license the entire work, as a whole, under this
+1	c. BY-SA Compatible License means a license listed at
+1	c. No term or condition of this Public License will be waived and no
+1	c. indicate the Licensed Material is licensed under this
+1	cannot be reformed, it shall be severed from this Public License
+1	categorized. For purposes of this Public License, the rights
+1	check "defaults: flags off" "0000000000" "$OPT_YES$OPT_NO_SYSTEM$OPT_ACCEPT_LICENSES$OPT_WITH_ADB$OPT_KEYGEN$OPT_SIGN$OPT_REMOVE_TOOLCHAIN$OPT_DRY_RUN$OPT_NO_BUILD$OPT_HELP"
+1	check "parse all flags on" "1111111111" "$OPT_YES$OPT_NO_SYSTEM$OPT_ACCEPT_LICENSES$OPT_WITH_ADB$OPT_KEYGEN$OPT_SIGN$OPT_REMOVE_TOOLCHAIN$OPT_DRY_RUN$OPT_NO_BUILD$OPT_HELP" ;
+1	clipart available in Android Studio, Apache License 2.0
+1	closely related to copyright including, without limitation,
+1	collect royalties from You for the exercise of the Licensed
+1	commit 80fb20885ba335947b6fd8f3449de8be11c0e13d (2024-09-18), https://github.com/florisboard/florisboard, Apache License
+1	conditions are met. This License explicitly affirms your unlimited
+1	conditions on any use of the Licensed Material that could lawfully
+1	consistent with the requirements of this License, to extend the patent
+1	const val LICENSE = "$GITHUB/blob/main/LICENSE"
+1	const val LICENSE = "license"
+1	content, constitutes a covered work. This License acknowledges your
+1	contract, You are granted the Licensed Rights in consideration of Your
+1	convey, without conditions so long as your license otherwise remains
+1	copyright and certain other rights. Our licenses are
+1	copyright holder, and you cure the violation prior to 30 days after
+1	copyright license to reproduce, prepare Derivative Works of,
+1	copyright notice that is included in or attached to the work
+1	copyright on the Program, and are irrevocable provided the stated
+1	copyright--then that use is not regulated by the license. Our
+1	covered work is covered by this License only if the output, given its
+1	covered work, and grant a patent license to some of the parties
+1	covered work, you indicate your acceptance of this License to do so.
+1	creativecommons.org/compatiblelicenses, approved by Creative
+1	d. Copyright and Similar Rights means copyright and/or similar rights
+1	d. Nothing in this Public License constitutes or may be interpreted
+1	def _in_licence(tree, name_elem):
+1	def check_dependencies(deps, licences):
+1	def licence_of(g, a, v, gradle_home=None, depth=0):
+1	def licences(deps, gradle_home=None):
+1	deps = ["com.google.firebase:firebase-analytics:21.0.0", "org.example:no-licence:1.0", "org.example:gpl-lib:1.0", "org.apache:fine:1.0"]
+1	designated in writing by the copyright owner as "Not a Contribution."
+2	dict-bg dictionary bg 8086140 9a64cdf81cc873885df78c14a061eff8ab1bd8b8795f5e595a9e2030f83d2c58 https://codeberg.org/Helium314/aosp-dictionaries/raw/commit/ff0cd52be8d9530200fefe8b296c53d4f662091e/dictionaries/main_bg__experimental.dict CC BY 4.0 (Leipzig Corpora Collection word lists) wordlists/main_bg__experimental.source line 2 at ff0cd52b: "license: source lists under CC BY 4.0"
+2	dict-en-gb dictionary en-GB 3344583 17f8b5ff2227167d3a0a3cb436c8982b8957a94fe0e41bb11561c8cf4b51541f https://codeberg.org/Helium314/aosp-dictionaries/raw/commit/ff0cd52be8d9530200fefe8b296c53d4f662091e/dictionaries/main_en_gb__experimental.dict CC BY 4.0 (Leipzig Corpora Collection word lists) wordlists/main_en_GB__experimental.source line 2 at ff0cd52b: "license: source lists under CC BY 4.0"
+1	dictionary, the "statistical glide typing classifier" of FlorisBoard v0.4.0 (Apache-2.0, Copyright The
+261	distributed under the License is distributed on an "AS IS" BASIS,
+1	distributing the Licensed Material at any time; however, doing so
+1	do not modify the License. You may add Your own attribution
+1	elif not any(w in lic.lower() for w in OPEN_LICENCE_WORDS):
+1	emoji_search/LICENSE-Unicode-3.0.txt, shipped with the data as the licence asks. They are generated by tools/gen-emoji-search.py
+1	excuse you from the conditions of this License. If you cannot convey a
+1	exercise the Licensed Rights in the Adapted Material
+1	exercise the Licensed Rights in the Licensed Material to:
+1	exercising permissions granted by this License.
+1	exhaustive, and do not form part of our licenses.
+1	extent necessary to allow You to exercise the Licensed
+1	extent that warranties are provided), that licensees may convey the
+1	feature that (1) displays an appropriate copyright notice, and (2)
+1	field and LICENSE file of the model repository). The int8 ONNX file is the conversion published as onnx-community/Qwen3-0.6B-ONNX (commit
+1	files, so the same licence and credit apply), and the app checks the archive and each file's SHA-256 before it is used. The archive is unpacked by the app's
+1	finally terminates your license, and (b) permanently, if the copyright
+1	for enforcing compliance by third parties with this License.
+1	for which you have or can give appropriate copyright permission.
+1	form of a separately written license, or stated as exceptions;
+1	from https://github.com/chattymin/Pebble/blob/main/pebble/src/main/java/com/chattymin/pebble/LocalBreakIterator.kt, Apache-2.0 license
+1	fulfilling obligations under Article 11 of the WIPO Copyright
+1	g. License Elements means the license attributes listed in the name
+1	governed by this License along with a term that is a further
+1	granted to You under this License for that Work shall terminate
+1	h. Licensed Material means the artistic or literary work, database,
+1	http://www.apache.org/licenses
+260	http://www.apache.org/licenses/LICENSE-2.0
+1	https://wortschatz.uni-leipzig.de/en/download/", "license: source lists under CC BY 4.0" (lines 1 and 2 of
+1	https://www.apache.org/licenses/LICENSE-2.0
+1	https://www.gnu.org/licenses/>.
+1	https://www.gnu.org/licenses/why-not-lgpl.html>.
+1	hyperlink to, this Public License.
+1	i. Licensed Rights means the rights granted to You subject to the
+1	i. identification of the creator(s) of the Licensed
+1	icon = R.drawable.ic_settings_about_license
+1	if "UNICODE LICENSE V3 (CLDR)" in split[7]:
+1	if ($AcceptLicenses) {
+1	if ($AcceptLicenses) { Write-Info "$n. Android SDK licences: accepted because of -AcceptLicenses" } else { Write-Info "$n. Android SDK licences: shown to you, you answer y or n" }; $n++
+1	if (-not (Test-Path -LiteralPath $licFile)) { Stop-Build 'the Android SDK licences are not accepted. Run in a PowerShell window and answer y, or add -AcceptLicenses.' }
+1	if (e.id.isBlank() || e.licence.isBlank() || e.source.isBlank()) found.add("${e.id}: id, licence and source must be given")
+1	if [ "$OPT_ACCEPT_LICENSES" = 1 ]; then
+1	if [ "$OPT_ACCEPT_LICENSES" = 1 ]; then say "$n. Android SDK licences: accepted because of --accept-licenses"; else say "$n. Android SDK licences: shown to you, you answer y or n"; fi; n=$((n + 1))
+1	if _in_licence(tree, e)]
+1	if any, to sign a "copyright disclaimer" for the program, if necessary.
+1	if lic.tag.split("}")[-1] == "license" and name_elem in list(lic):
+1	ii. a copyright notice;
+1	iii. a notice that refers to this Public License;
+1	in `scripts/public-check.licences`.
+1	in a fashion requiring copyright permission, other than the making of an
+1	in an aggregate does not cause this License to apply to the other
+1	independent of the terms and conditions of this Public License.
+1	infringement under applicable copyright law, except executing it on a
+1	intent.data = Links.LICENSE.toUri()
+1	is effected by exercising rights under this License with respect to
+1	it under the terms of the GNU General Public License as published by
+1	its public licenses to material it publishes and in those instances
+1	keep intact all notices stating that this License and any
+1	l. Sui Generis Database Rights means rights other than copyright
+1	later, or a BY-SA Compatible License.
+1	lic = licences.get(g + ":" + a, "") or LICENCE_FALLBACK.get(g + ":" + a, "")
+1	lic = {"com.google.firebase:firebase-analytics": "Apache 2.0", "org.example:gpl-lib": "Proprietary EULA", "org.apache:fine": "Apache License, Version 2.0"}
+1	licences (`--accept-licenses` accepts them for you; the text is saved in the prefix); (5) `gradlew --no-daemon :app:assembleRelease` with `JAVA_HOME`,
+1	licences are the standard Apache-2.0 ones and are not re-verified per artifact.
+1	license for about screen
+1	license from a particular copyright holder is reinstated (a)
+1	license link for about screen
+1	license to downstream recipients. "Knowingly relying" means you have
+1	license with the same License Elements, this version or
+1	licensed material under specified terms and conditions. If
+1	licensed material, or material used under an exception or
+1	licensed under this Public License, nor are publicity,
+1	licenses grant only permissions under copyright and certain
+1	licenses of parties who have received copies or rights from you under
+1	licenses to the work the party's predecessor in interest had or could
+1	licenses, a licensor grants the public permission to use the
+1	licenses. Notwithstanding, Creative Commons may elect to apply one of
+1	limitation to copyright. More considerations for licensors:
+261	limitations under the License.
+1	lines once with `scripts/public-check --licence-update`; the baseline only grows, and a shrinking baseline
+1	listed): "created using wordlist.py and wordlist_combined.py, using word lists available at https://wortschatz.uni-leipzig.de/en/download/", "license: source lists under CC BY 4.0"
+1	m. You means the individual or entity exercising the Licensed Rights
+1	machine-readable Corresponding Source under the terms of this License,
+1	making the Licensed Material available under these terms and
+1	material is shared under a Creative Commons public license or as
+1	material not subject to the license. This includes other CC
+1	may provide additional or different license terms and conditions
+2	model-bg model bg 617687478 d93222c672992a398eeea3a4a1ca025738efd9a18ba5f1691419ff8ae23a8e75 https://huggingface.co/onnx-community/Qwen3-0.6B-ONNX/resolve/79346d370dfae34801d26993fda9ae2372900fd0/onnx/model_int8.onnx Apache-2.0 (Qwen3-0.6B, Qwen team) Qwen/Qwen3-0.6B at c1899de2: model card "license: apache-2.0" and LICENSE; the ONNX export onnx-community/Qwen3-0.6B-ONNX names it as its base model
+2	model-en model en 135658354 50ba80511ce74634d232a043b6c37775cca756b826b49d0a4a8eff958c4bbcc9 https://huggingface.co/onnx-community/SmolLM2-135M-ONNX/resolve/d0ae6834f1df45e0e95b5fdae95e536f9ca7cd3f/onnx/model_int8.onnx Apache-2.0 (SmolLM2-135M, Hugging Face) HuggingFaceTB/SmolLM2-135M at 93efa2f0: model card "license: apache-2.0"; the ONNX export onnx-community/SmolLM2-135M-ONNX names it as its base model
+458	modified
+1	modify any covered work. These actions infringe copyright if you do
+1	necessary to exercise the Licensed Rights, including
+1	non-sublicensable, non-exclusive, irrevocable license to
+1	not accept this License. Therefore, by modifying or propagating a
+1	not control copyright. Those thus making or running the covered works
+1	not impose a license fee, royalty, or other charge for exercise of
+1	nothing other than this License grants you permission to propagate or
+1	of a Creative Commons Public License. The License Elements of this
+1	of that license document, provided that the further restriction does
+1	of this License, Derivative Works shall not include works that remain
+1	of this Public License.
+1	of this license document, but changing it is not allowed.
+1	ok = r.status == FAIL and all(any(k in d for d in r.details) for k in ("denied dependency group: com.google.firebase", "no licence found for org.example:no-licence", "licence not recognised as open source for org.example:gpl-lib"))
+1	or contributory patent infringement, then any patent licenses
+1	or convey a specific copy of the covered work, then the patent license
+1	or that patent license was granted, prior to 28 March 2007.
+1	original works of authorship and other material subject to copyright
+1	other relationship. Creative Commons makes its licenses and related
+1	otherwise) that contradict the conditions of this License, they do not
+1	out.append(Result("T-S9", "S9 fails on a planted tracker dependency, a missing and a non-open licence; passes on a clean list", PASS if ok else FAIL, "status %s" % r.status, r.details[:4]))
+1	out="$(PATH="$tmp/bin1" TAEN_OS_RELEASE="$(osr 'ID=debian')" bash "$script" --prefix "$tmp/r4" --no-system-packages --accept-licenses < /dev/null 2>&1)"; rc=$?
+1	out="$(PATH="$tmp/bin2" TAEN_OS_RELEASE="$(osr 'ID=ubuntu' 'ID_LIKE=debian')" bash "$script" --prefix "$tmp/r3" --yes --accept-licenses < /dev/null 2>&1)"; rc=$?
+1	parse --yes --no-system-packages --accept-licenses --with-adb --keygen --sign --remove-toolchain --dry-run --no-build -h
+1	parts of the General Public License. Of course, your program's commands
+1	patent license (a) in connection with copies of the covered work
+1	patent license for this particular work, or (3) arrange, in a manner
+1	patent license under the contributor's essential patent claims, to
+1	patent sublicenses in a manner consistent with the requirements of
+1	permission to license the work in any other way, but it does not
+1	permission to link or combine any covered work with a work licensed
+1	permission under the Copyright and Similar Rights held by the
+1	powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-windows.ps1 [-Prefix DIR] [-AcceptLicenses] [-WithAdb]
+1	price. Our General Public Licenses are designed to make sure that you
+1	problems.append("licence not recognised as open source for %s: %s" % (d, lic))
+1	problems.append("no licence found for " + d)
+1	process that requires permission under the Licensed Rights, such
+1	product that is covered by this License, on a durable physical
+1	program> Copyright (C) <year> <name of author
+1	propagate that work, subject to this License. You are not responsible
+1	provided under this License. Any attempt otherwise to propagate or
+1	provisionally, unless and until the copyright holder explicitly and
+1	public licenses is dedicated to the public domain under the CC0 Public
+1	public licenses.
+1	publicly display, publicly perform, sublicense, and distribute the
+1	reasons, including because others have copyright or other
+1	received notice of violation of this License (for any work) from that
+1	receives a license from the original licensors, to run, modify and
+1	recipient of the Licensed Material automatically
+1	recipients a copy of this License along with the Program.
+1	regardless of how they are packaged. This License gives no
+1	reinstated permanently if the copyright holder notifies you of the
+1	reinstated, you do not qualify to receive new licenses for the same
+1	released under this License and any conditions added under section
+1	replace Your obligations under this Public License where the Licensed
+1	restriction, you may remove that term. If a license document contains
+1	result of this License or out of the use or inability to use the
+1	result[g + ":" + a] = licence_of(g, a, v, gradle_home)
+1	results.append(Result("S9", "Dependencies and licences", GAP, "skipped (--no-deps)"))
+1	results.append(sc.check_dependencies(d, depslib.licences(d)))
+1	return licence_of(vals["groupId"], vals["artifactId"], vals["version"], gradle_home, depth + 1)
+1	return verdict("S9", "Dependencies: none from the tracker/analytics/Play-services denylist, each with an open-source licence", problems,
+1	rights granted or affirmed under this License. For example, you may
+1	rights granted under the Adapter's License You apply.
+1	rights granted under this License, and you may not initiate litigation
+1	rights of fair use or other equivalent, as provided by copyright law.
+1	risks associated with Your exercise of permissions under this License.
+1	same "printed page" as the copyright notice for easier
+1	say "accepting the licences because --accept-licenses was given; the text is saved in $OPT_PREFIX/android-sdk-licences.txt"
+1	say "sdkmanager shows each licence; answer y to accept it or n to stop."
+1	specifically granted under this License. You may not convey a covered
+1	specified in Section 2(b)(1)-(2) are not Copyright and Similar
+1	step "Android SDK licences"
+1	string name="downloads_licence">"Лиценз: %1$s"</string
+1	string name="downloads_licence">Licence: %1$s</string
+1	string name="gesture_data_description">&lt;b&gt;Bienvenue sur l\'écran de collecte de données gestuelles !&lt;/b&gt;&lt;br/&gt;&lt;br/&gt; Ceci fait partie d\'un &lt;a href=https://nlnet.nl/project/GestureTyping&gt;projet financé par NLnet&lt;/a&gt; visant à créer une bibliothèque de saisie gestuelle entièrement open source capable de remplacer la bibliothèque propriétaire de Google.&lt;br/&gt; Le résultat sera une alternative simple aux claviers AOSP, mais également compatible avec d\'autres claviers, comme FlorisBoard.&lt;br/&gt;&lt;br/&gt; Pour le développement de la bibliothèque, il est extrêmement utile de disposer de données gestuelles détaillées dans différentes langues et provenant de différents utilisateurs.&lt;br/&gt; En collectant et en soumettant des données de saisie gestuelle, vous contribuez à un ensemble de données ouvert qui sera utilisé pour le développement de la bibliothèque. Cet ensemble de données sera publié sous licence CC BY-SA 4.0 après la fin de la phase de collecte, le %s. Une fois vos données collectées, vous pouvez les soumettre à l\'aide de l\'icône de partage en bas de cet écran.</string
+1	string name="gesture_data_description">&lt;b&gt;Välkommen till skärmen för insamling av gestdata!&lt;/b&gt;&lt;br/&gt;&lt;br/&gt; Detta ingår i ett &lt;a href=https://nlnet.nl/project/GestureTyping&gt;NLnet-finansierat projekt&lt;/a&gt; som strävar efter att skapa ett helt öppet bibliotek för gestinmatning som kan ersätta Googles slutna bibliotek.&lt;br/&gt; Resultatet är tänkt som en enkel ersättning för AOSP-baserade tangentbord, men kan även användas med andra tangentbord, till exempel FlorisBoard.&lt;br/&gt;&lt;br/&gt; För att utveckla biblioteket är det mycket värdefullt med detaljerad gestdata från olika språk och användare.&lt;br/&gt; Genom att samla in och skicka gestdata kan du bidra till en öppen datamängd som används för att utveckla biblioteket. Datamängden publiceras under licensen CC BY-SA 4.0 en tid efter att insamlingsfasen är klar den %s. När du har samlat data kan du skicka den med delningsikonen längst ned på skärmen.</string
+1	string name="gesture_data_description_privacy">Confidentialité\n\nLes données que vous soumettez comprennent le mot cible, la disposition et les dimensions du clavier, le geste (heure et coordonnées), les suggestions de la bibliothèque actuelle, le hachage des dictionnaires utilisés, la version de l\'application, le mode de collecte des données, si la bibliothèque de saisie gestuelle est la bibliothèque Google par défaut, et un identifiant associé à chaque geste.\nLes données soumises seront téléchargées puis supprimées dès que possible de la boîte mail ProtonMail où elles sont stockées. Une fois la phase de collecte des données gestuelles terminée, l\'ensemble des données accumulées de tous les utilisateurs sera publié sous licence Creative Commons BY-SA 4.0.\n\nAfin de protéger votre vie privée, vous ne serez pas mentionné·e explicitement comme auteur·rice. Votre nom apparaîtra comme « Contributeur·rice au projet de données gestuelles HeliBoard ». Il ne devrait pas être possible de relier les données que vous générez sur cet écran à votre identité. Cependant, il pourrait être possible de déterminer quels gestes ont été effectués par une même personne, par exemple à partir d\'une disposition de clavier personnalisée, des dimensions du clavier, de la langue ou d\'un style de gestes particulier.</string
+1	string name="gesture_data_description_privacy">Integritet\n\n Datan du skickar består av målord, tangentbordslayout och dimensioner, gest (tider och koordinater), förslag från det aktuella biblioteket, hashvärde för använda ordböcker, appversion, insamlingsläge, om biblioteket för gestinmatning är Googles standardbibliotek samt ett ID för varje gest.\n Inskickad data hämtas och raderas från ProtonMail-brevlådan där den lagras så snart som möjligt. När insamlingsfasen för gestdata har avslutats publiceras den samlade datamängden från alla användare under licensen Creative Commons BY-SA 4.0.\n\n För att skydda din integritet anges du inte uttryckligen som upphovsperson. Ditt erkännande blir ”The HeliBoard Gesture Data Project Contributors”. Det ska inte gå att koppla data som du skapar på den här skärmen till din identitet. Det kan dock gå att avgöra vilka gester som gjordes av samma person, exempelvis utifrån en egen tangentbordslayout, tangentbordets dimensioner, språk eller individuell geststil.</string
+1	string name="gesture_data_email_body">IMPORTANT :\n\nSalut !\nPour rappel, ces données seront partagées publiquement sous licence CC BY-SA 4.0 et vous ne serez pas mentionné(e) comme auteur(e) afin de protéger votre vie privée.\n\nMerci de nous avoir permis d’accéder à vos données. Nous en ferons bon usage !\n\nVeuillez noter que modifier le texte de cet avis n’aura aucune incidence sur l’utilisation de vos données. Il ne s’agit pas d’un contrat à modifier, mais simplement d’un rappel.\nSi vous souhaitez nous envoyer un message avec vos données, veuillez l’écrire ci-dessous.\n--------------------------------------------</string
+1	string name="gesture_data_email_body">VIKTIGT:\n\n Hej!\n Som en påminnelse delas denna data offentligt under licensen CC BY-SA 4.0 och du anges inte som upphovsperson för att skydda din integritet.\n\n Tack för att du delar rättigheterna till din data med oss. Den kommer till användning!\n\n Observera att en ändring av formuleringen i detta meddelande inte ändrar vad vi gör med din data. Det är inte ett avtal som kan ändras, utan bara en vänlig påminnelse!\n Om du vill skicka ett meddelande tillsammans med din data skriver du det under raden här.\n ---------------------------------------------</string
+1	string name="gnu_gpl">GNU General Public Licence v3.0</string
+17	string name="gnu_gpl">GNU General Public License v3.0</string
+1	string name="gnu_gpl">Licence publique générale GNU v3.0</string
+1	string name="license">Atviro kodo licencija</string
+1	string name="license">Avatud lähtekoodi litsents</string
+1	string name="license">Avoimen lähdekoodin lisenssi</string
+1	string name="license">Açık kaynak lisansı</string
+1	string name="license">Bản quyền về mã nguồn mở</string
+1	string name="license">Kode irekiko lizentzia</string
+1	string name="license">Licence Open-source</string
+2	string name="license">Licencia de código abierto</string
+1	string name="license">Licencia s otvoreným zdrojovým kódom</string
+1	string name="license">Licencije otvorenog koda</string
+1	string name="license">Licencje open source</string
+1	string name="license">Licens för öppen källkod</string
+1	string name="license">Licenza Código-Aberto</string
+1	string name="license">Licenza open-source</string
+2	string name="license">Licença de código aberto</string
+1	string name="license">Licença de open-source</string
+1	string name="license">Licență open-source</string
+1	string name="license">Lisensi sumber terbuka</string
+1	string name="license">Llicència de codi obert</string
+1	string name="license">Nyílt forráskódú licenc</string
+1	string name="license">Open source-licenser</string
+1	string name="license">Open-Source-Lizenz</string
+2	string name="license">Open-source licence</string
+1	string name="license">Open-source license</string
+1	string name="license">Open-source licentie</string
+1	string name="license">Opinn og frjáls grunnkóði</string
+1	string name="license">Turagt n uɣbalu yeldin</string
+1	string name="license">Åpen kildekode-lisens</string
+1	string name="license">Лиценз с отворен код</string
+1	string name="license">Лицензия с открытым исходным кодом</string
+1	string name="license">Ліцензія з відкритим кодом</string
+1	string name="license">Ліцэнзія з адкрытым зыходным кодам</string
+1	string name="license">רישיון קוד פתוח</string
+1	string name="license">رخصة مفتوحة المصدر</string
+1	string name="license">مجوز متن‌باز</string
+1	string name="license">ওপেন-সোর্স লাইসেন্স</string
+1	string name="license">திறந்த மூல உரிமம்</string
+1	string name="license">လွတ်လပ်သောရင်းမြစ်လိုင်စင်</string
+1	string name="license">开放源代码许可</string
+1	string name="license">오픈소스 라이선스</string
+1	string name="media_starter_summary">A small set of emoji stickers (Microsoft Fluent Emoji, MIT licence) that is part of the app. Off until you turn it on; they are never stored or exported.</string
+1	string name="voice_license_note">"Моделът е NVIDIA Parakeet TDT 0.6B v3 (CC BY 4.0), изпълнява се с ONNX Runtime (MIT). Вижте NOTICE."</string
+1	string name="voice_license_note">The model is NVIDIA Parakeet TDT 0.6B v3 (CC BY 4.0), run with ONNX Runtime (MIT). See NOTICE.</string
+1	submitted to Licensor for inclusion in the Work by the copyright owner
+1	sue for patent infringement). To "grant" such a patent license to a
+1	taen_env "$sm" --sdk_root="$sdk" --licenses < /dev/null > /dev/null 2>&1 || true
+1	taen_env "$sm" --sdk_root="$sdk" --licenses < <(yes) > "$OPT_PREFIX/android-sdk-licences.txt" 2>&1 || true
+1	taen_env "$sm" --sdk_root="$sdk" --licenses || true
+1	terms and conditions of this Public License, which are limited to
+1	terms of sections 15 and 16 of this License; or
+1	that You distribute, all copyright, patent, trademark, and
+1	that applies to Your use of the Licensed Material.
+1	that material) supplement the terms of this License with terms:
+1	the "copyright" line and a pointer to where the full notice is found.
+1	the Free Software Foundation, either version 3 of the License, or
+1	the GNU General Public License from time to time. Such new versions will
+1	the GNU General Public License is intended to guarantee your freedom to
+1	the conditions stated in this License.
+1	the copyright owner that is granting the License.
+1	the copyright owner. For the purposes of this definition, "submitted"
+1	the licensed material may still be restricted for other
+1	the terms of any separate license agreement you may have executed
+1	the terms of this License in conveying all material for which you do
+1	this License (including any patent licenses granted under the third
+1	this License without regard to the additional permissions.
+2	this License, each Contributor hereby grants to You a perpetual,
+1	this License, without any additional terms or conditions.
+1	this License.
+1	this License. If your rights have been terminated and not permanently
+1	this Public License, then Your rights under this Public License
+1	this copyright and permission notice appear with all copies of the Data
+1	to any of its public licenses or any other arrangements,
+1	to copy, free of charge and under the terms of this License, through a
+1	tools/build-linux.sh [--prefix DIR] [--yes] [--no-system-packages] [--accept-licenses] [--with-adb]
+1	under the conditions of the Adapter's License You apply.
+1	under this Public License.
+1	under this Public License. Your has a corresponding meaning.
+1	under version 3 of the GNU Affero General Public License into a single
+1	understandings, or agreements concerning use of licensed material. For
+1	v. a URI or hyperlink to the Licensed Material to the
+1	val brokenDetectionAtStart = listOf("〰️", "〽️", "©️", "®️", "#️⃣", "*️⃣", "0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "㊗️", "㊙️")
+1	val licence: String,
+1	versions of the GNU General Public License can be used, that proxy's
+1	warranties regarding its licenses, any material licensed under their
+1	where such license applies only to those patent claims licensable
+1	which You Share the Licensed Material. For example, it may be
+1	while IFS="$(printf '\t')" read -r id kind _locale size sha url _licence _source; do
+1	wiki.creativecommons.org/Considerations_for_licensees
+1	will not terminate this Public License.
+1	with the Licensed Material:
+1	work thus licensed is called the contributor's "contributor version".
+1	work under this License, and how to view a copy of this License. If
+1	writers are linked in but their JNI entry points have no caller), 137 runtime dependencies with open-source licences and no tracker group, strict
+261	you may not use this file except in compliance with the License.
+1	your copyrighted material outside their relationship with you.
+1	| Android SDK | platform `android-37.0`, build-tools `36.0.0`, NDK `28.0.13004108` | `buildToolsVersion` and `ndkVersion` are pinned in `app/build.gradle.kts`. Android Gradle Plugin installs missing parts if the licences are accepted. |
+1	| Android command-line tools | 19.0 (`commandlinetools-linux-13114758_latest.zip`) | Only to install the SDK. Not 23.0: its `sdkmanager` downloads the "Android CLI" with usage metrics and accepts licences silently. |
+1	©
+1	© 2020 Unicode®, Inc.
+1	© 2021 Unicode®, Inc.
+1	© 2022 Unicode®, Inc.
+1	© 2023 Unicode®, Inc.
+1	© 2024 Unicode®, Inc.
+1	© 2025 Unicode®, Inc.
+1	©️
+1	©️ copyright c|copyright
+1	©️ авторско право c|авторско право
+1	🪪 identification card card|credentials|document|id|identification|license|security|identification card

@@ -1,0 +1,49 @@
+# Class references the release APK must not contain (P1 no network, P5 no trackers, P6 no dynamic code).
+# One rule per line: "deny <class prefix>" or "allow <class prefix>", slash form without the leading L.
+# The longest matching prefix decides. Scanned: every type descriptor and class-name string in every classes*.dex.
+# An allow line needs a reason in a comment. Checked by ./gradlew apkScanRelease (part of privacyCheck).
+
+# P1: Java and Android networking
+deny java/net/
+allow java/net/URI              # parsing only
+allow java/net/URISyntaxException
+allow java/net/URLEncoder       # string encoding only
+allow java/net/URLDecoder
+deny javax/net/
+deny okhttp3/
+deny okio/
+deny com/android/okhttp/
+deny android/net/
+allow android/net/Uri           # parsing and building of content:// and file URIs, no I/O
+deny android/webkit/
+allow android/webkit/MimeTypeMap  # file extension to MIME type table
+deny android/app/DownloadManager
+deny java/nio/channels/SocketChannel
+deny java/nio/channels/ServerSocketChannel
+deny java/nio/channels/DatagramChannel
+deny java/nio/channels/AsynchronousSocketChannel
+deny java/nio/channels/AsynchronousServerSocketChannel
+deny java/nio/channels/Selector
+
+# P5: analytics, crash reporting, ads, Google Play services
+deny com/google/firebase/
+deny com/google/android/gms/
+deny com/google/mlkit/
+deny com/crashlytics/
+deny io/sentry/
+deny com/bugsnag/
+deny com/microsoft/appcenter/
+deny com/facebook/
+deny com/flurry/
+deny com/amplitude/
+deny com/mixpanel/
+
+# P6: loading code that is not in the APK
+deny dalvik/system/DexClassLoader
+deny dalvik/system/PathClassLoader
+deny dalvik/system/InMemoryDexClassLoader
+deny dalvik/system/DelegateLastClassLoader
+
+# Typed text must not reach logcat: the release build strips every android.util.Log call (R8, app/proguard-release.pro) and this
+# rule keeps it so. The app's own wrapper (helium314/keyboard/latin/utils/Log) has another name and is not matched.
+deny android/util/Log

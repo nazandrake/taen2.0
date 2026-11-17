@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "id": "large_one_handed",
+  "version": 1,
+  "title": "template_large_one_handed_title",
+  "summary": "template_large_one_handed_summary",
+  "values": {
+    "keyboard_height_scale_false_false": 1.3,
+    "font_scale": 1.2,
+    "one_handed_mode_enabled_false_false_false": true,
+    "show_emoji_key": true
+  }
+}

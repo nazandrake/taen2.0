@@ -1,0 +1,6 @@
+#!/bin/sh
+# Blocks a commit whose message has public-release findings (scripts/public-check).
+top=$(git rev-parse --show-toplevel) || exit 1
+cd "$top" || exit 1
+command -v python3 >/dev/null 2>&1 || { echo "commit-msg: python3 is required for scripts/public-check" >&2; exit 1; }
+exec python3 -I scripts/public-check --commit-msg "$1"

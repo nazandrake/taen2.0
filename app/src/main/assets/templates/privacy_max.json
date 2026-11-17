@@ -1,0 +1,22 @@
+{
+  "format": 1,
+  "id": "privacy_max",
+  "version": 1,
+  "title": "template_privacy_max_title",
+  "summary": "template_privacy_max_summary",
+  "values": {
+    "always_incognito_mode": true,
+    "secure_keyboard_window": true,
+    "accessibility_warning": true,
+    "overlay_mode": "block",
+    "enable_clipboard_history": false,
+    "clipboard_history_retention_time": 5,
+    "clipboard_history_max_items": 1,
+    "suggest_clipboard_content": false,
+    "use_personalized_dicts": false,
+    "add_to_personal_dictionary": false,
+    "save_subtype_per_app": false,
+    "voice_typing": false,
+    "nextword_model": false
+  }
+}
