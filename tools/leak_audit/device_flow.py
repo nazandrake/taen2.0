@@ -393,6 +393,44 @@ def clipboard_restart_check(run):
                    "the history after a service restart holds %s" % entries, ["entries: %s" % entries])
 
 
+def pinned_forever_setup(run):
+    """D6p: retention Forever (the last choice of the setting) and one copied entry pinned with its pin button; the real wipe (D13b) must remove it."""
+    d = run.dev
+    run.settings_home()
+    run.scroll_to("Preferences")
+    d.tap_text("Preferences", exact=True)
+    time.sleep(1.5)
+    run.scroll_to("History retention time")
+    d.tap_text("History retention time", exact=True)
+    time.sleep(1.5)
+    choices = [t for t in d.texts() if t not in ("History retention time", "Default", "Cancel")]
+    d.tap_text("Forever", exact=True)
+    time.sleep(1.5)
+    shown = [t for t in d.texts() if t == "Forever"]
+    run.field("normal", copy=CANARIES["clip_pinned"], delay=4000)
+    time.sleep(6)
+    run.field("normal")
+    run.clipboard_entries()
+    entry = d.find(CANARIES["clip_pinned"], windows=True)
+    pins = [n for n in d.nodes(True) if n["desc"] == "Pin" and n["pkg"].startswith(run.pkg)]
+    if entry and pins:  # the pin button of the row that holds the entry
+        row = min(pins, key=lambda n: abs(n["cy"] - entry["cy"]))
+        d.tap(row["cx"], row["cy"])
+        time.sleep(1.5)
+    entry = d.find(CANARIES["clip_pinned"], windows=True)
+    pinned = bool(entry) and any(n["desc"] == "Unpin" and abs(n["cy"] - entry["cy"]) < 80 for n in d.nodes(True))
+    run.close_clipboard()
+    problems = []
+    if choices[-1:] != ["Forever"]:
+        problems.append("Forever is not the last retention choice: %s" % choices)
+    if not shown:
+        problems.append("the setting does not show Forever after choosing it")
+    if not pinned:
+        problems.append("the copied entry could not be pinned with its pin button (entry %s, pin buttons %d)" % (bool(entry), len(pins)))
+    return verdict("D6p", "Clipboard: retention Forever and a pinned entry (set up for the real wipe, D13b)", problems,
+                   "retention Forever chosen from %s; the copied entry is pinned (its button now says Unpin)" % choices, ["choices: %s" % choices])
+
+
 def language_key_check(run):
     """D15: a new install has English and Bulgarian enabled and a language key on the main layout; one tap switches
     EN -> BG (phonetic) and the next tap back. Evidence: the character a letter key types after each tap."""

@@ -207,6 +207,7 @@ def flow(run, audit_apk, release_apk):
 
     run.step("D6", "Clipboard", clips)
     run.step("D6b", "Clipboard at service start", lambda: fl.clipboard_restart_check(run))
+    run.step("D6p", "Clipboard Forever and pinned entry", lambda: fl.pinned_forever_setup(run))
     export = {}
 
     def exporting():
@@ -340,6 +341,8 @@ def _real_wipe(run, session):
     before = session.get("digests_before_wipe", {})
     d.wake()
     run.field("normal")
+    pinned_before = any(CANARIES["clip_pinned"] in t for t in run.clipboard_entries())  # control: the pinned Forever entry (D6p) is there
+    run.close_clipboard()
     d.sh("input text '%s'" % CANARIES["trigger_word"])
     time.sleep(0.5)
     # positive control: the word is in the field, so the Enter below is a real trigger (a word that never arrived proves nothing about the wipe)
@@ -354,12 +357,19 @@ def _real_wipe(run, session):
     kept = [k for k, v in after.items() if k in before and before[k] == v and k.endswith(".enc")]
     enc_before = [k for k in before if k.endswith(".enc")]
     problems = [p for p in problems]
+    run.field("normal")
+    history_after = run.clipboard_entries()
+    run.close_clipboard()
+    if not pinned_before:
+        problems.append("no pinned Forever entry in the history before the wipe (D6p): nothing proved about it")
+    if any(CANARIES["clip_pinned"] in t for t in history_after):
+        problems.append("the pinned Forever entry is still in the clipboard history after the wipe")
     problems += ["encrypted store survived the wipe unchanged: %s" % k for k in kept]
     if not enc_before:
         problems.append("no encrypted store existed before the wipe (nothing proved)")
     run.save("data-scan-post-wipe.txt", "\n".join(rows + problems))
     return verdict("D13b", "Self-destruct: the trigger word (test mode over) deletes every encrypted store; no canary and no old ciphertext file remains", problems,
-                   "%d encrypted store files before, none of them left unchanged after; files now: %d; no canary" % (len(enc_before), len(rows)),
+                   "%d encrypted store files before, none of them left unchanged after; files now: %d; no canary; the pinned Forever entry is gone from the history" % (len(enc_before), len(rows)),
                    ["after the wipe: " + r for r in rows[:25]])
 
 

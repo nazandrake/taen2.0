@@ -269,8 +269,8 @@ GAP is a named check that could not be run. What is checked:
   D3 no canary in any encoding in both data directories and the external directories (`run-as` on the audit build, which is the release code with
   `debuggable=true`; on the release build itself it is the GAP D3r, because without root nothing can read the data of a non-debuggable app); D4 `bmgr backupnow` refuses and `adb backup` yields no user data (on the release build); D5 screenshot and screen recording are
   refused or black with the keyboard and the settings screen on screen; D6 clipboard (normal copy kept, sensitive and password-field copies not, paste
-  leaves the system clip, other UIDs cannot read the stores); D7 accessibility and overlay warnings fire (helper app); D8 granted permissions; D9
-  `dumpsys` holds no canary; D10 the encrypted export; D11 typing session with incognito; D12 screen lock; D13 self-destruct test mode and real wipe.
+  leaves the system clip, other UIDs cannot read the stores; D6p sets the retention to Forever and pins a copied entry with its pin button); D7 accessibility and overlay warnings fire (helper app); D8 granted permissions; D9
+  `dumpsys` holds no canary; D10 the encrypted export; D11 typing session with incognito; D12 screen lock; D13 self-destruct test mode and real wipe (the pinned Forever entry of D6p must be in the history before and gone after).
 - Voice (`tools/leak_audit/device_voice.py`, audit build, needs the model files and the FLEURS samples of section 8; the model is copied into the audit build
   with `adb push` and `run-as`): V1 the microphone permission is requested but not granted at install, the microphone is idle, and the first tap on the voice key
   shows the system dialog; V2 a recording ends in text in the field (the PC plays the sample through its speaker: the output volume is raised for the playback and

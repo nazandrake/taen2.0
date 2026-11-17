@@ -13,6 +13,7 @@ CANARIES = {
     "clip_normal": "clipqzxcanary",  # copied by the helper in a normal field (kept in the history)
     "clip_sensitive": "sensqzxcanary",  # copied with the sensitive flag (never kept)
     "clip_password": "pwqzxcanary",  # copied while a password field has focus (never kept)
+    "clip_pinned": "pinqzxcanary",   # copied in a normal field, pinned, retention Forever (kept until the wipe, D6p and D13b)
     "trigger_word": "zqtrigwordqx9871",
     "passphrase": "zqpassphraseqz",
     "profile": "TaenCanaryProfile7q",  # 1.1.0: the name of a saved settings profile (one value of the encrypted preferences; never in plain text, in the export or after a wipe)
