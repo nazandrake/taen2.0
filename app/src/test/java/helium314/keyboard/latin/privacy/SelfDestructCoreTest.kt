@@ -69,6 +69,7 @@ class RecordingPorts : WipePorts {
     override fun deleteKeys(): Boolean { calls += "deleteKeys"; return true }
     override fun deleteFiles(scope: WipeScope, keep: Set<String>, ceOnly: Boolean): Boolean { calls += "deleteFiles"; return true }
     override fun clearClipboard() { calls += "clearClipboard" }
+    override fun clearSystemLanguage() { calls += "clearSystemLanguage" }
     override fun restoreArmed(files: List<ArmedFile>): Boolean { calls += "restoreArmed"; return true }
     override fun clearPending() { calls += "clearPending" }
     override fun restart() { calls += "restart" }

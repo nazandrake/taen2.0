@@ -52,6 +52,8 @@ interface WipePorts {
     /** Deletes the files in [scope] except the store files named in [keep]. False when something that should go is still there (credential-encrypted storage locked). */
     fun deleteFiles(scope: WipeScope, keep: Set<String>, ceOnly: Boolean): Boolean
     fun clearClipboard()
+    /** Removes the language-only subtype the keyboard registered with the system: it names the language in use. */
+    fun clearSystemLanguage()
     fun restoreArmed(files: List<ArmedFile>): Boolean
     fun clearPending()
     /** Last step: the process ends and the system starts the keyboard again. */
@@ -63,7 +65,8 @@ class WipeReport(val keysMillis: Long, val totalMillis: Long, val complete: Bool
 
 /**
  * The wipe procedure (crypto-shred): stop every writer, save the configuration when it stays armed, write the marker,
- * destroy the keys, delete the files, clear the clipboard, write the configuration back, remove the marker, restart. Every step is
+ * destroy the keys, delete the files, clear the clipboard and the language subtype registered with the system, write the configuration back,
+ * remove the marker, restart. Every step is
  * tried whatever an earlier one did; a failure leaves the marker so the next start finishes the job.
  */
 class Wiper(private val ports: WipePorts, private val clock: () -> Long) {
@@ -91,6 +94,7 @@ class Wiper(private val ports: WipePorts, private val clock: () -> Long) {
         }
         ok = step { ports.deleteFiles(scope, setOf(PENDING_NAME), false) } && ok
         if (scope.clipboard) step { ports.clearClipboard(); true }
+        step { ports.clearSystemLanguage(); true } // every scope: the system's subtype names the language in use; a failure does not keep the marker
         if (armed) {
             val restored = step { ports.restoreArmed(saved) }
             ok = ok && restored

@@ -22,6 +22,7 @@ class ScriptedPorts(private val clock: () -> Long, private val advance: (Long) -
     var filesOk = true
     var filesThrow = false
     var clipboardThrows = false
+    var languageThrows = false
     var restoreOk = true
     var pendingWriteOk = true
     var lastScope: WipeScope? = null
@@ -48,6 +49,7 @@ class ScriptedPorts(private val clock: () -> Long, private val advance: (Long) -
         advance(fileMillis); if (filesThrow) throw IllegalStateException("files"); return filesOk
     }
     override fun clearClipboard() { call("clearClipboard"); if (clipboardThrows) throw IllegalStateException("clip") }
+    override fun clearSystemLanguage() { call("clearSystemLanguage"); if (languageThrows) throw IllegalStateException("imm") }
     override fun restoreArmed(files: List<ArmedFile>): Boolean { call("restoreArmed"); restored = files; deFiles += files.map { it.name + ".enc" }; return restoreOk }
     override fun clearPending() { call("clearPending") }
     override fun restart() { call("restart") }
@@ -62,7 +64,7 @@ class WiperTest {
     @Test fun aFullWipeRunsInTheDesignedOrder() {
         val p = ports()
         val report = wiper(p).run(WipeScope.ALL)
-        assertEquals(listOf("beginWipe", "writePending", "deleteKeys", "writePending", "deleteFiles", "clearClipboard", "clearPending", "restart"), p.calls)
+        assertEquals(listOf("beginWipe", "writePending", "deleteKeys", "writePending", "deleteFiles", "clearClipboard", "clearSystemLanguage", "clearPending", "restart"), p.calls)
         assertTrue(report.complete)
         assertEquals(WipeScope.ALL, p.lastScope)
         assertEquals(false, p.lastCeOnly)
@@ -111,11 +113,31 @@ class WiperTest {
         p.armed = listOf(ArmedFile("security", byteArrayOf(1, 2, 3)), ArmedFile("selfdestruct", byteArrayOf(4, 5)))
         val scope = WipeScope(config = false)
         val report = wiper(p).run(scope)
-        assertEquals(listOf("beginWipe", "writePending", "readArmed", "deleteKeys", "writePending", "deleteFiles", "clearClipboard", "restoreArmed", "writePending", "clearPending", "restart"), p.calls)
+        assertEquals(listOf("beginWipe", "writePending", "readArmed", "deleteKeys", "writePending", "deleteFiles", "clearClipboard", "clearSystemLanguage", "restoreArmed", "writePending", "clearPending", "restart"), p.calls)
         assertEquals(listOf("security", "selfdestruct"), p.restored!!.map { it.name })
         assertContentEquals(byteArrayOf(4, 5), p.restored!![1].bytes)
         assertTrue(p.pendings.last().restored)
         assertTrue(p.pendings.all { it.armed })
+        assertTrue(report.complete)
+    }
+
+    /** The language-only subtype Taen registered with the system names the language in use: every wipe clears it, after the files, before the restart. */
+    @Test fun everyWipeClearsTheLanguageTheSystemShowsAfterTheFilesAndBeforeTheRestart() {
+        for (scope in listOf(WipeScope.ALL, WipeScope(config = false), WipeScope(learned = true, clipboard = false, settings = false, config = false, imported = false))) {
+            val p = ports()
+            wiper(p).run(scope)
+            val at = p.calls.indexOf("clearSystemLanguage")
+            assertTrue(at > p.calls.indexOf("deleteFiles") && p.calls.indexOf("deleteFiles") >= 0, "$scope: ${p.calls}")
+            assertTrue(at < p.calls.indexOf("restart"), "$scope: ${p.calls}")
+        }
+    }
+
+    @Test fun aFailingClearOfTheSystemLanguageDoesNotStopTheWipe() {
+        val p = ports()
+        p.languageThrows = true
+        val report = wiper(p).run(WipeScope.ALL)
+        assertTrue("clearSystemLanguage" in p.calls)
+        assertEquals(listOf("clearPending", "restart"), p.calls.takeLast(2)) // the user data is gone: the wipe finished
         assertTrue(report.complete)
     }
 

@@ -359,7 +359,10 @@ def _real_wipe(run, session):
     problems = [p for p in problems]
     run.field("normal")
     history_after = run.clipboard_entries()
+    opened_after = bool(d.find("Close clipboard history", windows=True))  # positive control (as D6b): an empty list is only evidence when the history is on screen
     run.close_clipboard()
+    if not opened_after:
+        problems.append("the clipboard history did not open after the wipe: the missing pinned entry proves nothing")
     if not pinned_before:
         problems.append("no pinned Forever entry in the history before the wipe (D6p): nothing proved about it")
     if any(CANARIES["clip_pinned"] in t for t in history_after):

@@ -269,6 +269,17 @@ class RichInputMethodManager private constructor() {
                 .build()
         }
 
+        /**
+         * Removes the language-only subtype [reportLanguageToSystem] registered: the self-destruct leaves the system no subtype that names the
+         * language in use. The next input start registers the language of the fresh settings again.
+         */
+        @JvmStatic
+        fun forgetSystemLanguage(context: Context) {
+            val imm = context.getSystemService(InputMethodManager::class.java) ?: return
+            val id = imm.inputMethodList.firstOrNull { it.packageName == context.packageName }?.id ?: return
+            imm.setAdditionalInputMethodSubtypes(id, emptyArray())
+        }
+
         /** Whether the system hands back a subtype of its own rather than one of Taen's languages: the dummy or the language-only one. */
         @JvmStatic
         fun isSystemOnlySubtype(subtype: InputMethodSubtype) =

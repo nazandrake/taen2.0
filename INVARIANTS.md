@@ -110,8 +110,8 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   `FileUtils` (asynchronous, 64 MiB, 60 s). Tests: `AppLockTest`, `AppLockWiringTest`, `AppLockMainThreadTest`.
 - **P15 Self-destruct.** Triggers: duress PIN, trigger word (Enter or Space only, 12 to 64 characters, one Argon2id check, never learned
   or stored in plain text), wrong PINs (5 to 20), inactivity (3 to 365 days), panic. `SelfDestructPolicy` decides, `SelfDestructEngine`
-  applies, `Wiper` runs the order: writers refuse, marker, keys deleted, files deleted, clipboard cleared, kept configuration written
-  back, marker removed, restart. A failure keeps the marker and `Wiper.resume` finishes the job. Only `SelfDestruct.kt` and `DataKeys`
+  applies, `Wiper` runs the order: writers refuse, marker, keys deleted, files deleted, clipboard cleared, the language subtype
+  registered with the system removed, kept configuration written back, marker removed, restart. A failure keeps the marker and `Wiper.resume` finishes the job. Only `SelfDestruct.kt` and `DataKeys`
   delete keys; only the wipe and the two existing restarts end the process (SourceRules). Tests: `SelfDestruct*Test`, `WiperTest`,
   `FileWiperTest`, `TriggerWordTest`.
 

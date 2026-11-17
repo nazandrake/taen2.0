@@ -257,6 +257,8 @@ object SelfDestruct {
             (app.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)?.let { ClipboardManagerCompat.clearPrimaryClip(it) }
         }
 
+        override fun clearSystemLanguage() { helium314.keyboard.latin.RichInputMethodManager.forgetSystemLanguage(app) }
+
         override fun restoreArmed(files: List<ArmedFile>): Boolean {
             var ok = true
             for (f in files) {

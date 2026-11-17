@@ -129,6 +129,17 @@ class SelfDestructWiringTest {
         for (d in dataDirs()) assertEquals(emptyList(), filesContaining(d, canary), d.path)
     }
 
+    @Test fun aWipeClearsTheLanguageSubtypeTheKeyboardRegisteredWithTheSystem() {
+        seedEverything()
+        helium314.keyboard.ShadowInputMethodService.additionalSubtypeCalls.clear()
+        SelfDestruct.wipe(ctx, WipeScope.ALL)
+        val calls = helium314.keyboard.ShadowInputMethodService.additionalSubtypeCalls
+        assertEquals(1, calls.size, "$calls")
+        assertEquals(ctx.packageName, calls[0].first.substringBefore('/')) // the keyboard's own input method
+        assertEquals(emptyList(), calls[0].second) // no subtype is left that names a language
+        assertEquals(1, restarts) // positive control: the wipe ran to its end
+    }
+
     @Test fun theKeyboardWritesAgainAfterTheRestartWithNewKeys() {
         seedEverything()
         SelfDestruct.wipe(ctx, WipeScope.ALL)
