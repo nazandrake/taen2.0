@@ -63,8 +63,8 @@ class ClipboardAdapter(
             }
             Settings.getValues().mColors.setBackground(view, ColorType.KEY_BACKGROUND)
             pinnedIconView = view.findViewById<ImageView>(R.id.clipboard_entry_pinned_icon).apply {
-                visibility = View.GONE
                 setImageResource(pinnedIconResId)
+                setOnClickListener { clipboardHistoryManager?.toggleClipPinned(itemView.tag as Long) }
             }
             contentTextView = view.findViewById<TextView>(R.id.clipboard_entry_text_content).apply {
                 typeface = itemTypeFace
@@ -81,7 +81,10 @@ class ClipboardAdapter(
             if (historyEntry == null) return
             itemView.tag = historyEntry.id
             contentTextView.text = historyEntry.text.take(1000) // truncate displayed text for performance reasons
-            pinnedIconView.visibility = if (historyEntry.pinned) View.VISIBLE else View.GONE
+            // the pin button is always there, so pinning can be found: dimmed until the entry is pinned
+            pinnedIconView.visibility = View.VISIBLE
+            pinnedIconView.alpha = if (historyEntry.pinned) 1f else UNPINNED_ALPHA
+            pinnedIconView.contentDescription = itemView.context.getString(if (historyEntry.pinned) R.string.clipboard_entry_unpin else R.string.clipboard_entry_pin)
             contentImageView.visibility = View.GONE // only text is stored
             contentTextView.visibility = if (contentTextView.text.isNullOrEmpty()) View.GONE else View.VISIBLE
         }
@@ -102,5 +105,9 @@ class ClipboardAdapter(
             clipboardHistoryManager?.toggleClipPinned(view.tag as Long)
             return true
         }
+    }
+
+    private companion object {
+        const val UNPINNED_ALPHA = 0.35f
     }
 }

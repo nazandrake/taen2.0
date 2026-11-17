@@ -217,6 +217,14 @@
     <string name="clipboard_history_max_items">Maximum number of history items</string>
     <!-- Preferences item for showing pinned clipboard items first -->
     <string name="clipboard_history_pinned_first">Show pinned items on top</string>
+    <!-- Choices of the clipboard history retention time -->
+    <string name="clipboard_retention_hours">%s h</string>
+    <string name="clipboard_retention_one_day">1 day</string>
+    <string name="clipboard_retention_days">%s days</string>
+    <string name="clipboard_retention_forever">Forever</string>
+    <!-- The pin button of a clipboard history entry (spoken by screen readers) -->
+    <string name="clipboard_entry_pin">Pin</string>
+    <string name="clipboard_entry_unpin">Unpin</string>
     <!-- Preferences item for extending the clipboard history to files (images or others) -->
     <string name="clipboard_history_files">Add images and other files to clipboard history</string>
     <!-- Preferences item for selecting maximum combined size of clipboard history files -->

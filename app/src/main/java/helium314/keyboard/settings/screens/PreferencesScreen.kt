@@ -15,6 +15,7 @@ import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.latin.AudioAndHapticFeedbackManager
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.database.ClipboardDao
+import helium314.keyboard.latin.privacy.ClipboardLimits
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.EmojiHold
 import helium314.keyboard.latin.settings.Settings
@@ -200,13 +201,9 @@ fun createPreferencesSettings(context: Context) = listOf(
     },
     Setting(context, Settings.PREF_CLIPBOARD_HISTORY_RETENTION_TIME, R.string.clipboard_history_retention_time) { setting ->
         val ctx = LocalContext.current
-        SliderPreference(
-            name = setting.title,
-            key = setting.key,
-            default = Defaults.PREF_CLIPBOARD_HISTORY_RETENTION_TIME,
-            description = { stringResource(R.string.abbreviation_unit_minutes, it.toString()) },
-            range = 5f..120f, // history entries always expire; the design allows up to 7 days (see ClipboardLimits)
-        ) { ClipboardDao.getInstance(ctx)?.clearOldClips() }
+        ListPreference(setting, clipboardRetentionChoices(ctx), Defaults.PREF_CLIPBOARD_HISTORY_RETENTION_TIME) {
+            ClipboardDao.getInstance(ctx)?.clearOldClips()
+        }
     },
     Setting(context, Settings.PREF_CLIPBOARD_HISTORY_PINNED_FIRST, R.string.clipboard_history_pinned_first) {
         SwitchPreference(it, Defaults.PREF_CLIPBOARD_HISTORY_PINNED_FIRST)
@@ -251,6 +248,18 @@ fun createPreferencesSettings(context: Context) = listOf(
 )
 
 private val localesWithLocalizedNumberRow = listOf("ar", "bn", "ckb", "fa", "gu", "hi", "kn", "mr", "ne", "th", "ur")
+
+/** The retention choices of [ClipboardLimits] with their labels (minutes, hours, days, Forever). */
+fun clipboardRetentionChoices(context: Context): List<Pair<String, Int>> = ClipboardLimits.RETENTION_CHOICES_MINUTES.map { minutes ->
+    val label = when {
+        minutes == ClipboardLimits.FOREVER_MINUTES -> context.getString(R.string.clipboard_retention_forever)
+        minutes == 1440 -> context.getString(R.string.clipboard_retention_one_day)
+        minutes % 1440 == 0 -> context.getString(R.string.clipboard_retention_days, (minutes / 1440).toString())
+        minutes % 60 == 0 -> context.getString(R.string.clipboard_retention_hours, (minutes / 60).toString())
+        else -> context.getString(R.string.abbreviation_unit_minutes, minutes.toString())
+    }
+    label to minutes
+}
 
 @Preview
 @Composable

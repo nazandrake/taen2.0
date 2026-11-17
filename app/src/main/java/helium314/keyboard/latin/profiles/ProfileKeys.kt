@@ -30,10 +30,12 @@ sealed class ValueSpec {
         override fun canonical(raw: Any?): Any? = raw as? Boolean
     }
 
-    class IntRange(private val min: Int, private val max: Int) : ValueSpec() {
+    /** An integer from [min] to [max], or exactly [also] when it is given (a named value outside the range, such as Forever). */
+    class IntRange(private val min: Int, private val max: Int, private val also: Int? = null) : ValueSpec() {
         override fun canonical(raw: Any?): Any? {
             val n = raw as? Number ?: return null
             val d = n.toDouble()
+            if (also != null && d == also.toDouble()) return also
             if (d.isNaN() || d != Math.rint(d) || d < min || d > max) return null
             return d.toInt()
         }
@@ -144,7 +146,8 @@ object ProfileKeys {
         Settings.PREF_ENABLE_CLIPBOARD_HISTORY to PrivacyRule(Defaults.PREF_ENABLE_CLIPBOARD_HISTORY, false, bool, stricterBool(false)),
         Settings.PREF_CLIPBOARD_HISTORY_RETENTION_TIME to PrivacyRule(
             Defaults.PREF_CLIPBOARD_HISTORY_RETENTION_TIME, ClipboardLimits.MIN_RETENTION_MINUTES,
-            ValueSpec.IntRange(ClipboardLimits.MIN_RETENTION_MINUTES, ClipboardLimits.MAX_RETENTION_MINUTES), lowerInt()),
+            // Forever is the largest value, so "lower is stricter" still holds
+            ValueSpec.IntRange(ClipboardLimits.MIN_RETENTION_MINUTES, ClipboardLimits.MAX_RETENTION_MINUTES, ClipboardLimits.FOREVER_MINUTES), lowerInt()),
         Settings.PREF_CLIPBOARD_HISTORY_MAX_ITEMS to PrivacyRule(
             Defaults.PREF_CLIPBOARD_HISTORY_MAX_ITEMS, 1, ValueSpec.IntRange(1, ClipboardLimits.MAX_ITEMS), lowerInt()),
         Settings.PREF_SUGGEST_CLIPBOARD_CONTENT to PrivacyRule(Defaults.PREF_SUGGEST_CLIPBOARD_CONTENT, false, bool, stricterBool(false)),

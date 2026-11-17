@@ -207,6 +207,14 @@ class ClipboardHistoryTest {
         assertEquals(50, ok.maxItems)
     }
 
+    @Test fun foreverKeepsUnpinnedEntriesWithoutExpiry() {
+        val h = history(limits = ClipboardLimits.of(retentionMinutes = 52_560_000, maxItems = 50)) // Forever: 100 years in minutes
+        h.add("kept", now)
+        now += 10L * 365 * 24 * hour
+        assertEquals(0, h.expire())
+        assertEquals(listOf("kept"), h.entries.map { it.text })
+    }
+
     @Test fun idsStayUniqueAfterReload() {
         val h = history(listOf(ClipboardEntry(7, now, false, "a")))
         h.add("b", now)
@@ -285,5 +293,23 @@ class ClipboardHistoryTest {
         assertEquals(savesBefore, saves)
         h.evict() // twice is harmless
         assertEquals(listOf(0 to 2), removed)
+    }
+
+    @Test fun foreverIsTheLastRetentionChoiceAndOnlyItsExactValueMeansForever() {
+        assertEquals(52_560_000, ClipboardLimits.FOREVER_MINUTES)
+        assertEquals(listOf(5, 15, 30, 60, 120, 360, 720, 1440, 4320, 10080, 52_560_000), ClipboardLimits.RETENTION_CHOICES_MINUTES)
+        assertTrue(ClipboardLimits.DEFAULT_RETENTION_MINUTES in ClipboardLimits.RETENTION_CHOICES_MINUTES)
+        assertEquals(52_560_000L * 60_000L, ClipboardLimits.of(52_560_000, 50).retentionMillis)
+        assertEquals(7 * 24 * 60 * 60_000L, ClipboardLimits.of(52_560_000 - 1, 50).retentionMillis, "a value that is not Forever stays within 7 days")
+        assertEquals(7 * 24 * 60 * 60_000L, ClipboardLimits.of(7 * 24 * 60 + 1, 50).retentionMillis)
+    }
+
+    @Test fun foreverStillKeepsAtMostMaxItemsUnpinnedAndTheUserCanClearThem() {
+        val h = history(limits = ClipboardLimits.of(ClipboardLimits.FOREVER_MINUTES, 2))
+        h.add("a", now - 3000); h.add("b", now - 2000); h.add("c", now - 1000)
+        assertEquals(listOf("c", "b"), h.entries.map { it.text })
+        h.add("pinned", now); h.togglePinned(h[0].id)
+        h.clearNonPinned()
+        assertEquals(listOf("pinned"), h.entries.map { it.text })
     }
 }

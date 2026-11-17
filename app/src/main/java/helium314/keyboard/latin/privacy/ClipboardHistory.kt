@@ -4,17 +4,24 @@ package helium314.keyboard.latin.privacy
 
 class ClipboardEntry(val id: Long, var timestamp: Long, var pinned: Boolean, val text: String)
 
-/** Retention and size limits of the history, clamped to the design range (retention 5 min to 7 days, 1 to 500 items). */
+/**
+ * Retention and size limits of the history, clamped to the design range (retention 5 min to 7 days, or exactly [FOREVER_MINUTES];
+ * 1 to 500 items). Any other value above 7 days counts as 7 days.
+ */
 class ClipboardLimits private constructor(val retentionMillis: Long, val maxItems: Int) {
     companion object {
         const val MIN_RETENTION_MINUTES = 5
         const val MAX_RETENTION_MINUTES = 7 * 24 * 60
+        /** "Forever": entries do not expire by time (100 years). The largest setting, so the rule "lower is stricter" still holds. */
+        const val FOREVER_MINUTES = 100 * 365 * 24 * 60
         const val MAX_ITEMS = 500
         const val DEFAULT_RETENTION_MINUTES = 60
         const val DEFAULT_MAX_ITEMS = 50
+        /** The choices of the retention setting, in minutes: 5 minutes to 7 days, then Forever. */
+        val RETENTION_CHOICES_MINUTES = listOf(5, 15, 30, 60, 120, 360, 720, 1440, 3 * 1440, MAX_RETENTION_MINUTES, FOREVER_MINUTES)
 
         fun of(retentionMinutes: Int, maxItems: Int) = ClipboardLimits(
-            retentionMinutes.coerceIn(MIN_RETENTION_MINUTES, MAX_RETENTION_MINUTES) * 60_000L,
+            (if (retentionMinutes == FOREVER_MINUTES) FOREVER_MINUTES else retentionMinutes.coerceIn(MIN_RETENTION_MINUTES, MAX_RETENTION_MINUTES)) * 60_000L,
             maxItems.coerceIn(1, MAX_ITEMS),
         )
     }

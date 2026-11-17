@@ -432,6 +432,12 @@
     <string name="app_languages_cleared">Списъкът с езици по приложения е изчистен</string>
     <string name="subtype_khipro_bn">%s (Khipro)</string>
     <string name="clipboard_history_pinned_first">Показване на закачените елементи отгоре</string>
+    <string name="clipboard_retention_hours">%s ч</string>
+    <string name="clipboard_retention_one_day">1 ден</string>
+    <string name="clipboard_retention_days">%s дни</string>
+    <string name="clipboard_retention_forever">Завинаги</string>
+    <string name="clipboard_entry_pin">Закачи</string>
+    <string name="clipboard_entry_unpin">Откачи</string>
     <string name="inline_emoji_search">Вградено търсене на емотикони</string>
     <string name="inline_emoji_search_summary">Предлагай емотикони само когато думата е предшествана от двоеточие</string>
     <string name="emoji_dictionary_required">За да работи тази функция, е необходим речник с емотикони. Речници във формат .dict могат да бъдат изтеглени %s.</string>
