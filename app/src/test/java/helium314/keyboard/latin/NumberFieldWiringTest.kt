@@ -110,7 +110,29 @@ class NumberFieldWiringTest {
         assertEquals(before, pinnedKeys(ime))
     }
 
-    @Test fun aKeyTheUserPinnedIsNotAddedTwice() = withKeyboard { ime ->
+    /** P9: a password field gets no strip keys of its own and no clipboard suggestion, in the number class as in the others. */
+    @Test fun aPasswordFieldGetsNoStripKeysAndNoClipboardSuggestion() = withKeyboard { ime ->
+        val keys = listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL)
+        startField(ime, number)
+        assertTrue(keys.all { it in pinnedKeys(ime) }, "positive control: a plain number field has them: ${pinnedKeys(ime)}")
+        assertNotNull(suggestion(ime, number, "12"), "positive control: a plain number field is offered the clip")
+        for (type in listOf(
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD,
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_VARIATION_PASSWORD,
+            text or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+            text or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
+            text or InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+        )) {
+            startField(ime, type)
+            assertTrue(Settings.getValues().mPrivacy.passwordField, "type $type is a password field")
+            for (key in keys) assertFalse(key in pinnedKeys(ime), "type $type: $key on the strip: ${pinnedKeys(ime)}")
+            assertNull(suggestion(ime, type, "12"), "type $type: no clipboard suggestion")
+        }
+        startField(ime, number)
+        assertTrue(keys.all { it in pinnedKeys(ime) }, "the keys come back in a plain number field: ${pinnedKeys(ime)}")
+    }
+
+    @Test fun aKeyTheUserPinnedIsNotAddedTwice()= withKeyboard { ime ->
         ime.prefs().edit().putString(Settings.PREF_PINNED_TOOLBAR_KEYS, helium314.keyboard.latin.utils.defaultPinnedToolbarPref.replace("PASTE:false", "PASTE:true")).commit()
         ime.setInputView(KeyboardSwitcher.getInstance().onCreateInputView(ime, true)) // the strip reads the pinned keys when it is created
         startField(ime, text)

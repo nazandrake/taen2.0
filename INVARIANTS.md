@@ -74,6 +74,7 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   of it (1,234.50 / 1.234,50 / 1 234,50 are read; a signed field keeps a minus directly before it; an integer field takes the integer
   part; a decimal field keeps the fraction with its own separator, "." unless the field names a locale; a number that reads two ways,
   such as 1,234, pastes nothing); a phone field keeps digits, +, space, -, ( and ); a date field its own characters. Clear all selects the whole field and replaces it by nothing: it reads, copies and learns no text.
+  The strip carries those keys in number, phone and date fields only, never in a password field (P9, `PrivacyPolicy.Decision.suggestionStrip`).
   Tests: `FieldTextTest`, `NumberFieldWiringTest`, `InputLogicTest`.
 - **P11 No diagnostics retention.** No crash report, log buffer, stack trace or diagnostic file. `utils/Log.kt` forwards one tag and one
   fixed string literal (debug builds); the release build strips `android.util.Log` (R8, `app/proguard-release.pro`) and
