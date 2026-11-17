@@ -43,6 +43,7 @@ class ImeSwitcherWiringTest {
         Privacy.forgetCachedState()
         ClipboardDao.forgetInstance()
         ShadowInputMethodService.reset()
+        ShadowInputMethodManager2.pickersShown = 0
     }
 
     @Test fun theRequestShowsTheLanguageKeyAndItsEndHidesItAgain() {
@@ -107,6 +108,40 @@ class ImeSwitcherWiringTest {
         oneLanguageAndAnotherKeyboard(ime) // positive control: the same tap leaves Taen once there is one language and another keyboard
         ime.switchToNextSubtype()
         assertEquals(1, ShadowInputMethodService.switchedToNextKeyboard)
+    }
+
+    /**
+     * Taen with one language and another keyboard as the phone really reports it: Taen declares no package queries, so the platform's list of
+     * enabled keyboards holds Taen only; the system, which sees every keyboard, offers switching to the next one.
+     */
+    private fun oneLanguageAndAKeyboardTaenCannotSee(ime: LatinIME) {
+        oneLanguageAndAnotherKeyboard(ime)
+        val imm = ime.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        shadowOf(imm).setEnabledInputMethodInfoList(listOf(imm.inputMethodList.first()))
+        ShadowInputMethodService.offersNextKeyboard = true
+    }
+
+    @Test fun aKeyboardTaenCannotSeeStillCountsAsSomethingToSwitchTo() {
+        val ime = service()
+        oneLanguageAndAKeyboardTaenCannotSee(ime)
+        assertTrue(ime.wantsOwnImeSwitcher(), "the system offers the next keyboard: the system's bar is replaced by the language key")
+        ime.onCustomImeSwitcherButtonRequestedVisible(true)
+        ime.switchToNextSubtype()
+        assertEquals(1, ShadowInputMethodService.switchedToNextKeyboard, "a tap goes to the keyboard Taen cannot see")
+        ShadowInputMethodService.offersNextKeyboard = false // the other keyboard is turned off: one Taen language and nothing else
+        assertFalse(ime.wantsOwnImeSwitcher(), "nothing to switch to: the system's bar stays")
+        ime.switchToNextSubtype()
+        assertEquals(1, ShadowInputMethodService.switchedToNextKeyboard, "nothing to switch to: a tap does nothing (the count above is the control)")
+    }
+
+    @Test fun aLongPressOpensTheSystemPickerForKeyboardsTaenCannotList() {
+        val ime = service()
+        oneLanguageAndAKeyboardTaenCannotSee(ime)
+        assertTrue(ime.showInputPickerDialog(), "the long press is handled")
+        assertEquals(1, ShadowInputMethodManager2.pickersShown, "the system's picker lists the keyboards Taen cannot see")
+        ShadowInputMethodService.offersNextKeyboard = false
+        assertFalse(ime.showInputPickerDialog(), "nothing to pick from: the long press is not handled")
+        assertEquals(1, ShadowInputMethodManager2.pickersShown, "and no picker opens (the count above is the control)")
     }
 
     @Test fun theSystemBarIsReplacedOnlyWhenThereIsSomethingToSwitchTo() {

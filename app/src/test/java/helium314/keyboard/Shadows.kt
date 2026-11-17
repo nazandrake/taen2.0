@@ -48,6 +48,13 @@ class ShadowInputMethodManager2 : ShadowInputMethodManager() {
     override fun getCurrentInputMethodSubtype() = InputMethodSubtype.InputMethodSubtypeBuilder()
         .setSubtypeLocale("en")
         .build()
+    @Implementation
+    fun showInputMethodPicker() { pickersShown++ }
+
+    companion object {
+        /** How often the system's keyboard picker was asked for. */
+        var pickersShown = 0
+    }
 }
 
 @Implements(BinaryDictionaryUtils::class)
@@ -145,6 +152,8 @@ class ShadowInputMethodService {
         var extractedTextWithText = false
         /** How often the keyboard asked the system to go to the next input method (switchToNextInputMethod). */
         var switchedToNextKeyboard = 0
+        /** The system's answer to shouldOfferSwitchingToNextInputMethod: it knows every enabled keyboard, also those the app cannot see. */
+        var offersNextKeyboard = false
 
         // convenience for access
         val textBeforeCursor get() = text.substring(0, selectionStart)
@@ -173,6 +182,7 @@ class ShadowInputMethodService {
             extractedTextCalls = 0
             extractedTextWithText = false
             switchedToNextKeyboard = 0
+            offersNextKeyboard = false
         }
     }
 
@@ -181,6 +191,9 @@ class ShadowInputMethodService {
         switchedToNextKeyboard++
         return true
     }
+
+    @Implementation
+    fun shouldOfferSwitchingToNextInputMethod(): Boolean = offersNextKeyboard
 
     @Implementation
     fun getCurrentInputEditorInfo() = EditorInfo().apply {

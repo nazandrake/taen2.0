@@ -1094,7 +1094,7 @@ public class LatinIME extends InputMethodService implements
      * From Android 16 the system draws an IME switcher button below the keyboard (gesture navigation), which switches to the next input method:
      * Taen gives the system a single subtype, so a tap there leaves Taen. The keyboard asks the system to leave out its own bar; the system then asks
      * the keyboard to show a switcher of its own ({@link #onCustomImeSwitcherButtonRequestedVisible}), which is Taen's language key: a tap cycles
-     * Taen's languages, a long press opens the system picker.
+     * Taen's languages, a long press opens the picker ({@link #showInputPickerDialog}).
      */
     private void requestOwnImeSwitcher() {
         if (Build.VERSION.SDK_INT < 36) return;
@@ -1106,7 +1106,15 @@ public class LatinIME extends InputMethodService implements
 
     /** Taen replaces the system's bar only when the picker has something to offer: another Taen language or another keyboard. */
     boolean wantsOwnImeSwitcher() {
-        return ImeSwitcher.INSTANCE.shouldRequest(mRichImm.hasMultipleEnabledIMEsOrSubtypes(true));
+        return ImeSwitcher.INSTANCE.shouldRequest(somethingToSwitchTo());
+    }
+
+    /**
+     * Another Taen language or another keyboard is enabled. Taen declares no package queries, so the platform lists only the keyboards visible
+     * to it (usually Taen alone); the system knows every enabled keyboard and says whether there is a next one.
+     */
+    private boolean somethingToSwitchTo() {
+        return mRichImm.hasMultipleEnabledIMEsOrSubtypes(true) || ImeCompat.INSTANCE.shouldSwitchToOtherInputMethods(this);
     }
 
     @Override
@@ -1443,6 +1451,11 @@ public class LatinIME extends InputMethodService implements
             mOptionsDialog.show();
             return true;
         }
+        // one Taen language, and keyboards that Taen cannot list (it declares no package queries) but the system knows: its picker lists them
+        if (ImeCompat.INSTANCE.shouldSwitchToOtherInputMethods(this)) {
+            mRichImm.getInputMethodManager().showInputMethodPicker();
+            return true;
+        }
         return false;
     }
 
@@ -1453,7 +1466,7 @@ public class LatinIME extends InputMethodService implements
     // called when language switch key is pressed (either the keyboard key, or long-press comma)
     public void switchToNextSubtype() {
         if (ImeSwitcher.INSTANCE.getRequested()) { // the key is the system's switcher (Android 16 and later)
-            switch (ImeSwitcher.INSTANCE.tap(mRichImm.hasMultipleEnabledSubtypesInThisIme(true), mRichImm.hasMultipleEnabledIMEsOrSubtypes(true))) {
+            switch (ImeSwitcher.INSTANCE.tap(mRichImm.hasMultipleEnabledSubtypesInThisIme(true), somethingToSwitchTo())) {
                 case NEXT_LANGUAGE -> mSubtypeState.switchSubtype(mRichImm);
                 case NEXT_KEYBOARD -> ImeCompat.INSTANCE.switchInputMethod(this);
                 case NOTHING -> { }
