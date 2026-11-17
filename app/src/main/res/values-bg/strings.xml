@@ -426,8 +426,6 @@
     <string name="suggest_punctuation">Предложения за пунктуация</string>
     <string name="suggest_punctuation_summary">Показване на пунктуационни знаци, когато няма други предложения</string>
     <string name="space_swipe_hide_keyboard_entry">Скриване на клавиатурата</string>
-    <string name="about_wiki_link">Отидете на Уики</string>
-    <string name="about_wiki_link_description">Уикито може да бъде подобрено от всеки потребител на GitHub!</string>
     <string name="save_subtype_per_app">Запомняне на езика за всяко приложение</string>
     <string name="clear_app_languages">Изчистване на списъка с езици по приложения</string>
     <string name="clear_app_languages_summary">Забравя езика, запомнен за всяко приложение. Изключването на „Запомняне на езика за всяко приложение“ прави същото.</string>
