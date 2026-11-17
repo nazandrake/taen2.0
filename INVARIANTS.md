@@ -73,7 +73,8 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   A pasted text goes through one rule (`FieldText`: paste key, history entry, clipboard suggestion): a number field takes the FIRST number
   of it (1,234.50 / 1.234,50 / 1 234,50 are read; a signed field keeps a minus directly before it; an integer field takes the integer
   part; a decimal field keeps the fraction with its own separator, "." unless the field names a locale; a number that reads two ways,
-  such as 1,234, pastes nothing); a phone field keeps digits, +, space, -, ( and ); a date field its own characters. Clear all selects the whole field and replaces it by nothing: it reads, copies and learns no text.
+  such as 1,234, pastes nothing; a text of digits and spaces only, such as a card number, is one number with the spaces dropped; a number
+  is never pasted in part); a phone field keeps digits, +, space, -, ( and ); a date field its own characters. Clear all selects the whole field and replaces it by nothing: it reads, copies and learns no text.
   The strip carries those keys in number, phone and date fields only, never in a password field (P9, `PrivacyPolicy.Decision.suggestionStrip`).
   Tests: `FieldTextTest`, `NumberFieldWiringTest`, `InputLogicTest`.
 - **P11 No diagnostics retention.** No crash report, log buffer, stack trace or diagnostic file. `utils/Log.kt` forwards one tag and one

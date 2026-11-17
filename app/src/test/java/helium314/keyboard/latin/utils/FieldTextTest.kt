@@ -60,7 +60,32 @@ class FieldTextTest {
         for (text in listOf("1,234", "1.234", "12.345", "1 234.567", "12.5.3", "1.234.56", "1,234.567,8"))
             for (type in listOf(integer, decimal))
                 assertEquals("", paste(text, type), "'$text' in type $type")
-        assertEquals("1", paste("1 2 3", integer)) // a space joins a group of three digits only
+        assertEquals("", paste("1 2 3 x", integer)) // inside a text a space joins a group of three digits only; the rest of the number is not cut off
+    }
+
+    @Test fun aTextOfDigitsAndSpacesIsOneNumber() {
+        for (type in listOf(integer, signed, decimal, signedDecimal)) {
+            assertEquals("4111111111111111", paste("4111 1111 1111 1111", type), "card, type $type")
+            assertEquals("359881234567", paste("+359 88 123 4567", type), "phone style with a plus, type $type")
+            assertEquals("0888123456", paste("0888 123 456", type), "leading zero kept, type $type")
+            assertEquals("123", paste("1 2 3", type), "type $type")
+            assertEquals("1234567", paste("1 234 567", type), "thousands style, type $type")
+            assertEquals("4111111111111111", paste("  4111 1111 1111 1111\n", type), "surrounding blanks, type $type")
+            assertEquals("1234", paste("12 34", type), "no-break space, type $type")
+            assertEquals("1234", paste("12 34", type), "narrow no-break space, type $type")
+        }
+        assertEquals("+359 88 123 4567", paste("+359 88 123 4567", TYPE_CLASS_PHONE)) // the plus stays in a phone field only
+        assertEquals("4111", paste("4111", integer)) // positive control: no space, the plain number
+    }
+
+    @Test fun aNumberInsideATextIsNeverPastedInPart() {
+        for (type in listOf(integer, signed, decimal, signedDecimal)) {
+            for (text in listOf("Card 4111 1111 1111 1111", "Tel: +359 88 123 4567", "Order 12 3456 paid", "1 234 5678 EUR", "x 1'23", "-4111 1111"))
+                assertEquals("", paste(text, type), "'$text' in type $type")
+            assertEquals("3", paste("from 3 to 7", type)) // words and several numbers: the first number, whole
+            assertEquals("1234567", paste("Total 1 234 567 EUR", type)) // grouping by thousands is one number
+            assertEquals("12", paste("12 apples 345", type))
+        }
     }
 
     @Test fun anIntegerFieldTakesTheIntegerPart() {

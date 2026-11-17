@@ -12,6 +12,8 @@ import android.text.InputType
  * Number fields take the FIRST number of the text, read with its common separators (1,234.50 / 1.234,50 / 1 234,50 / 1'234.50). A signed
  * field keeps a minus directly before that number; an integer field takes its integer part; a decimal field keeps the decimal part with the
  * field's own separator. A number that can be read two ways (1,234: a thousand, or one point two) pastes nothing rather than a wrong number.
+ * A text of digits and spaces only (a card or phone-style number, a leading + allowed) is one number: the groups are joined, the plus dropped. A
+ * number is never pasted in part: when it goes on in a group that no reading of it takes in, nothing is pasted.
  * Phone fields keep digits, +, space, -, ( and ).
  */
 object FieldText {
@@ -59,7 +61,12 @@ object FieldText {
 
     private fun Char.isAsciiDigit() = this in '0'..'9'
 
+    /** A text of digits and spaces only, optionally with a leading plus: a card or phone-style number. */
+    private val DIGITS_AND_SPACES = Regex("""\+?[0-9]+(?:[   ]+[0-9]+)+""")
+
     private fun number(text: String, inputType: Int, decimalSeparator: Char): String {
+        // digit groups separated by spaces are one number whatever their sizes: 4111 1111 1111 1111, +359 88 123 4567 (the plus is not a digit)
+        text.trim().takeIf { DIGITS_AND_SPACES.matches(it) }?.let { return it.filter { c -> c.isAsciiDigit() } }
         val parsed = firstNumber(text) ?: return ""
         val signed = inputType and InputType.TYPE_NUMBER_FLAG_SIGNED != 0
         val fraction = if (inputType and InputType.TYPE_NUMBER_FLAG_DECIMAL != 0) parsed.fraction else null
@@ -88,7 +95,7 @@ object FieldText {
             if (separator !in POINTS && separator !in GROUP_ONLY) break
             var next = end + 1
             while (next < text.length && text[next].isAsciiDigit()) next++
-            if (separator in GROUP_ONLY && next - (end + 1) != 3) break
+            if (separator in GROUP_ONLY && next - (end + 1) != 3) return null // the number goes on in a group that is no thousands group: never paste a part of it
             separators.add(separator)
             i = end + 1
         }
