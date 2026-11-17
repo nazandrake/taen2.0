@@ -4,6 +4,9 @@ package helium314.keyboard.keyboard
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.Animatable
+import android.graphics.drawable.AnimatedImageDrawable
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
@@ -28,6 +31,7 @@ import helium314.keyboard.latin.media.MediaItem
 import helium314.keyboard.latin.media.MediaSource
 import helium314.keyboard.latin.media.MediaVault
 import helium314.keyboard.latin.media.StarterPack
+import helium314.keyboard.latin.media.TileImages
 import helium314.keyboard.latin.privacy.Privacy
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
@@ -38,7 +42,8 @@ import java.util.concurrent.Executors
  * The GIF and sticker panel (toolbar key MEDIA), a child of the keyboard view like the quick settings panel. It lists the imported pictures of [MediaVault]
  * (and the starter stickers when that setting is on), narrows them by tag, and a tap sends the picture into the field through [MediaInserter]. While the tier is
  * locked it says so and shows nothing. When the field does not accept images, it shows "This field does not accept images" and sends nothing. Thumbnails are decoded
- * from the decrypted bytes on a background thread and kept in memory only; they are dropped when the panel closes. Nothing here is stored or logged.
+ * from the decrypted bytes on a background thread and kept in memory only; they are dropped when the panel closes. A GIF or WebP tile that is on screen is played with the platform decoder (see [TileImages]) from bytes in memory, at tile size; it stops and is
+ * released when the tile scrolls off, the panel closes or the screen locks. Nothing here is stored or logged.
  */
 class MediaPanelView(context: Context, private val host: Host) : LinearLayout(context) {
     /** What the panel needs from the running keyboard: the connection and the editor info of the focused field. */
@@ -65,6 +70,10 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
     /** The tiles shown now (the filter applied). Public for the wiring test. */
     var shown: List<Cell> = emptyList()
         private set
+
+    /** The tiles that animate now (cell key to its drawable). Public for the wiring test. */
+    val animating: Map<String, Drawable>
+        get() = playing.mapNotNull { t -> val c = t.cell; val a = t.anim; if (c != null && a != null) c.key to a.drawable else null }.toMap()
 
     /** The text of the message line; empty when there is none. Public for the wiring test. */
     val messageText: CharSequence get() = message.text
@@ -123,6 +132,7 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
     /** Drops the thumbnails and the list from memory. */
     fun clear() {
         generation++
+        playing.toList().forEach { stopAnimation(it) }
         thumbs.evictAll()
         all = emptyList()
         selectedTags.clear()
@@ -189,12 +199,16 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
         }
     }
 
-    private fun decode(cell: Cell): Bitmap? {
+    private fun bytesOf(cell: Cell): ByteArray? {
         val ctx = context.applicationContext ?: context
-        val bytes = when (val s = cell.source) {
+        return when (val s = cell.source) {
             is MediaSource.Vault -> Privacy.mediaVault(ctx).read(s.id)
             is MediaSource.Asset -> StarterPack.read(ctx, s.path)
-        } ?: return null
+        }
+    }
+
+    private fun decode(cell: Cell): Bitmap? {
+        val bytes = bytesOf(cell) ?: return null
         try {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
@@ -206,6 +220,54 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
         }
     }
 
+    /** One tile of the list: the cell it shows, whether it is on screen, and its running animation (a GIF or WebP tile on screen). */
+    private inner class Tile(val image: ImageView) : RecyclerView.ViewHolder(image) {
+        var cell: Cell? = null
+        var attached = false
+        var token = 0
+        var anim: Playing? = null
+    }
+
+    /** A running animation and the bytes it plays from (the platform decoder reads them while it runs; zeroed when it stops). */
+    private class Playing(val drawable: Drawable, val bytes: ByteArray)
+
+    private val playing = LinkedHashSet<Tile>()
+
+    /** Plays the GIF or WebP of [tile] with the platform decoder at tile size, when the tile is on screen. The decode runs on the worker, off the main thread. */
+    private fun startAnimation(tile: Tile) {
+        val cell = tile.cell ?: return
+        if (!tile.attached || tile.anim != null || !TileImages.isAnimatable(cell.format)) return
+        val mine = generation
+        val token = ++tile.token
+        worker.execute {
+            val bytes = bytesOf(cell) ?: return@execute
+            val drawable = TileImages.decode(bytes)
+            main.post {
+                if (mine != generation || !tile.attached || tile.token != token || drawable !is Animatable) {
+                    (drawable as? Animatable)?.stop()
+                    bytes.fill(0) // not used: stale, or a single frame (the still thumbnail stays)
+                    return@post
+                }
+                if (drawable is AnimatedImageDrawable) drawable.repeatCount = AnimatedImageDrawable.REPEAT_INFINITE
+                tile.image.setImageDrawable(drawable)
+                drawable.start()
+                tile.anim = Playing(drawable, bytes)
+                playing.add(tile)
+            }
+        }
+    }
+
+    /** Stops and releases the animation of [tile] (if any), puts its still thumbnail back and zeroes the bytes it played from. */
+    private fun stopAnimation(tile: Tile) {
+        tile.token++ // a decode that is still on its way is dropped
+        val a = tile.anim ?: return
+        tile.anim = null
+        playing.remove(tile)
+        (a.drawable as Animatable).stop()
+        tile.image.setImageBitmap(tile.cell?.let { thumbs.get(it.key) })
+        a.bytes.fill(0)
+    }
+
     private inner class TileAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         override fun getItemCount() = shown.size
 
@@ -215,12 +277,15 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
                 layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(72))
                 setPadding(dp(4), dp(4), dp(4), dp(4))
             }
-            return object : RecyclerView.ViewHolder(image) {}
+            return Tile(image)
         }
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            val tile = holder as Tile
             val cell = shown[position]
-            val image = holder.itemView as ImageView
+            val image = tile.image
+            stopAnimation(tile)
+            tile.cell = cell
             image.tag = cell.key
             image.setImageBitmap(thumbs.get(cell.key))
             image.contentDescription = cell.tags.joinToString(" ")
@@ -232,10 +297,30 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
                     main.post {
                         if (mine != generation) return@post
                         thumbs.put(cell.key, bitmap)
-                        if (image.tag == cell.key) image.setImageBitmap(bitmap)
+                        if (image.tag == cell.key && image.drawable !is Animatable) image.setImageBitmap(bitmap)
                     }
                 }
             }
+            startAnimation(tile)
+        }
+
+        // a tile animates only while it is on screen: from attach to detach (scrolled off, panel closed), and never after it is recycled
+        override fun onViewAttachedToWindow(holder: RecyclerView.ViewHolder) {
+            val tile = holder as Tile
+            tile.attached = true
+            startAnimation(tile)
+        }
+
+        override fun onViewDetachedFromWindow(holder: RecyclerView.ViewHolder) {
+            val tile = holder as Tile
+            tile.attached = false
+            stopAnimation(tile)
+        }
+
+        override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+            val tile = holder as Tile
+            stopAnimation(tile)
+            tile.cell = null
         }
     }
 
