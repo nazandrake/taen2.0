@@ -222,6 +222,8 @@ def screen_check(run, with_settings=True):
     d = run.dev
     rows, problems = [], []
     run.field("normal")
+    if not d.awake():  # a sleeping screen captures black whatever the app does: that would be a PASS without evidence
+        raise RuntimeError("the screen is off: no capture can show whether the keyboard window is protected")
     shot = d.screencap_raw()
     st = dc.capture_state(shot)
     rows.append("keyboard shown in a text field: screencap %s (non-black %.3f)" % (st[0], st[1]))
@@ -381,7 +383,10 @@ def clipboard_restart_check(run):
     run.field("normal")
     time.sleep(3)
     entries = run.clipboard_entries()
+    opened = bool(d.find("Close clipboard history", windows=True))  # positive control: an empty list is only evidence when the history is on screen
     run.close_clipboard()
+    if not opened:
+        raise RuntimeError("the clipboard history did not open after the service restart: %s" % "; ".join(d.texts(True)[:8]))
     stored = any(CANARIES["clip_password"] in t for t in entries)
     problems = ["the clip copied in a password field was stored in the history when the keyboard service restarted (entries: %s)" % entries] if stored else []
     return verdict("D6b", "Clipboard at service start: a clip left on the system clipboard from a password field is not taken into the history", problems,

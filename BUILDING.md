@@ -251,7 +251,7 @@ on a phone for plaintext canaries (`--selftest` checks the scanner without a pho
 
 ```
 make leak-audit           # static checks of the release APK, then the planted-failure proofs; needs the release APK (make build)
-make leak-audit-device    # the scripted session on the phone; needs adb, the audit APK and your signed release APK dist/taen-<version>-signed.apk from make sign (the audit never signs; a missing or unsigned file is refused before the phone is touched; --release-apk names another file)
+make leak-audit-device    # builds the audit APK, then the scripted session on the phone; needs adb (USB) and your signed release APK dist/taen-<version>-signed.apk from make sign (the audit never signs; a missing or unsigned file is refused before the phone is touched; --release-apk names another file); the screen is kept on during the session and the previous setting restored
 ```
 
 One report: `build/leak-audit/leak-audit-report.md` (raw results in `results.json` next to it). The exit status is 1 when any check FAILs; a
@@ -267,7 +267,7 @@ GAP is a named check that could not be run. What is checked:
 - Device (`tools/leak_audit/device_*.py`, reference phone, no root): D1 per-UID traffic zero over the whole session (`dumpsys netstats`, a Wi-Fi toggle forces the
   platform to persist the counters), the process holds no inet group, no socket rows; D2 logcat, streamed through the session, has no canary;
   D3 no canary in any encoding in both data directories and the external directories (`run-as` on the audit build, which is the release code with
-  `debuggable=true`); D4 `bmgr backupnow` refuses and `adb backup` yields no user data (on the release build); D5 screenshot and screen recording are
+  `debuggable=true`; on the release build itself it is the GAP D3r, because without root nothing can read the data of a non-debuggable app); D4 `bmgr backupnow` refuses and `adb backup` yields no user data (on the release build); D5 screenshot and screen recording are
   refused or black with the keyboard and the settings screen on screen; D6 clipboard (normal copy kept, sensitive and password-field copies not, paste
   leaves the system clip, other UIDs cannot read the stores); D7 accessibility and overlay warnings fire (helper app); D8 granted permissions; D9
   `dumpsys` holds no canary; D10 the encrypted export; D11 typing session with incognito; D12 screen lock; D13 self-destruct test mode and real wipe.

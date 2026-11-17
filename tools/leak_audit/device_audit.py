@@ -137,9 +137,15 @@ def run_all(root, args):
     audit_apk = args.audit_apk or os.path.join(root, "app", "build", "outputs", "apk", "audit", "Taen_%s-audit.apk" % ver)
     run.meta = {"model": d.sh("getprop ro.product.model").strip(), "android": d.sh("getprop ro.build.version.release").strip(),
                 "build type": d.sh("getprop ro.build.type").strip(), "root": "no (adb shell uid 2000)", "audit apk": audit_apk}
+    # the screen stays on for the whole session: steps without a touch for longer than the screen timeout (the clipboard copies, the wait for the
+    # end of the self-destruct test mode) would otherwise run on a sleeping phone, where no field has focus, nothing is on screen and a capture is black
+    stay_on = d.sh("settings get global stay_on_while_plugged_in").strip()
+    run.meta["stay on while plugged in, before"] = stay_on
+    d.sh("settings put global stay_on_while_plugged_in 7")
     try:
         flow(run, audit_apk, release_apk)
     finally:
+        d.sh("settings put global stay_on_while_plugged_in %s" % (stay_on if stay_on.isdigit() else "0"))
         d.sh("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0")
         d.sh("ime set " + (run.meta.get("default keyboard before") or ORIGINAL_IME))
         d.sh("pm uninstall %s; pm uninstall io.github.nazandrake.taen.audit" % HELPER)
@@ -332,9 +338,15 @@ def _real_wipe(run, session):
         print("waiting %d s for the test mode to end" % wait, flush=True)
         time.sleep(wait)
     before = session.get("digests_before_wipe", {})
+    d.wake()
     run.field("normal")
     d.sh("input text '%s'" % CANARIES["trigger_word"])
     time.sleep(0.5)
+    # positive control: the word is in the field, so the Enter below is a real trigger (a word that never arrived proves nothing about the wipe)
+    typed = run.field_text()
+    if CANARIES["trigger_word"] not in (typed or ""):
+        raise RuntimeError("the trigger word did not reach the field (field text %r): the wipe was not triggered" % typed)
+    time.sleep(3.0)  # the first tap after a uiautomator dump can be lost (see language_key_check)
     t0 = time.time()
     d.tap(990, 1822)
     time.sleep(8)
@@ -374,14 +386,21 @@ def release_session(run, release_apk):
 
     run.step("D14", "Release typing", type_en)
     run.step("D8r", "Permissions (release)", lambda: _release_perm(run))
-    run.step("D9r", "dumpsys canaries (release)", lambda: fl.dump_check(run))
-    run.step("D4r", "Backup (release)", lambda: fl.backup_check(run, pkg, False))
-    run.step("D5r", "Screen capture (release)", lambda: fl.screen_check(run))
+    run.step("D9r", "dumpsys canaries (release)", lambda: _release_label(fl.dump_check(run), "D9r"))
+    run.step("D4r", "Backup (release)", lambda: _release_label(fl.backup_check(run, pkg, False), "D4r"))
+    run.step("D5r", "Screen capture (release)", lambda: _release_label(fl.screen_check(run), "D5r"))
     run.add(Result("D3r", "Data at rest (release)", GAP, "not run: the release build is not debuggable, so run-as cannot read its data directory without root; the audit twin carries the same code (D3, D13b)"))
     final2 = netstats.read(d)
     run.step("D1r", "Network (release)", lambda: [fl.network_check(run, base2, final2, [pkg], label="D1r")])
     log = run.stop_logcat()
     run.step("D2r", "logcat (release)", lambda: [fl.log_check(run, log, "D2r")[0]])
+
+
+def _release_label(r, ident):
+    """The release build's row of a check shared with the audit twin: its own id and title, so the report keeps both rows."""
+    r.ident = ident
+    r.title += " (release)"
+    return r
 
 
 def _release_perm(run):

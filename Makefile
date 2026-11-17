@@ -68,15 +68,16 @@ voice-smoke:
 nextword-eval:
 	tools/nextword-eval.sh
 
-# Leak audit (BUILDING.md section 9): needs the release APK (make build). The device part needs the phone on adb, the audit APK
-# (./gradlew :app:assembleAudit) and, for the release session, a signed APK (make sign, or a throw-away test key).
-# Both leak-audit targets first stop this project's idle Gradle daemons (about 4.7 GB each); the dependency listing runs with --no-daemon.
+# Leak audit (BUILDING.md section 9): needs the release APK (make build). The device part needs the phone on adb and, for the release
+# session, a signed APK (make sign, or a throw-away test key); it builds the audit APK of the checked-out commit first.
+# Both leak-audit targets then stop this project's idle Gradle daemons (about 4.7 GB each); the dependency listing runs with --no-daemon.
 leak-audit:
 	-./gradlew --stop
 	python3 tools/leak_audit static
 	python3 tools/leak_audit selftest
 
 leak-audit-device:
+	$(GRADLE) :app:assembleAudit
 	-./gradlew --stop
 	python3 tools/leak_audit device
 
