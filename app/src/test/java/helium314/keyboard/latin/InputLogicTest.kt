@@ -862,13 +862,13 @@ class InputLogicTest {
     private val flagSigned = InputType.TYPE_NUMBER_FLAG_SIGNED
     private val flagDecimal = InputType.TYPE_NUMBER_FLAG_DECIMAL
 
-    @Test fun pasteInANumberFieldKeepsOnlyTheDigits() {
+    @Test fun pasteInANumberFieldTakesTheFirstNumber() {
         currentInputType = InputType.TYPE_CLASS_NUMBER
         setText("")
         setClip("12abc3")
         functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
-        assertEquals("123", text)
-        assertEquals(3, cursor)
+        assertEquals("12", text)
+        assertEquals(2, cursor)
     }
 
     @Test fun pasteInATextFieldKeepsEverything() { // positive control: the filter belongs to number fields only
@@ -883,7 +883,7 @@ class InputLogicTest {
         currentInputType = InputType.TYPE_CLASS_NUMBER
         setText("1599")
         setCursorPosition(1, 3) // "59" is selected
-        setClip("2-3")
+        setClip("23-4")
         functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
         assertEquals("1239", text)
         assertEquals(3, cursor)
@@ -900,12 +900,25 @@ class InputLogicTest {
         assertEquals("427", text)
     }
 
+    /**
+     * The paste rule of number fields: the FIRST number of the clip, read with its common separators (1,234.50 / 1.234,50 / 1 234,50); a signed
+     * field keeps a "-" directly before it; an integer field takes the integer part only, a decimal field keeps the decimal part with the field's
+     * own separator ("." unless the field names a locale); an ambiguous number pastes nothing. Phone fields keep digits, +, space, -, ( and ).
+     */
     @Test fun pasteFollowsTheTypeOfTheField() {
         val cases = listOf(
             Triple(InputType.TYPE_CLASS_NUMBER or flagSigned or flagDecimal, "-1,234.50 EUR", "-1234.50"),
             Triple(InputType.TYPE_CLASS_NUMBER or flagDecimal, "-1,234.50 EUR", "1234.50"),
-            Triple(InputType.TYPE_CLASS_NUMBER, "-1,234.50 EUR", "123450"),
+            Triple(InputType.TYPE_CLASS_NUMBER or flagSigned, "-1,234.50 EUR", "-1234"),
+            Triple(InputType.TYPE_CLASS_NUMBER, "-1,234.50 EUR", "1234"),
+            Triple(InputType.TYPE_CLASS_NUMBER or flagDecimal, "1.234,50", "1234.50"),
+            Triple(InputType.TYPE_CLASS_NUMBER or flagDecimal, "1 234,50", "1234.50"),
+            Triple(InputType.TYPE_CLASS_NUMBER or flagSigned, "Total: -5", "-5"),
+            Triple(InputType.TYPE_CLASS_NUMBER, "12.50", "12"),
+            Triple(InputType.TYPE_CLASS_NUMBER, "from 3 to 7", "3"),
+            Triple(InputType.TYPE_CLASS_NUMBER, "1,234", ""), // a thousand or one point two three four: nothing
             Triple(InputType.TYPE_CLASS_PHONE, "ab+359 88 12", "+359 88 12"),
+            Triple(InputType.TYPE_CLASS_PHONE, "call +1 (555) 123-4567#", "+1 (555) 123-4567"),
             Triple(InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_DATE, "17.11.2026 r", "17.11.2026"),
             Triple(InputType.TYPE_CLASS_DATETIME or InputType.TYPE_DATETIME_VARIATION_TIME, "10:30 PM!", "10:30 PM"),
         )
@@ -934,14 +947,14 @@ class InputLogicTest {
     @Test fun pasteInAPasswordNumberFieldLearnsAndRecordsNothing() {
         currentInputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
         setText("")
-        setClip("1-2 3")
+        setClip("PIN: 1234")
         val history = helium314.keyboard.latin.database.ClipboardDao.getInstance(latinIME)?.count()
         val learned = ShadowFacilitator2.added.size
         functionalKeyPress(KeyCode.CLIPBOARD_PASTE)
-        assertEquals("123", text)
+        assertEquals("1234", text)
         assertEquals(history, helium314.keyboard.latin.database.ClipboardDao.getInstance(latinIME)?.count())
         assertEquals(learned, ShadowFacilitator2.added.size)
-        assertEquals("1-2 3", clipboard.primaryClip?.getItemAt(0)?.text?.toString()) // the clipboard itself is not touched
+        assertEquals("PIN: 1234", clipboard.primaryClip?.getItemAt(0)?.text?.toString()) // the clipboard itself is not touched
     }
 
     @Test fun selectAllSelectsTheWholeNumberField() {
