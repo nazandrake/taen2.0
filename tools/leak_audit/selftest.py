@@ -135,6 +135,7 @@ def run_all(root, out_dir):
         results += release_apk_checks(root, work, build_apk(root, work, "clean2", CLEAN_MANIFEST, ["Clean.java"], with_res=True))
         results += list_checks()
         results += default_language_checks()
+        results += clipboard_pin_checks()
     finally:
         shutil.rmtree(work, ignore_errors=True)
     return results
@@ -261,6 +262,43 @@ def default_language_checks():
     ok = retried and control and no_bg and no_en and empty
     return [Result("T-D15", "D15 retries a lost long press, passes the control and fails when Bulgarian or English is missing or the picker stays empty", PASS if ok else FAIL,
                    "retry: %s, control: %s, no Bulgarian fails: %s, no English fails: %s, always empty fails: %s" % (retried, control, no_bg, no_en, empty))]
+
+
+def clipboard_pin_checks():
+    """D6p finds the pin button inside the item of the entry. The history is a two-column grid: a neighbour's button can be nearer by height, and a pinned
+    neighbour in the same row must not count as the entry's own pin. The old rule (nearest by height; any Unpin in the same row) is run on the same
+    planted grid to show that it picks and accepts the neighbour."""
+    import device_checks as dc
+
+    def node(text="", desc="", bounds=(0, 0, 0, 0)):
+        return {"text": text, "desc": desc, "pkg": "taen", "bounds": bounds, "cx": (bounds[0] + bounds[2]) // 2, "cy": (bounds[1] + bounds[3]) // 2}
+
+    def grid(target_pin, neighbour_pin):
+        # left column: the target (text centre 150, pin centre 120); right column: the neighbour whose pin centre (150) is nearer by height
+        return [node(bounds=(0, 0, 1080, 400)),
+                node(bounds=(0, 100, 540, 200)), node(desc=target_pin, bounds=(4, 100, 44, 140)), node(text="pinqzxcanary", bounds=(60, 110, 540, 190)),
+                node(bounds=(540, 100, 1080, 200)), node(desc=neighbour_pin, bounds=(544, 130, 584, 170)), node(text="other entry", bounds=(600, 110, 1080, 190))]
+
+    def old_pin(nodes, entry):
+        return min([n for n in nodes if n["desc"] == "Pin"], key=lambda n: abs(n["cy"] - entry["cy"]))
+
+    def old_pinned(nodes, entry):
+        return any(n["desc"] == "Unpin" and abs(n["cy"] - entry["cy"]) < 80 for n in nodes)
+
+    unpinned = grid("Pin", "Pin")
+    entry = unpinned[3]
+    right = dc.entry_pin_node(unpinned, entry) is unpinned[2]
+    old_wrong = old_pin(unpinned, entry) is unpinned[5]  # the old rule taps the neighbour's button
+    mixed = grid("Pin", "Unpin")  # the neighbour is pinned, the target is not
+    not_pinned = dc.entry_pin_node(mixed, mixed[3])["desc"] == "Pin"
+    old_accepts = old_pinned(mixed, mixed[3])  # the old rule calls the target pinned
+    done = grid("Unpin", "Pin")
+    pinned = dc.entry_pin_node(done, done[3])["desc"] == "Unpin"  # control: its own Unpin is accepted
+    no_item = dc.entry_pin_node([n for n in unpinned if n["bounds"] not in ((0, 100, 540, 200), (0, 0, 1080, 400))], entry) is None  # no item that holds the entry and one button
+    ok = right and old_wrong and not_pinned and old_accepts and pinned and no_item
+    return [Result("T-D6p", "D6p takes the pin button inside the entry's own item and accepts only that entry's Unpin; the old nearest-by-height rule fails on the same grid", PASS if ok else FAIL,
+                   "own button chosen: %s, old rule picks the neighbour: %s, own Pin not taken for pinned beside a pinned neighbour: %s, old rule accepts it: %s, own Unpin accepted: %s, no item: no button: %s"
+                   % (right, old_wrong, not_pinned, old_accepts, pinned, no_item))]
 
 
 def native_allowance_checks():

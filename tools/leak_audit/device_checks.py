@@ -128,3 +128,28 @@ def backup_leaks(members, package, allowed_public=("/f/dicts/", "/f/profileInsta
 
 def warning_present(texts, needles):
     return [t for t in texts if any(n.lower() in t.lower() for n in needles)]
+
+
+# ---------------------------------------------------------------- clipboard history (pin buttons)
+
+PIN_DESCRIPTIONS = ("Pin", "Unpin")
+
+
+def _inside(outer, x, y):
+    return outer[0] <= x <= outer[2] and outer[1] <= y <= outer[3]
+
+
+def entry_pin_node(nodes, entry):
+    """The pin button of the history entry whose text node is `entry`. The history is a grid of several columns, so the button is not the nearest one by
+    height: it is the one inside the entry's own item, the smallest node that holds the entry text and exactly one pin button. None when there is no such item."""
+    pins = [n for n in nodes if n["desc"] in PIN_DESCRIPTIONS]
+    best = None
+    for item in nodes:
+        b = item["bounds"]
+        if item == entry or item in pins or not (b[0] <= entry["bounds"][0] and b[1] <= entry["bounds"][1] and entry["bounds"][2] <= b[2] and entry["bounds"][3] <= b[3]):
+            continue
+        inside = [p for p in pins if _inside(b, p["cx"], p["cy"])]
+        area = (b[2] - b[0]) * (b[3] - b[1])
+        if len(inside) == 1 and (best is None or area < best[0]):
+            best = (area, inside[0])
+    return best[1] if best else None

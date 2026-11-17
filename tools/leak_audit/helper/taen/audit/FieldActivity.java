@@ -30,7 +30,8 @@ import android.widget.TextView;
  * focus=multiline: a multi-line plain text field (the space-bar line moves, selection and several cursors are checked in it)
  * focus=image: a fourth field that announces image/gif, image/png, image/jpeg and image/webp (EditorInfo.contentMimeTypes) and, when the keyboard commits a picture,
  * reads the content URI and logs "image received: type=... bytes=N sha256=..." (the receiver of the picture check)
- * --ez read true                        reads the primary clip while in front and logs it (what another app can read)
+ * focus=number: a number field; focus=numberpassword: a number field with the password variation (the keyboard's strip has no paste, select all or clear all there)
+ * --ez read true                      reads the primary clip while in front and logs it (what another app can read)
  * --ez keyboard false                  no focus and no keyboard: a plain white screen (the control for the screenshot and recording checks)
  * --ez overlay true                     draws a small touchable overlay over a corner of the keyboard (tapjacking)
  * Logs only with tag AuditHelper. It has no network permission either.
@@ -54,6 +55,8 @@ public class FieldActivity extends Activity {
         EditText multiline = field("multiline", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE, 0);
         multiline.setSingleLine(false);
         multiline.setMinLines(4);
+        EditText number = field("number", InputType.TYPE_CLASS_NUMBER, 0);
+        EditText numberPassword = field("numberpassword", InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD, 0);
         EditText image = new EditText(this) {
             @Override public InputConnection onCreateInputConnection(EditorInfo info) {
                 InputConnection ic = super.onCreateInputConnection(info);
@@ -75,9 +78,11 @@ public class FieldActivity extends Activity {
         root.addView(password);
         root.addView(nolearn);
         root.addView(multiline);
+        root.addView(number);
+        root.addView(numberPassword);
         setContentView(root);
         String focus = getIntent().getStringExtra("focus");
-        EditText target = "image".equals(focus) ? image : "password".equals(focus) ? password : "nolearn".equals(focus) ? nolearn : "autocorrect".equals(focus) ? autocorrect : "multiline".equals(focus) ? multiline : normal;
+        EditText target = "number".equals(focus) ? number : "numberpassword".equals(focus) ? numberPassword : "image".equals(focus) ? image :"password".equals(focus) ? password : "nolearn".equals(focus) ? nolearn : "autocorrect".equals(focus) ? autocorrect : "multiline".equals(focus) ? multiline : normal;
         if (getIntent().getBooleanExtra("keyboard", true)) {
             target.requestFocus();
         } else {

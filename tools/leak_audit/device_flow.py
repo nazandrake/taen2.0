@@ -393,6 +393,13 @@ def clipboard_restart_check(run):
                    "the history after a service restart holds %s" % entries, ["entries: %s" % entries])
 
 
+def clipboard_entry_pin(d, pkg):
+    """(text node, pin button) of the pinned-canary entry in one dump of the open clipboard history; the button is the one inside the entry's own item."""
+    nodes = [n for n in d.nodes(True) if n["pkg"].startswith(pkg)]
+    entry = next((n for n in nodes if CANARIES["clip_pinned"] in n["text"] + " " + n["desc"]), None)
+    return entry, (dc.entry_pin_node(nodes, entry) if entry else None)
+
+
 def pinned_forever_setup(run):
     """D6p: retention Forever (the last choice of the setting) and one copied entry pinned with its pin button; the real wipe (D13b) must remove it."""
     d = run.dev
@@ -411,14 +418,13 @@ def pinned_forever_setup(run):
     time.sleep(6)
     run.field("normal")
     run.clipboard_entries()
-    entry = d.find(CANARIES["clip_pinned"], windows=True)
-    pins = [n for n in d.nodes(True) if n["desc"] == "Pin" and n["pkg"].startswith(run.pkg)]
-    if entry and pins:  # the pin button of the row that holds the entry
-        row = min(pins, key=lambda n: abs(n["cy"] - entry["cy"]))
-        d.tap(row["cx"], row["cy"])
+    entry, pin = clipboard_entry_pin(d, run.pkg)
+    if pin and pin["desc"] == "Pin":  # the pin button inside the item of the entry (the history is a grid: not the nearest one by height)
+        d.tap(pin["cx"], pin["cy"])
         time.sleep(1.5)
-    entry = d.find(CANARIES["clip_pinned"], windows=True)
-    pinned = bool(entry) and any(n["desc"] == "Unpin" and abs(n["cy"] - entry["cy"]) < 80 for n in d.nodes(True))
+    entry, pin = clipboard_entry_pin(d, run.pkg)
+    pins = [pin] if pin else []
+    pinned = bool(pin) and pin["desc"] == "Unpin"  # that same entry's own button says Unpin now
     run.close_clipboard()
     problems = []
     if choices[-1:] != ["Forever"]:
