@@ -133,7 +133,7 @@ class ClipboardHistoryManager(
     }
 
     fun clearHistory() {
-        dao()?.clearNonPinned()
+        dao()?.clear() // every entry, pinned ones too
         ClipboardManagerCompat.clearPrimaryClip(clipboardManager)
         removeClipboardSuggestion()
     }

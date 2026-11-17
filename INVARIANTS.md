@@ -67,7 +67,8 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   the policy only (SourceRules). Tests: `PrivacyPolicyTest`, `AntiSnoopingWiringTest`, `PersonalSourcesPrivacyTest`.
 - **P10 Clipboard.** Text only. A copy flagged sensitive, made in a password or no-learning field, or made while the store is locked is
   never stored (`ClipboardCapture`). Entries expire at the retention time (default 1 hour, 5 minutes to 7 days, or Forever: exactly
-  `ClipboardLimits.FOREVER_MINUTES`, the largest value, so "lower is stricter" holds for profiles), at most 50 unpinned; pinned entries never expire.
+  `ClipboardLimits.FOREVER_MINUTES`, the largest value, so "lower is stricter" holds for profiles), at most 50 unpinned; pinned entries never expire. "Clear clipboard" removes every entry, pinned ones too;
+  every self-destruct trigger deletes the store and a screen lock drops all entries from memory (`ClipboardWipeTest`).
   Pasting from the history uses `commitText`; `setPrimaryClip` is allowed only for copy, clear and theme export.
 - **P11 No diagnostics retention.** No crash report, log buffer, stack trace or diagnostic file. `utils/Log.kt` forwards one tag and one
   fixed string literal (debug builds); the release build strips `android.util.Log` (R8, `app/proguard-release.pro`) and

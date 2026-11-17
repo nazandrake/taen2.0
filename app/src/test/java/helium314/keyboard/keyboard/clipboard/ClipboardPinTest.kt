@@ -91,6 +91,14 @@ class ClipboardPinTest {
         assertEquals(pin, pinButton(holder).contentDescription)
     }
 
+    @Test fun theClearClipboardKeyRemovesPinnedEntriesToo() {
+        val (dao, _, holder) = row()
+        pinButton(holder).performClick()
+        assertEquals(listOf(true), dao.getAll().map { it.pinned }, "positive control: the entry is pinned")
+        ime!!.getClipboardHistoryManager().clearHistory() // what the "Clear clipboard" key runs (KeyCode.CLIPBOARD_CLEAR_HISTORY)
+        assertEquals(emptyList(), dao.getAll().map { it.text })
+    }
+
     @Test fun aLongPressOnTheEntryStillPins() {
         val (dao, _, holder) = row()
         holder.itemView.performLongClick()
