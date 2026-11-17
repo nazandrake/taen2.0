@@ -132,7 +132,32 @@ class NumberFieldWiringTest {
         assertTrue(keys.all { it in pinnedKeys(ime) }, "the keys come back in a plain number field: ${pinnedKeys(ime)}")
     }
 
-    @Test fun aKeyTheUserPinnedIsNotAddedTwice()= withKeyboard { ime ->
+    /** P9: the keys the user pinned follow the same decision: a password field shows none of them (the strip is not there), other fields show them. */
+    @Test fun keysPinnedByTheUserAreNotShownInAPasswordField() = withKeyboard { ime ->
+        val pinnedByUser = listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL, ToolbarKey.UNDO)
+        val pref = pinnedByUser.fold(helium314.keyboard.latin.utils.defaultPinnedToolbarPref) { p, key -> p.replace("${key.name}:false", "${key.name}:true") }
+        ime.prefs().edit().putString(Settings.PREF_PINNED_TOOLBAR_KEYS, pref).commit()
+        ime.setInputView(KeyboardSwitcher.getInstance().onCreateInputView(ime, true)) // the strip reads the pinned keys when it is created
+        fun shown(): List<Any?> = pinned(ime).let { row -> (0 until row.childCount).map { row.getChildAt(it) }.filter { it.visibility == View.VISIBLE }.map { it.tag } }
+        for (type in listOf(text, number)) {
+            startField(ime, type)
+            assertTrue(pinnedByUser.all { it in shown() }, "positive control: type $type shows the keys the user pinned: ${shown()}")
+        }
+        for (type in listOf(
+            InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD,
+            text or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+            text or InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+        )) {
+            startField(ime, type)
+            assertTrue(Settings.getValues().mPrivacy.passwordField, "type $type is a password field")
+            assertTrue(pinnedByUser.none { it in shown() }, "type $type: ${shown()}")
+        }
+        startField(ime, number)
+        assertEquals(1, shown().count { it == ToolbarKey.CLEAR_ALL }, "the keys come back in a number field: ${shown()}")
+        assertTrue(pinnedByUser.all { it in shown() }, "${shown()}")
+    }
+
+    @Test fun aKeyTheUserPinnedIsNotAddedTwice() = withKeyboard { ime ->
         ime.prefs().edit().putString(Settings.PREF_PINNED_TOOLBAR_KEYS, helium314.keyboard.latin.utils.defaultPinnedToolbarPref.replace("PASTE:false", "PASTE:true")).commit()
         ime.setInputView(KeyboardSwitcher.getInstance().onCreateInputView(ime, true)) // the strip reads the pinned keys when it is created
         startField(ime, text)

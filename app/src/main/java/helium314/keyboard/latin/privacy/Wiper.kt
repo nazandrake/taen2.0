@@ -112,13 +112,14 @@ class Wiper(private val ports: WipePorts, private val clock: () -> Long) {
     /**
      * Finishes a wipe whose marker was found at the start. Never destroys keys that were already destroyed (new ones may exist), but always
      * deletes the files of BOTH tiers: a process that ended after the key marker and before the file deletion left the device-protected
-     * files too. The marker goes only when the keys (when due) and the files of both tiers are done. True when it finished.
+     * files too. It also clears the language subtype registered with the system. The marker goes only when the keys (when due) and the files of both tiers are done. True when it finished.
      */
     fun resume(pending: Pending): Boolean {
         var ok = true
         if (pending.scope.shreds && !pending.keysDone) ok = step { ports.deleteKeys() }
         val keep = if (pending.armed && pending.restored) ARMED_KEEP + PENDING_NAME else setOf(PENDING_NAME)
         ok = step { ports.deleteFiles(pending.scope, keep, false) } && ok
+        step { ports.clearSystemLanguage(); true } // as in the wipe: the process may have ended before it ran; a failure does not keep the marker
         if (ok) step { ports.clearPending(); true }
         return ok
     }

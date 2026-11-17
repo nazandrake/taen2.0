@@ -33,6 +33,8 @@ class ScriptedPorts(private val clock: () -> Long, private val advance: (Long) -
     val deFiles = mutableSetOf("dek_de.bin", "security.enc", "selfdestruct.enc", "activity.enc")
     var ceKey = true
     var deKey = true
+    /** The language-only subtype registered with the system: present until a wipe clears it. */
+    var systemLanguage = true
     var keyMillis = 40L
     var fileMillis = 300L
     /** The process ends when this call (0-based index in [calls]) starts: nothing of it happens. */
@@ -49,7 +51,7 @@ class ScriptedPorts(private val clock: () -> Long, private val advance: (Long) -
         advance(fileMillis); if (filesThrow) throw IllegalStateException("files"); return filesOk
     }
     override fun clearClipboard() { call("clearClipboard"); if (clipboardThrows) throw IllegalStateException("clip") }
-    override fun clearSystemLanguage() { call("clearSystemLanguage"); if (languageThrows) throw IllegalStateException("imm") }
+    override fun clearSystemLanguage() { call("clearSystemLanguage"); systemLanguage = false; if (languageThrows) throw IllegalStateException("imm") }
     override fun restoreArmed(files: List<ArmedFile>): Boolean { call("restoreArmed"); restored = files; deFiles += files.map { it.name + ".enc" }; return restoreOk }
     override fun clearPending() { call("clearPending") }
     override fun restart() { call("restart") }
@@ -221,7 +223,7 @@ class WiperTest {
     @Test fun anUnfinishedWipeIsCompletedInBothTiersEvenWhenTheKeysAreGone() {
         val p = ports()
         val ok = wiper(p).resume(Pending(WipeScope.ALL, armed = false, restored = false, keysDone = true))
-        assertEquals(listOf("deleteFiles", "clearPending"), p.calls)
+        assertEquals(listOf("deleteFiles", "clearSystemLanguage", "clearPending"), p.calls)
         assertEquals(false, p.lastCeOnly)
         assertEquals(WipeScope.ALL, p.lastScope)
         assertTrue(ok)
@@ -233,14 +235,34 @@ class WiperTest {
     @Test fun aWipeThatDiedBeforeTheKeysWereDeletedDeletesThemAndEverythingOnResume() {
         val p = ports()
         wiper(p).resume(Pending(WipeScope.ALL, armed = false, restored = false, keysDone = false))
-        assertEquals(listOf("deleteKeys", "deleteFiles", "clearPending"), p.calls)
+        assertEquals(listOf("deleteKeys", "deleteFiles", "clearSystemLanguage", "clearPending"), p.calls)
         assertEquals(false, p.lastCeOnly)
     }
 
     @Test fun aPartialWipeThatDiedResumesWithoutKeys() {
         val p = ports()
         wiper(p).resume(Pending(WipeScope(learned = false), armed = false, restored = false, keysDone = false))
-        assertEquals(listOf("deleteFiles", "clearPending"), p.calls)
+        assertEquals(listOf("deleteFiles", "clearSystemLanguage", "clearPending"), p.calls)
+    }
+
+    /** The language subtype is cleared by a resumed wipe too, after the files and before the marker goes (the order of the normal wipe), whether or not the wipe cleared it before it ended. */
+    @Test fun aWipeThatEndedAfterTheFilesAreDeletedLeavesNoSubtypeOnceResumed() {
+        val reference = ports()
+        wiper(reference).run(WipeScope.ALL)
+        val killAt = reference.calls.indexOf("clearSystemLanguage")
+        assertTrue(killAt > reference.calls.indexOf("deleteFiles"), "positive control: the normal wipe clears the subtype after the files")
+        val p = ports().also { it.killAtCall = killAt }
+        try { wiper(p).run(WipeScope.ALL); throw AssertionError("not killed") } catch (_: ProcessKilled) { }
+        assertTrue(p.systemLanguage, "the subtype is still registered when the process ends")
+        assertTrue("deleteFiles" in p.calls && p.pendings.isNotEmpty())
+        val next = ports().also { it.systemLanguage = p.systemLanguage }
+        assertTrue(wiper(next).resume(p.pendings.last()))
+        assertFalse(next.systemLanguage)
+        assertTrue(next.calls.indexOf("clearSystemLanguage") > next.calls.indexOf("deleteFiles"))
+        assertTrue(next.calls.indexOf("clearSystemLanguage") < next.calls.indexOf("clearPending"))
+        val failing = ports().also { it.languageThrows = true }
+        assertTrue(wiper(failing).resume(p.pendings.last())) // a failing clear does not keep the marker (as in the normal wipe)
+        assertTrue("clearPending" in failing.calls)
     }
 
     @Test fun resumeKeepsTheRestoredConfigurationFilesAndTheMarkerKeepsWhenItCannotFinish() {
@@ -271,14 +293,14 @@ class WiperTest {
         for (bad in damagedMarkers) {
             val p = ports()
             assertTrue(wiper(p).resume(Pending.decode(bad)))
-            assertEquals(listOf("deleteKeys", "deleteFiles", "clearPending"), p.calls) // the keys are destroyed too: it is not known that they are gone
+            assertEquals(listOf("deleteKeys", "deleteFiles", "clearSystemLanguage", "clearPending"), p.calls) // the keys are destroyed too: it is not known that they are gone
             assertEquals(WipeScope.ALL, p.lastScope)
             assertEquals(false, p.lastCeOnly) // device-protected files go as well
             assertEquals(setOf(Wiper.PENDING_NAME), p.lastKeep)
         }
         val control = ports() // positive control: the same marker undamaged, keys gone, both tiers are still deleted
         wiper(control).resume(Pending.decode(Pending(WipeScope.ALL, false, false, true).encode()))
-        assertEquals(listOf("deleteFiles", "clearPending"), control.calls)
+        assertEquals(listOf("deleteFiles", "clearSystemLanguage", "clearPending"), control.calls)
         assertEquals(false, control.lastCeOnly) // both tiers, also when the keys are gone
     }
 

@@ -137,6 +137,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     /** The keys added to the pinned row while the field is a number, phone or date field (see [updateFieldKeys]). */
     private val fieldKeys = ArrayList<View>()
+    /** The pinned keys hidden while the field is a password field (see [updateFieldKeys]). */
+    private val hiddenByPolicy = ArrayList<View>()
 
     init {
         val colors = Settings.getValues().mColors
@@ -557,14 +559,27 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     /**
      * A number, phone or date field has no suggestions, so its strip carries paste, select all and clear all: one tap, no need to open the toolbar.
-     * A password field (a number password too) gets none of them. A key the user pinned already is not added again. Other fields get their own pinned keys back. The keys are worked out from the field type at
-     * every call, whatever happened to the pinned row since (a key pinned or unpinned by a long press, the row rebuilt).
+     * A password field (a number password too) gets no strip: none of these keys and none of the keys the user pinned (PrivacyPolicy decides, the
+     * pinned keys come back in the next field). A key the user pinned already is not added again. Other fields get their own pinned keys back.
+     * The keys are worked out from the field type at every call, whatever happened to the pinned row since (a key pinned or unpinned by a long
+     * press, the row rebuilt).
      */
     fun updateFieldKeys() {
         fieldKeys.forEach { pinnedKeys.removeView(it) }
         fieldKeys.clear()
+        hiddenByPolicy.forEach { it.isVisible = true }
+        hiddenByPolicy.clear()
+        updateVoiceKey() // the voice key has its own setting
         val settings = Settings.getValues()
-        if (!settings.mPrivacy.suggestionStrip) return // a password field gets no strip keys (PrivacyPolicy)
+        if (!settings.mPrivacy.suggestionStrip) {
+            for (i in 0 until pinnedKeys.childCount) {
+                val view = pinnedKeys.getChildAt(i)
+                if (!view.isVisible) continue
+                view.isVisible = false
+                hiddenByPolicy.add(view)
+            }
+            return
+        }
         if (!FieldText.isNumericField(settings.mInputAttributes.mInputType)) return
         for (key in listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL)) {
             if (pinnedKeys.findViewWithTag<View>(key) != null) continue
