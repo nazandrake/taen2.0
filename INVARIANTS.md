@@ -70,8 +70,10 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   `ClipboardLimits.FOREVER_MINUTES`, the largest value, so "lower is stricter" holds for profiles), at most 50 unpinned; pinned entries never expire. "Clear clipboard" removes every entry, pinned ones too;
   every self-destruct trigger deletes the store and a screen lock drops all entries from memory (`ClipboardWipeTest`).
   Pasting from the history uses `commitText`; `setPrimaryClip` is allowed only for copy, clear and theme export.
-  Number, phone and date fields take only the characters they accept of a pasted text (`FieldText`: paste key, history entry, clipboard
-  suggestion). Clear all selects the whole field and replaces it by nothing: it reads, copies and learns no text.
+  A pasted text goes through one rule (`FieldText`: paste key, history entry, clipboard suggestion): a number field takes the FIRST number
+  of it (1,234.50 / 1.234,50 / 1 234,50 are read; a signed field keeps a minus directly before it; an integer field takes the integer
+  part; a decimal field keeps the fraction with its own separator, "." unless the field names a locale; a number that reads two ways,
+  such as 1,234, pastes nothing); a phone field keeps digits, +, space, -, ( and ); a date field its own characters. Clear all selects the whole field and replaces it by nothing: it reads, copies and learns no text.
   Tests: `FieldTextTest`, `NumberFieldWiringTest`, `InputLogicTest`.
 - **P11 No diagnostics retention.** No crash report, log buffer, stack trace or diagnostic file. `utils/Log.kt` forwards one tag and one
   fixed string literal (debug builds); the release build strips `android.util.Log` (R8, `app/proguard-release.pro`) and

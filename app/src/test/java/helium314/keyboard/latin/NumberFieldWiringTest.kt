@@ -4,6 +4,7 @@ package helium314.keyboard.latin
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.LocaleList
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
@@ -63,8 +64,9 @@ class NumberFieldWiringTest {
         }
     }
 
-    private fun startField(ime: LatinIME, inputType: Int, content: String = "") {
+    private fun startField(ime: LatinIME, inputType: Int, content: String = "", hintLocales: LocaleList? = null) {
         ShadowInputMethodService.currentInputType = inputType
+        ShadowInputMethodService.currentHintLocales = hintLocales
         ShadowInputMethodService.text = content
         ShadowInputMethodService.selectionStart = content.length
         ShadowInputMethodService.selectionEnd = content.length
@@ -74,6 +76,7 @@ class NumberFieldWiringTest {
             this.inputType = inputType
             initialSelStart = content.length
             initialSelEnd = content.length
+            this.hintLocales = hintLocales
         }
         ime.mHandler.onStartInput(ei, false)
         ime.mHandler.onStartInputView(ei, false)
@@ -171,10 +174,29 @@ class NumberFieldWiringTest {
         (ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("t", "+1 (2) 3x"))
         startField(ime, number, "9")
         tap(ime, ToolbarKey.PASTE)
-        assertEquals("9123", ShadowInputMethodService.text)
+        assertEquals("91", ShadowInputMethodService.text) // the first number of the clip
         startField(ime, InputType.TYPE_CLASS_PHONE, "9")
         tap(ime, ToolbarKey.PASTE)
         assertEquals("9+1 (2) 3", ShadowInputMethodService.text)
+    }
+
+    @Test fun aDecimalFieldThatNamesALocaleGetsItsSeparator() = withKeyboard { ime ->
+        (ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("t", "1,234.50 EUR"))
+        startField(ime, decimal, hintLocales = LocaleList(java.util.Locale.GERMANY))
+        tap(ime, ToolbarKey.PASTE)
+        assertEquals("1234,50", ShadowInputMethodService.text)
+        startField(ime, decimal) // control: no locale named, the platform's decimal field takes a dot
+        tap(ime, ToolbarKey.PASTE)
+        assertEquals("1234.50", ShadowInputMethodService.text)
+    }
+
+    @Test fun theClipboardSuggestionUsesTheSeparatorOfTheField() = withKeyboard { ime ->
+        ime.prefs().edit().putBoolean(Settings.PREF_SUGGEST_CLIPBOARD_CONTENT, true).commit()
+        startField(ime, decimal, hintLocales = LocaleList(java.util.Locale.GERMANY))
+        (ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(recentClip("1,234.50"))
+        val ei = EditorInfo().apply { inputType = decimal; hintLocales = LocaleList(java.util.Locale.GERMANY) }
+        val view = assertNotNull(ime.clipboardHistoryManager.getClipboardSuggestionView(ei, FrameLayout(ime)))
+        assertEquals("1234,50", view.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
     }
 
     /** A clip copied just now. A clip is stamped when it is made; the test framework's clock starts near 0, so it is moved to the wall clock first. */
@@ -193,21 +215,22 @@ class NumberFieldWiringTest {
 
     @Test fun theClipboardSuggestionOfANumberFieldOffersWhatItAcceptsAndPastesIt() = withKeyboard { ime ->
         val view = assertNotNull(suggestion(ime, decimal, "1,5"), "positive control: a number is offered")
-        assertEquals("1,5", view.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
+        assertEquals("1.5", view.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString()) // with the field's separator
         view.findViewById<View>(R.id.clipboard_suggestion_text).performClick()
-        assertEquals("1,5", ShadowInputMethodService.text)
+        assertEquals("1.5", ShadowInputMethodService.text)
     }
 
     @Test fun theClipboardSuggestionIsFilteredLikeAPaste() = withKeyboard { ime ->
         val view = assertNotNull(suggestion(ime, number, "12abc3"))
-        assertEquals("123", view.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
+        assertEquals("12", view.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
         view.findViewById<View>(R.id.clipboard_suggestion_text).performClick()
-        assertEquals("123", ShadowInputMethodService.text)
+        assertEquals("12", ShadowInputMethodService.text)
     }
 
     @Test fun theClipboardSuggestionIsNotOfferedWhenTheFieldTakesNothingOfIt() = withKeyboard { ime ->
         assertNull(suggestion(ime, number, "NaN"))
         assertNull(suggestion(ime, number, "no digits"))
+        assertNull(suggestion(ime, number, "1,234")) // read two ways: nothing is offered
         assertNotNull(suggestion(ime, text, "no digits"), "positive control: a text field is offered the same text")
     }
 

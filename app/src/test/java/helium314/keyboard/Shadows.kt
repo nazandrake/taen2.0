@@ -146,6 +146,8 @@ class ShadowInputMethodService {
         var currentPackage: String? = null
         /** The content types the focused field announces (EditorInfo.contentMimeTypes), and every commitContent call it received (uri, type, flags). */
         var currentContentMimeTypes: Array<String>? = null
+        /** The locales the field names for its input (EditorInfo.hintLocales). */
+        var currentHintLocales: android.os.LocaleList? = null
         val contentCommits = ArrayList<Triple<android.net.Uri, String, Int>>()
         /** The editor actions (Enter, Go, Search...) the keyboard asked the field to perform. */
         val editorActions = ArrayList<Int>()
@@ -189,6 +191,7 @@ class ShadowInputMethodService {
             currentImeOptions = 0
             currentPackage = null
             currentContentMimeTypes = null
+            currentHintLocales = null
             contentCommits.clear()
             editorActions.clear()
             keyDownCodes.clear()
@@ -225,6 +228,7 @@ class ShadowInputMethodService {
         imeOptions = currentImeOptions
         packageName = currentPackage
         contentMimeTypes = currentContentMimeTypes
+        hintLocales = currentHintLocales
         // anything else?
     }
     @Implementation

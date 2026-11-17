@@ -195,7 +195,7 @@ class ClipboardHistoryManager(
         textView.setCompoundDrawablesRelative(clipIcon, null, null, null)
         val inputType = editorInfo?.inputType ?: InputType.TYPE_NULL
         // a number, phone or date field is offered, and pastes, what it accepts of the text (the same filter as the paste key)
-        val pasteText = if (hasText) FieldText.forField(content, inputType) else ""
+        val pasteText = if (hasText) FieldText.forField(content, inputType, FieldText.decimalSeparator(editorInfo?.hintLocales)) else ""
         if (hasText) {
             if (pasteText.isEmpty()) return null
             val shortenedContent = pasteText.take(200) // for display only

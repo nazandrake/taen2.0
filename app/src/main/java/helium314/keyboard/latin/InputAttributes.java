@@ -13,6 +13,7 @@ import helium314.keyboard.latin.common.StringUtilsKt;
 import helium314.keyboard.latin.privacy.PrivacyPolicy;
 import helium314.keyboard.compat.AppWorkarounds;
 import helium314.keyboard.latin.utils.Log;
+import helium314.keyboard.latin.utils.FieldText;
 import helium314.keyboard.latin.utils.InputTypeUtils;
 
 import java.util.ArrayList;
@@ -48,6 +49,8 @@ public final class InputAttributes {
     final public boolean mDisableGestureFloatingPreviewText;
     final public boolean mIsGeneralTextInput;
     final public int mInputType;
+    /** The decimal separator the field accepts (see FieldText.decimalSeparator). */
+    final public char mDecimalSeparator;
     final private EditorInfo mEditorInfo;
     final private String mPackageNameForPrivateImeOptions;
 
@@ -58,6 +61,7 @@ public final class InputAttributes {
         mTargetApplicationPackageName = null != editorInfo ? editorInfo.packageName : null;
         mInputType = AppWorkarounds.INSTANCE.adjustInputType(null != editorInfo ? editorInfo.inputType : 0, mTargetApplicationPackageName);
         mImeOptions = null != editorInfo ? editorInfo.imeOptions : 0;
+        mDecimalSeparator = FieldText.decimalSeparator(null != editorInfo ? editorInfo.hintLocales : null);
         final int inputClass = mInputType & InputType.TYPE_MASK_CLASS;
         mIsPasswordField = InputTypeUtils.isAnyPasswordInputType(mInputType);
         if (inputClass != InputType.TYPE_CLASS_TEXT) {

@@ -1,72 +1,124 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.utils
 
+import android.os.LocaleList
 import android.text.InputType.*
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** What a number, phone or date field takes of a pasted text. Expected values are written by hand from the field's accepted characters. */
+/**
+ * What a number, phone or date field takes of a pasted text. The rule for number fields: the FIRST number of the text, read with its common
+ * separators (1,234.50 / 1.234,50 / 1 234,50); a signed field keeps a "-" directly before it; an integer field takes the integer part only; a
+ * decimal field keeps the decimal part with the field's own separator; a number that can be read two ways pastes nothing. Phone fields keep
+ * digits, +, space, -, ( and ). Expected values are written by hand from that rule.
+ */
+@RunWith(RobolectricTestRunner::class)
 class FieldTextTest {
     private val integer = TYPE_CLASS_NUMBER
     private val signed = TYPE_CLASS_NUMBER or TYPE_NUMBER_FLAG_SIGNED
     private val decimal = TYPE_CLASS_NUMBER or TYPE_NUMBER_FLAG_DECIMAL
     private val signedDecimal = TYPE_CLASS_NUMBER or TYPE_NUMBER_FLAG_SIGNED or TYPE_NUMBER_FLAG_DECIMAL
 
-    private fun paste(text: String, inputType: Int) = FieldText.forField(text, inputType)
+    private fun paste(text: String, inputType: Int, separator: Char = '.') = FieldText.forField(text, inputType, separator)
 
-    @Test fun anIntegerFieldTakesDigitsOnly() {
-        assertEquals("123", paste("12abc3", integer))
-        assertEquals("1234", paste("1 234", integer))
-        assertEquals("5", paste("-5", integer)) // no sign accepted
-        assertEquals("125", paste("12.5", integer)) // no separator accepted
-        assertEquals("15", paste("1e5", integer))
-        assertEquals("", paste("NaN", integer))
-        assertEquals("", paste("Infinity", integer))
-        assertEquals("", paste("", integer))
-        assertEquals("", paste("٣", integer)) // an Arabic-Indic digit is not one the layout types
+    @Test fun theFirstNumberOfTheTextIsPasted() {
+        assertEquals("12", paste("12abc3", integer))
+        assertEquals("3", paste("from 3 to 7", integer))
+        assertEquals("1", paste("1e5", integer))
+        assertEquals("1", paste("+1 (2) 3x", integer))
+        assertEquals("2026", paste("Invoice 2026-11-17", integer))
+        assertEquals("42", paste("42", integer)) // positive control: a plain number as it is
+        assertEquals("007", paste("007", integer)) // leading zeros are the field's business
     }
 
-    @Test fun aSignedFieldTakesOneLeadingSign() {
+    @Test fun nothingIsPastedWithoutANumber() {
+        for (text in listOf("", "NaN", "Infinity", "-", ".", ",", "no digits", "٣")) // an Arabic-Indic digit is not one the layout types
+            for (type in listOf(integer, signed, decimal, signedDecimal))
+                assertEquals("", paste(text, type), "'$text' in type $type")
+    }
+
+    @Test fun theCommonSeparatorsAreRead() {
+        for (text in listOf("1,234.50", "1.234,50", "1 234,50", "1 234,50", "1 234,50", "1'234.50", "1,234.50 EUR", "EUR 1.234,50"))
+            assertEquals("1234.50", paste(text, decimal), text)
+        assertEquals("1234567.89", paste("1,234,567.89", decimal))
+        assertEquals("1234567.89", paste("1.234.567,89", decimal))
+        assertEquals("1234567", paste("1,234,567", decimal)) // two group separators of one kind: grouping, no fraction
+        assertEquals("1234567", paste("1 234 567", integer))
+        assertEquals("3.14", paste("3.14", decimal))
+        assertEquals("3.14", paste("3,14", decimal))
+        assertEquals("0.123", paste("0.123", decimal)) // a 0 does not start a group of thousands
+        assertEquals("1234.567", paste("1234.567", decimal)) // four digits before: not a group
+        assertEquals("1.5", paste("1,5", decimal))
+    }
+
+    @Test fun aNumberThatCanBeReadTwoWaysPastesNothing() {
+        for (text in listOf("1,234", "1.234", "12.345", "1 234.567", "12.5.3", "1.234.56", "1,234.567,8"))
+            for (type in listOf(integer, decimal))
+                assertEquals("", paste(text, type), "'$text' in type $type")
+        assertEquals("1", paste("1 2 3", integer)) // a space joins a group of three digits only
+    }
+
+    @Test fun anIntegerFieldTakesTheIntegerPart() {
+        assertEquals("12", paste("12.50", integer))
+        assertEquals("1234", paste("-1,234.50 EUR", integer)) // no sign accepted
+        assertEquals("-1234", paste("-1,234.50 EUR", signed))
+        assertEquals("1", paste("1.5", integer))
+        assertEquals("0", paste(".5", integer))
+        assertEquals("0", paste("-0.5", signed)) // the integer part of -0.5 is 0, not -0
+        assertEquals("12", paste("12.", integer))
+    }
+
+    @Test fun aSignedFieldKeepsAMinusDirectlyBeforeTheNumber() {
         assertEquals("-5", paste("-5", signed))
-        assertEquals("+5", paste("+5", signed))
-        assertEquals("-5", paste("  -5", signed))
-        assertEquals("-5", paste("−5", signed)) // the typographic minus is a minus
-        assertEquals("53", paste("5-3", signed)) // a sign inside is not a leading sign
-        assertEquals("-53", paste("-5-3", signed))
-        assertEquals("", paste("-", signed))
+        assertEquals("-5", paste("Total: -5", signed))
+        assertEquals("-5", paste("  −5", signed)) // the typographic minus is a minus
+        assertEquals("5", paste("- 5", signed)) // not directly before
+        assertEquals("5", paste("+5", signed)) // a plus is no sign to keep: the number is the same
+        assertEquals("5", paste("5-3", signed))
+        assertEquals("5", paste("a-b 5", signed))
+        assertEquals("5", paste("-5", integer)) // the field takes no sign
         assertEquals("5", paste("5", signed)) // positive control: no sign is added
     }
 
-    @Test fun aDecimalFieldTakesTheLastSeparatorAsTheDecimalPoint() {
-        assertEquals("3.14", paste("3.14", decimal))
-        assertEquals("3,14", paste("3,14", decimal))
-        assertEquals("1234.56", paste("1,234.56", decimal))
-        assertEquals("1234,56", paste("1.234,56", decimal))
-        assertEquals("125.3", paste("12.5.3", decimal))
-        assertEquals("12.", paste("12.", decimal))
-        assertEquals(".5", paste(".5", decimal))
-        assertEquals("", paste(".", decimal))
-        assertEquals("", paste(",", decimal))
-        assertEquals("-0.5", paste("-0.5", decimal.or(TYPE_NUMBER_FLAG_SIGNED)))
+    @Test fun aDecimalFieldKeepsTheDecimalPartWithItsOwnSeparator() {
+        assertEquals("1234.50", paste("1.234,50", decimal, '.'))
+        assertEquals("1234,50", paste("1,234.50", decimal, ','))
+        assertEquals("3,14", paste("3.14", decimal, ','))
+        assertEquals("12", paste("12", decimal, ',')) // no fraction, no separator
+        assertEquals("12", paste("12.", decimal)) // a separator with no digit after it is not part of the number
+        assertEquals("0.5", paste(".5", decimal))
+        assertEquals("-0.5", paste("-0.5", signedDecimal))
         assertEquals("0.5", paste("-0.5", decimal)) // the field takes no sign
-    }
-
-    @Test fun aSignedDecimalFieldTakesBoth() {
         assertEquals("-1234.50", paste("-1,234.50 EUR", signedDecimal))
-        assertEquals("+7", paste("+7 kg", signedDecimal))
+        assertEquals("7", paste("+7 kg", signedDecimal))
     }
 
-    @Test fun aNumberPasswordFieldTakesDigitsOnly() {
-        assertEquals("123", paste("12-3", TYPE_CLASS_NUMBER or TYPE_NUMBER_VARIATION_PASSWORD))
+    @Test fun theFieldSeparatorIsADotUnlessTheFieldNamesALocale() {
+        assertEquals('.', FieldText.decimalSeparator(null))
+        assertEquals('.', FieldText.decimalSeparator(LocaleList.getEmptyLocaleList()))
+        assertEquals(',', FieldText.decimalSeparator(LocaleList(Locale.GERMANY)))
+        assertEquals(',', FieldText.decimalSeparator(LocaleList(Locale.forLanguageTag("bg-BG"))))
+        assertEquals('.', FieldText.decimalSeparator(LocaleList(Locale.US)))
+        assertEquals('.', FieldText.decimalSeparator(LocaleList(Locale.US, Locale.GERMANY))) // the first locale counts
     }
 
-    @Test fun aPhoneFieldTakesTheDialerCharacters() {
+    @Test fun aNumberPasswordFieldTakesTheFirstNumber() {
+        assertEquals("12", paste("12-3", TYPE_CLASS_NUMBER or TYPE_NUMBER_VARIATION_PASSWORD))
+        assertEquals("1234", paste("PIN: 1234", TYPE_CLASS_NUMBER or TYPE_NUMBER_VARIATION_PASSWORD))
+    }
+
+    @Test fun aPhoneFieldKeepsDigitsPlusSpaceMinusAndBrackets() {
         assertEquals("+359 88 123-456", paste("+359 88 123-456", TYPE_CLASS_PHONE))
-        assertEquals("+1*2#3", paste("ab+1*2#3xyz", TYPE_CLASS_PHONE))
-        assertEquals("(02) 9/8,7;N.", paste("(02) 9/8,7;N.", TYPE_CLASS_PHONE))
-        assertEquals("", paste("callme", TYPE_CLASS_PHONE)) // lower case letters are not dialer characters
+        assertEquals("+1 (555) 123-4567", paste("call +1 (555) 123-4567#", TYPE_CLASS_PHONE))
+        assertEquals("+123", paste("ab+1*2#3xyz", TYPE_CLASS_PHONE))
+        assertEquals("(02) 987", paste("(02) 9/8,7;N.", TYPE_CLASS_PHONE))
+        assertEquals("", paste("callme", TYPE_CLASS_PHONE))
+        assertEquals("", paste("+ - ( )", TYPE_CLASS_PHONE)) // no digit, nothing to dial
         assertEquals("12", paste("1\n2", TYPE_CLASS_PHONE))
     }
 

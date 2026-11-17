@@ -221,7 +221,8 @@ class ClipboardHistoryView @JvmOverloads constructor(
     override fun onKeyUp(clipId: Long) {
         val clipContent = clipboardHistoryManager.getHistoryEntryContent(clipId)
         // a number, phone or date field takes only what it accepts of the entry (the same filter as the paste key)
-        val text = clipContent?.text?.let { FieldText.forField(it, Settings.getValues().mInputAttributes.mInputType) }
+        val attributes = Settings.getValues().mInputAttributes
+        val text = clipContent?.text?.let { FieldText.forField(it, attributes.mInputType, attributes.mDecimalSeparator) }
         if (!text.isNullOrEmpty()) keyboardActionListener.onTextInput(text) // inserted into the field, the system clipboard is not touched
         keyboardActionListener.onReleaseKey(KeyCode.NOT_SPECIFIED, false)
         if (Settings.getValues().mAlphaAfterClipHistoryEntry)

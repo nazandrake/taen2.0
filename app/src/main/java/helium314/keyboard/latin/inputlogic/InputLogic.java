@@ -38,6 +38,7 @@ import helium314.keyboard.latin.CapsMode;
 import helium314.keyboard.latin.dictionary.Dictionary;
 import helium314.keyboard.latin.DictionaryFacilitator;
 import helium314.keyboard.latin.dictionary.DictionaryFactory;
+import helium314.keyboard.latin.InputAttributes;
 import helium314.keyboard.latin.LastComposedWord;
 import helium314.keyboard.latin.LatinIME;
 import helium314.keyboard.latin.NgramContext;
@@ -2676,9 +2677,10 @@ public final class InputLogic {
         // and use KeyEvent.KEYCODE_PASTE otherwise except for apps that are known to ignore it
         String primaryClip = mLatinIME.getClipboardHistoryManager().getPrimaryClipIfText();
         // a number, phone or date field takes only the characters it accepts of the text (other fields take all of it)
-        final int inputType = Settings.getValues().mInputAttributes.mInputType;
+        final InputAttributes inputAttributes = Settings.getValues().mInputAttributes;
+        final int inputType = inputAttributes.mInputType;
         if (primaryClip != null) {
-            final String text = FieldText.forField(primaryClip, inputType);
+            final String text = FieldText.forField(primaryClip, inputType, inputAttributes.mDecimalSeparator);
             if (!text.isEmpty()) mConnection.commitText(text, 1);
             return;
         }
