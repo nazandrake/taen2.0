@@ -1,97 +1,93 @@
 # Taen
 
-Taen (Bulgarian: "secret") is an offline Android keyboard that keeps what you type on your phone. It is a fork of
-[HeliBoard](https://github.com/HeliBorg/HeliBoard) v4.2, which is based on OpenBoard and the Android Open Source Project (AOSP)
-keyboard.
+Taen is an Android keyboard that works without any network access. It is a fork of
+[HeliBoard](https://github.com/HeliBorg/HeliBoard) 4.2, which comes from OpenBoard and the AOSP keyboard. The name is
+Bulgarian for "secret".
 
-Version 2.0.0 (versionCode 9). Android 11 and newer, 64-bit ARM. Application ID `io.github.nazandrake.taen`.
+The current version is 2.0.0. It needs Android 11 or newer on a 64-bit ARM phone.
 
-## What Taen does
+## Changes from HeliBoard
 
-- Never uses the network: the merged manifest has no `INTERNET` permission, and the build fails if one appears.
-- No contacts access, no installed-app list, no Android backup or device transfer, no closed-source or downloaded native code.
-- Stores user data as ciphertext: preferences, learned words, personal dictionary, snippets, clipboard history, pictures and background
-  images live in AES-GCM stores with Android Keystore keys, and are wiped from memory when the screen locks.
-- Incognito in password fields, per app and on demand; a clipboard history that never keeps sensitive copies; an optional app lock;
-  screenshots blocked while the keyboard is open; warnings about accessibility services and windows drawn over the keyboard.
-- Self-destruct: a trigger word, a duress PIN, wrong-PIN and inactivity triggers and a panic shortcut delete the keys first, then the files.
-- Glide typing, emoji search and smart quotes work offline (an open-source engine and CLDR data). English and Bulgarian (phonetic and BDS)
-  are enabled on a new install; the other HeliBoard languages are available.
-- Voice typing on the phone: ONNX Runtime and the NVIDIA Parakeet TDT 0.6B v3 model run locally. The model is not in the APK and the app
-  never downloads it: Settings > Voice typing > Download the model opens a pinned link in your browser, and Install downloaded model checks
-  the file before use (`BUILDING.md` section 8).
-- Optional downloads by choice (Settings > Downloads, the same browser download and checked install): dictionaries and a next-word model
-  per language (SmolLM2-135M for English, Qwen3-0.6B for Bulgarian), each used only on a phone that passes its own speed
-  and memory test and only while the phone has the memory free. The model only reorders suggestions from your dictionaries and never runs in password, incognito or no-learning fields.
-- Cursor navigation on the space bar: one swipe moves across characters and up and down lines; hold Shift with another finger,
-  or switch on the selection-mode toolbar key, to select. Toolbar keys add the next occurrence of a word (like Ctrl+G in an IDE)
-  or a cursor at the same column on the next line; typed text and backspace then edit every cursor at once.
-- On Android 16 and later with gesture navigation, Taen asks the system to leave out its bar below the keyboard (the keyboard-switch
-  and hide-keyboard buttons), but only when there is something to switch to: another Taen language or another keyboard. Taen's language
-  key is then the switcher and is shown even when the setting hides it: a tap cycles Taen's languages, or goes to the next keyboard when
-  Taen has only one language; a long press opens the system's keyboard picker. Without the bar there is no hide-keyboard button: the
-  back gesture closes the keyboard.
-- Offline GIFs and stickers from your own pictures (metadata removed), emoji on a held key, a quick settings panel, templates and saved
-  profiles of the settings, and an encrypted export.
+- The app has no `INTERNET` permission. The build fails if a library merges one in, and the release APK is scanned for
+  network classes.
+- Settings, learned words, the personal dictionary, snippets, clipboard history and pictures are stored in AES-GCM files whose
+  keys live in the Android Keystore. When the screen locks, this data is dropped from memory until you unlock again.
+- Nothing is learned in password fields, in fields that ask for no personalized learning, in apps on your incognito list, or
+  while incognito is switched on.
+- Clipboard history keeps text only, for one hour by default. Copies marked sensitive or made in a password field are not kept.
+- An optional PIN locks the settings and the clipboard history.
+- Self-destruct can delete the keys and the data on a trigger word, a duress PIN, too many wrong PINs, a long period without
+  use, or a panic shortcut. Each trigger is off until you switch it on, and there is a test mode.
+- The keyboard window is hidden from screenshots by default. Taen warns when an accessibility service can read what you type or
+  when another app draws over the keyboard.
+- Glide typing uses an open-source engine instead of Google's closed library.
+- No contacts access, no list of installed apps, no Android backup. Backups are an encrypted export protected by a passphrase.
 
-`PRIVACY.md` describes each guarantee, how it is checked and what a keyboard cannot protect against. `INVARIANTS.md` lists the rules
-the code keeps, for anyone changing it.
+English and Bulgarian (phonetic and BDS) are enabled on a new install. Dictionaries for English, Bulgarian and Bengali are
+included; the other HeliBoard layouts work once you add a dictionary file.
 
-## Build it yourself
+## Optional downloads
 
-One script downloads everything it needs into a single folder (pinned versions, every archive checked against a SHA-256), builds the
-unsigned APK into `dist/` and prints its SHA-256. It does not touch your own JDK, Android SDK, shell profile or PATH. Use `--dry-run` /
-`-DryRun` first to see the plan.
+Some files are too large for the APK or not useful to everyone: extra dictionaries, the voice typing model (NVIDIA Parakeet TDT
+0.6B v3, run on the phone with ONNX Runtime) and the next-word models (SmolLM2-135M for English, Qwen3-0.6B for Bulgarian).
+
+Taen does not download them. Settings > Downloads and Settings > Voice typing open a commit-pinned link in your browser. You
+then pick the downloaded file, and Taen installs it only if its size and SHA-256 match the pinned values. A next-word model is
+only used on a phone that passes its speed and memory test.
+
+## Install
+
+Download the APK from the Releases page and check its SHA-256 against the value published with the release. Install it, then
+enable Taen in Android's keyboard settings.
+
+## Build
+
+`tools/build-linux.sh` downloads a pinned JDK and Android SDK into its own folder and builds the unsigned APK into `dist/`. It
+does not touch your existing JDK, SDK or PATH.
 
 ```
-# Linux (Debian/Ubuntu/Mint, Fedora/RHEL, Arch/Manjaro, openSUSE; needs 10 GB free disk and about 6 GB free RAM)
-tools/build-linux.sh --dry-run
+tools/build-linux.sh --dry-run   # show what it would download and run
 tools/build-linux.sh
-tools/build-linux.sh --keygen --sign      # also create your own signing key (outside the repository) and sign the APK
-
-# Windows (PowerShell 5.1 or 7, no administrator rights; put the source in a short folder such as C:\taen)
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-windows.ps1 -DryRun
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-windows.ps1
 ```
 
-The Windows script has not been tested on a real Windows machine yet. Details and options: `BUILDING.md`.
-
-## Build and check
+With JDK 21 and the Android SDK already installed:
 
 ```
-make build              # unsigned release APK in dist/
-make check              # privacyCheck (manifest, backup rules, sources, release APK scan) and the unit tests
-make native-test        # host build of the native dictionary engine and its tests
-make verify-repro       # two clean builds must give the same unsigned APK hash
-make leak-audit         # static leak checks of the release APK with planted-failure proofs
-make leak-audit-device  # scripted session on a phone over adb
-make keygen sign        # your own signing key, kept outside the repository
+make build          # unsigned release APK in dist/
+make check          # privacy checks and unit tests
+make verify-repro   # two clean builds must give the same APK hash
 ```
 
-Needs JDK 21 and the Android SDK (`sdk.dir` in `local.properties`). All checks run locally. Contributions: `CONTRIBUTING.md`.
-Security reports: `SECURITY.md`.
+The unsigned APK is reproducible, so a release can be checked against the source. A Windows script exists but has not been
+run on a real Windows machine yet. Signing, the leak audit and everything else are in `BUILDING.md`.
+
+## Privacy and security
+
+`PRIVACY.md` describes each guarantee, how it is tested, and what a keyboard cannot protect against (the app you type into,
+accessibility services, root). `INVARIANTS.md` lists the rules the code has to keep. Security problems should be reported as
+described in `SECURITY.md`; other contributions are covered in `CONTRIBUTING.md`.
 
 ## Known limitations
 
-- Glide typing is on by default. With the bundled CC BY English dictionary 79.6 % of words are right on a synthetic sample
-  (gate 79.5 %); improving this is planned. It can be switched off in Settings > Gesture typing.
-- Only English, Bulgarian and Bengali dictionaries are bundled; other languages need a dictionary file (Settings > Languages).
-- Voice typing and the next-word models are measured on one low-end reference phone and one desktop; other phones are not measured.
-- Line moves and selection by arrow keys depend on the app: some web and custom editors ignore them. Several cursors need an app
-  that shares its whole text (at most 20 000 characters) and are off in password and incognito fields (`PRIVACY.md`, "Cursor navigation").
+- English glide typing gets about 80 % of words right on a synthetic test set. It can be turned off in Settings > Gesture
+  typing.
+- Voice typing and the next-word models have been measured on one low-end phone and one desktop only.
+- Moving between lines and using several cursors depend on the app; some web and custom editors ignore them.
 
-## Upstream and credits
+## Credits
 
 - HeliBoard (GPL-3.0-only), forked at tag `v4.2`. Copyright notices of HeliBoard, OpenBoard and AOSP contributors are kept in the
-  source headers.
+  source headers. The HeliBoard name and icon are not used.
 - AOSP keyboard (Apache-2.0), see `LICENSE-Apache-2.0`.
-- Dictionaries: Leipzig Corpora Collection word lists (CC BY 4.0) through the HeliBoard
-  [dictionaries repository](https://codeberg.org/Helium314/aosp-dictionaries); see `NOTICE`.
-- The glide engine is a rewrite of FlorisBoard v0.4.0 code (Apache-2.0); voice typing uses ONNX Runtime (MIT) and NVIDIA Parakeet
-  (CC BY 4.0, not shipped); the optional next-word models are SmolLM2 and Qwen3 (Apache-2.0, not shipped). See `NOTICE`.
-- The HeliBoard name and icon are not used.
+- The glide engine is a rewrite of FlorisBoard v0.4.0 code (Apache-2.0).
+- The bundled dictionaries are made from Leipzig Corpora Collection word lists (CC BY 4.0) through HeliBoard's
+  [dictionaries repository](https://codeberg.org/Helium314/aosp-dictionaries).
+- Voice typing uses ONNX Runtime (MIT) and the NVIDIA Parakeet model (CC BY 4.0). The next-word models are SmolLM2 and Qwen3
+  (Apache-2.0). None of the models are in the APK.
+- The starter stickers are Microsoft Fluent Emoji (MIT).
+
+`NOTICE` has the full list with versions and sources.
 
 ## License
 
 GNU General Public License v3.0 only (`LICENSE`). Code derived from AOSP is also available under Apache-2.0 (`LICENSE-Apache-2.0`).
-Third-party data and libraries are listed in `NOTICE`.
