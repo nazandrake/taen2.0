@@ -94,7 +94,7 @@ class Wiper(private val ports: WipePorts, private val clock: () -> Long) {
         }
         ok = step { ports.deleteFiles(scope, setOf(PENDING_NAME), false) } && ok
         if (scope.clipboard) step { ports.clearClipboard(); true }
-        step { ports.clearSystemLanguage(); true } // every scope: the system's subtype names the language in use; a failure does not keep the marker
+        ok = step { ports.clearSystemLanguage(); true } && ok // every scope: the system's subtype names the language in use; a failure keeps the marker (resume retries)
         if (armed) {
             val restored = step { ports.restoreArmed(saved) }
             ok = ok && restored
@@ -119,7 +119,7 @@ class Wiper(private val ports: WipePorts, private val clock: () -> Long) {
         if (pending.scope.shreds && !pending.keysDone) ok = step { ports.deleteKeys() }
         val keep = if (pending.armed && pending.restored) ARMED_KEEP + PENDING_NAME else setOf(PENDING_NAME)
         ok = step { ports.deleteFiles(pending.scope, keep, false) } && ok
-        step { ports.clearSystemLanguage(); true } // as in the wipe: the process may have ended before it ran; a failure does not keep the marker
+        ok = step { ports.clearSystemLanguage(); true } && ok // as in the wipe: the process may have ended before it ran; a failure keeps the marker
         if (ok) step { ports.clearPending(); true }
         return ok
     }

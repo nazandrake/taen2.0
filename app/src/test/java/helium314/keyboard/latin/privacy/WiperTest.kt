@@ -134,13 +134,24 @@ class WiperTest {
         }
     }
 
-    @Test fun aFailingClearOfTheSystemLanguageDoesNotStopTheWipe() {
+    /** A failed clear of the subtype is a wipe failure: the later steps still run, the marker stays, and the next start retries it (resume) until it works. */
+    @Test fun aFailingClearOfTheSystemLanguageKeepsTheMarkerAndTheNextResumeRetriesIt() {
         val p = ports()
         p.languageThrows = true
         val report = wiper(p).run(WipeScope.ALL)
         assertTrue("clearSystemLanguage" in p.calls)
-        assertEquals(listOf("clearPending", "restart"), p.calls.takeLast(2)) // the user data is gone: the wipe finished
-        assertTrue(report.complete)
+        assertFalse("clearPending" in p.calls) // the marker stays
+        assertEquals("restart", p.calls.last()) // the later steps and the restart still run
+        assertFalse(report.complete)
+        assertTrue(p.deFiles.isEmpty() && p.ceFiles.isEmpty()) // everything else was done
+        val marker = p.pendings.last()
+        val stillFailing = ports().also { it.languageThrows = true }
+        assertFalse(wiper(stillFailing).resume(marker)) // a permanent failure: the marker stays, nothing throws, nothing loops
+        assertFalse("clearPending" in stillFailing.calls)
+        val next = ports()
+        assertTrue(wiper(next).resume(marker))
+        assertFalse(next.systemLanguage)
+        assertEquals(listOf("deleteFiles", "clearSystemLanguage", "clearPending"), next.calls) // the subtype, then the marker
     }
 
     @Test fun theConfigurationIsNotReadWhenItIsInScopeOrTheScopeIsPartial() {
@@ -261,8 +272,8 @@ class WiperTest {
         assertTrue(next.calls.indexOf("clearSystemLanguage") > next.calls.indexOf("deleteFiles"))
         assertTrue(next.calls.indexOf("clearSystemLanguage") < next.calls.indexOf("clearPending"))
         val failing = ports().also { it.languageThrows = true }
-        assertTrue(wiper(failing).resume(p.pendings.last())) // a failing clear does not keep the marker (as in the normal wipe)
-        assertTrue("clearPending" in failing.calls)
+        assertFalse(wiper(failing).resume(p.pendings.last())) // a failing clear keeps the marker, as in the normal wipe
+        assertFalse("clearPending" in failing.calls)
     }
 
     @Test fun resumeKeepsTheRestoredConfigurationFilesAndTheMarkerKeepsWhenItCannotFinish() {
