@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.quick
 
+import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -31,7 +32,7 @@ import kotlin.test.assertTrue
  * the system picker once. Removing the manifest entry or the call fails these tests.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(shadows = [ShadowLocaleManagerCompat::class, ShadowInputMethodManager2::class])
+@Config(shadows = [ShadowLocaleManagerCompat::class, ShadowInputMethodManager2::class, ShadowTileService2::class])
 class SwitchKeyboardWiringTest {
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
@@ -52,6 +53,12 @@ class SwitchKeyboardWiringTest {
         assertFalse(info.exported)
         assertTrue(info.flags and android.content.pm.ActivityInfo.FLAG_EXCLUDE_FROM_RECENTS != 0, "not in the recent apps")
         assertTrue(info.flags and android.content.pm.ActivityInfo.FLAG_NO_HISTORY != 0)
+        // its own task: with the affinity of the app it would join the task of the settings and bring them to the front without the PIN
+        val settings = context.packageManager.getActivityInfo(ComponentName(context, helium314.keyboard.settings.SettingsActivity::class.java), 0)
+        assertEquals(context.packageName, settings.taskAffinity, "positive control: an ordinary activity has the affinity of the app")
+        assertTrue(info.taskAffinity.isNullOrEmpty(), "the empty affinity (Robolectric reads it as null), got ${info.taskAffinity}")
+        val rotation = android.content.pm.ActivityInfo.CONFIG_ORIENTATION or android.content.pm.ActivityInfo.CONFIG_SCREEN_SIZE
+        assertEquals(rotation, info.configChanges and rotation, "a rotation does not recreate it (a second picker)")
     }
 
     private fun settle() = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(SwitchKeyboardActivity.SETTLE_MS))
@@ -92,10 +99,91 @@ class SwitchKeyboardWiringTest {
         assertEquals(1, ShadowInputMethodManager2.pickersShown, "positive control: the picker opens when the focus has settled")
     }
 
-    @Test fun theTileServiceStartsAndShowsAnInactiveTile() {
-        val service = Robolectric.setupService(SwitchKeyboardTileService::class.java)
-        service.onStartListening() // the system gives a tile only when bound; none here and none is needed
-        assertNotNull(service)
+    @Test fun anActivityWhoseWindowNeverGetsTheFocusEndsAfterTheTimeout() {
+        val controller = Robolectric.buildActivity(SwitchKeyboardActivity::class.java).setup()
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(SwitchKeyboardActivity.GIVE_UP_MS - 1))
+        assertFalse(controller.get().isFinishing, "not before the timeout")
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
+        assertTrue(controller.get().isFinishing, "an invisible window must not stay and absorb touches")
+        assertEquals(0, ShadowInputMethodManager2.pickersShown)
+    }
+
+    @Test fun anActivityWhosePickerNeverTakesTheFocusEndsAfterTheTimeout() {
+        val controller = Robolectric.buildActivity(SwitchKeyboardActivity::class.java).setup()
+        controller.windowFocusChanged(true)
+        settle()
+        assertEquals(1, ShadowInputMethodManager2.pickersShown, "the picker was asked for")
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(SwitchKeyboardActivity.GIVE_UP_MS))
+        assertTrue(controller.get().isFinishing)
+    }
+
+    @Test fun aPickerThatHasTheFocusIsNotEndedByTheTimeout() {
+        val controller = Robolectric.buildActivity(SwitchKeyboardActivity::class.java).setup()
+        controller.windowFocusChanged(true)
+        settle()
+        controller.windowFocusChanged(false) // the picker has the focus
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(SwitchKeyboardActivity.GIVE_UP_MS * 3))
+        assertFalse(controller.get().isFinishing, "the user may read the list as long as they want")
+    }
+
+    @Test fun aRecreatedActivityEndsAndAsksForNoSecondPicker() {
+        val first = Robolectric.buildActivity(SwitchKeyboardActivity::class.java).setup()
+        first.windowFocusChanged(true)
+        settle()
+        assertEquals(1, ShadowInputMethodManager2.pickersShown)
+        val second = first.recreate()
+        second.windowFocusChanged(true)
+        settle()
+        assertEquals(1, ShadowInputMethodManager2.pickersShown, "process death or a recreation does not open another picker")
+        assertTrue(second.get().isFinishing)
+    }
+
+    // ---- the tile service: what a tap does (the platform's TileService is a recording shadow: a tile is bound by the system only) ----
+    object Android { var sdk = 0 }
+
+    class Tile : SwitchKeyboardTileService() {
+        override val sdk get() = Android.sdk
+    }
+
+    private fun tap(sdk: Int, locked: Boolean): Tile {
+        Android.sdk = sdk
+        ShadowTileService2.reset(locked)
+        val tile = Robolectric.setupService(Tile::class.java)
+        tile.onClick()
+        return tile
+    }
+
+    private fun assertStartsTheActivity(intent: Intent) {
+        assertEquals(ComponentName(context, SwitchKeyboardActivity::class.java), intent.component)
+        assertTrue(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0, "a service starts an activity in a new task")
+    }
+
+    @Test fun anUnlockedTapFromAndroid14CollapsesTheShadeWithAPendingIntent() {
+        for (sdk in listOf(34, 36, 37)) {
+            tap(sdk, locked = false)
+            assertEquals(listOf("pending"), ShadowTileService2.calls, "sdk $sdk")
+            val saved = shadowOf(ShadowTileService2.pending!!)
+            assertTrue(saved.isActivityIntent)
+            assertStartsTheActivity(saved.savedIntent)
+            assertTrue(saved.flags and PendingIntent.FLAG_IMMUTABLE != 0, "the system cannot fill in the intent")
+        }
+    }
+
+    @Test fun anUnlockedTapBelowAndroid14CollapsesTheShadeWithTheIntent() {
+        for (sdk in listOf(30, 33)) {
+            tap(sdk, locked = false)
+            assertEquals(listOf("intent"), ShadowTileService2.calls, "sdk $sdk")
+            assertStartsTheActivity(ShadowTileService2.intent!!)
+        }
+    }
+
+    @Test fun aLockedTapAsksForTheUnlockFirstAndStartsOnlyAfterIt() {
+        for ((sdk, expected) in listOf(33 to "intent", 34 to "pending")) {
+            tap(sdk, locked = true)
+            assertEquals(listOf("unlock"), ShadowTileService2.calls, "sdk $sdk: nothing starts before the unlock")
+            ShadowTileService2.afterUnlock!!.run() // the user unlocked
+            assertEquals(listOf("unlock", expected), ShadowTileService2.calls, "sdk $sdk")
+        }
     }
 
     // ---- strings: the tile label, the banking note and the About text, English and Bulgarian ----
@@ -133,5 +221,30 @@ class SwitchKeyboardWiringTest {
         assertFalse(File("src/main/res/values/donottranslate.xml").readText().contains("100% FOSS"), "the old text is gone")
         val c = helium314.keyboard.settings.SettingsContainer(context)
         assertTrue(helium314.keyboard.settings.SettingsWithoutKey.APP in c.filter("HeliBoard").map { it.key }, "the About screen shows the new text")
+    }
+}
+
+/** The platform's tile service as the system leaves it to the app: which of its calls a tap makes, in order. */
+@org.robolectric.annotation.Implements(TileService::class)
+class ShadowTileService2 {
+    @org.robolectric.annotation.Implementation
+    fun isLocked() = locked
+
+    @org.robolectric.annotation.Implementation
+    fun unlockAndRun(then: Runnable) { calls.add("unlock"); afterUnlock = then }
+
+    @org.robolectric.annotation.Implementation
+    fun startActivityAndCollapse(started: Intent) { calls.add("intent"); intent = started }
+
+    @org.robolectric.annotation.Implementation
+    fun startActivityAndCollapse(started: PendingIntent) { calls.add("pending"); pending = started }
+
+    companion object {
+        var locked = false
+        val calls = mutableListOf<String>()
+        var intent: Intent? = null
+        var pending: PendingIntent? = null
+        var afterUnlock: Runnable? = null
+        fun reset(locked: Boolean) { this.locked = locked; calls.clear(); intent = null; pending = null; afterUnlock = null }
     }
 }

@@ -7,10 +7,13 @@ import androidx.activity.ComponentActivity
 import helium314.keyboard.latin.privacy.SecureWindow
 
 /**
- * Started by [SwitchKeyboardTileService] only (not exported). Invisible: it asks for the system's keyboard picker once its window has kept the
- * focus for [SETTLE_MS]. The system ignores the request of a window that has not the focus, and closes a picker that opens while the
+ * Started by [SwitchKeyboardTileService] only (not exported), in a task of its own (taskAffinity ""): in the task of the app it would bring
+ * the settings to the front without the PIN and leave the user there. Invisible: it asks for the system's keyboard picker once its window has
+ * kept the focus for [SETTLE_MS]. The system ignores the request of a window that has not the focus, and closes a picker that opens while the
  * notification shade still collapses (measured on Android 12), so the request waits until the focus has settled. The activity ends when
- * the focus comes back after the picker had it; ending it earlier closes the picker. Shows, reads and stores nothing.
+ * the focus comes back after the picker had it; ending it earlier closes the picker. When no picker has taken the focus after [GIVE_UP_MS]
+ * it ends too, so that an invisible window never stays over the screen. A recreated activity (process death) asks for nothing and ends.
+ * Shows, reads and stores nothing.
  */
 class SwitchKeyboardActivity : ComponentActivity() {
     private var waiting = false
@@ -20,10 +23,13 @@ class SwitchKeyboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         SecureWindow.apply(window)
+        if (savedInstanceState != null) { finish(); return }
+        window.decorView.postDelayed({ if (!pickerHasFocus) finish() }, GIVE_UP_MS)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        if (isFinishing) return
         if (asked) { // the picker took the focus; when it comes back the picker is gone
             if (!hasFocus) pickerHasFocus = true else if (pickerHasFocus) finish()
             return
@@ -42,5 +48,6 @@ class SwitchKeyboardActivity : ComponentActivity() {
 
     companion object {
         const val SETTLE_MS = 800L
+        const val GIVE_UP_MS = 5000L
     }
 }

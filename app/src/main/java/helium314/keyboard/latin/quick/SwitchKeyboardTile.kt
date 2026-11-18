@@ -22,17 +22,20 @@ object SwitchKeyboardTile {
     fun usesPendingIntent(sdk: Int) = sdk >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
 }
 
-class SwitchKeyboardTileService : TileService() {
+open class SwitchKeyboardTileService : TileService() {
+    protected open val sdk: Int get() = Build.VERSION.SDK_INT // overridable so that a test can take the branch of an older Android
+
     override fun onStartListening() {
         qsTile?.let { it.state = Tile.STATE_INACTIVE; it.updateTile() } // an action, never on or off
     }
 
+    @Suppress("DEPRECATION")
     override fun onClick() {
         val intent = Intent(this, SwitchKeyboardActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         SwitchKeyboardTile.click(isLocked, ::unlockAndRun) {
-            if (SwitchKeyboardTile.usesPendingIntent(Build.VERSION.SDK_INT))
+            if (SwitchKeyboardTile.usesPendingIntent(sdk))
                 startActivityAndCollapse(PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
-            else @Suppress("DEPRECATION") startActivityAndCollapse(intent)
+            else startActivityAndCollapse(intent)
         }
     }
 }

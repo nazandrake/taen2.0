@@ -121,7 +121,8 @@ SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
             <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="false" />
         </service>
         <activity android:name="helium314.keyboard.latin.quick.SwitchKeyboardActivity" android:exported="false"
-            android:theme="@style/TransparentActivityTheme" android:excludeFromRecents="true" android:noHistory="true"/>
+            android:theme="@style/TransparentActivityTheme" android:excludeFromRecents="true" android:noHistory="true"
+            android:taskAffinity="" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"/>
 
         <!-- The one content provider of the app. It is not exported; only the app that the keyboard hands one picture to (commitContent, read grant for that one URI) can open it.
              The path is a random token that lives in memory (MediaTokens); the bytes go through a pipe, never a file. -->
