@@ -24,7 +24,6 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -113,8 +112,24 @@ class SwitchKeyboardWiringTest {
         controller.windowFocusChanged(true)
         settle()
         assertEquals(1, ShadowInputMethodManager2.pickersShown, "the picker was asked for")
-        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(SwitchKeyboardActivity.GIVE_UP_MS))
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(SwitchKeyboardActivity.PICKER_MS - 1))
+        assertFalse(controller.get().isFinishing, "the picker gets its time from the request")
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
         assertTrue(controller.get().isFinishing)
+    }
+
+    @Test fun aFocusThatSettlesLateDoesNotLetTheOverallTimeoutCloseThePicker() {
+        val controller = Robolectric.buildActivity(SwitchKeyboardActivity::class.java).setup()
+        val late = SwitchKeyboardActivity.GIVE_UP_MS - 900
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(late)) // focus comes at 4.1 s
+        controller.windowFocusChanged(true)
+        settle() // the picker is asked for at 4.9 s
+        assertEquals(1, ShadowInputMethodManager2.pickersShown)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(300)) // 5.2 s since creation, 0.3 s since the request: SystemUI has not taken the focus yet
+        assertFalse(controller.get().isFinishing, "the timeout of a picker runs from its request, not from the creation")
+        controller.windowFocusChanged(false) // the picker has the focus
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(SwitchKeyboardActivity.PICKER_MS * 2))
+        assertFalse(controller.get().isFinishing)
     }
 
     @Test fun aPickerThatHasTheFocusIsNotEndedByTheTimeout() {
