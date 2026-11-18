@@ -100,6 +100,7 @@ object SettingsWithoutKey {
     const val VERSION = "version"
     const val LICENSE = "license"
     const val HIDDEN_FEATURES = "hidden_features"
+    const val BANKING_APPS = "banking_apps"
     const val GITHUB = "github"
     const val COMMUNITY_LINKS = "community_links"
     const val BACKUP_RESTORE = "backup_restore"

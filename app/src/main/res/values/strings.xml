@@ -937,6 +937,10 @@ New dictionary:
     <string name="version">Version</string>
     <!-- github repo link for about screen -->
     <string name="about_github_link">View on GitHub</string>
+    <string name="about_slogan">A private offline keyboard. Taen is based on HeliBoard and AOSP.</string>
+    <string name="tile_switch_keyboard_label">Switch keyboard</string>
+    <string name="banking_apps_title">Banking apps</string>
+    <string name="banking_apps_text">Some banking apps start only with a system keyboard, because their app shielding allows only the keyboards that came with the phone. This cannot be bypassed. Add the Switch keyboard tile to Quick Settings and use it to change the keyboard for that app, then change back.</string>
     <!-- links to community stuff -->
     <string name="about_community_links">Community links</string>
     <!-- description for about_community_links -->
@@ -1249,6 +1253,7 @@ New dictionary:
     <string name="guide_step_checklist">4. Check these</string>
     <string name="guide_check_play_protect">Turn off the Play Protect option Improve harmful app detection in the Play Store settings, so that unknown apps are not uploaded.</string>
     <string name="guide_check_app_lock">Consider setting an app lock (Settings, Privacy).</string>
+    <string name="guide_check_banking">Some banking apps start only with a system keyboard. Add the Switch keyboard tile to Quick Settings to change keyboard.</string>
     <string name="guide_skip">Skip</string>
     <string name="guide_done">Done</string>
     <string name="profiles_default_value">default</string>

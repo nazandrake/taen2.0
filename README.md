@@ -4,7 +4,7 @@ Taen is an Android keyboard that works without any network access. It is a fork 
 [HeliBoard](https://github.com/HeliBorg/HeliBoard) 4.2, which comes from OpenBoard and the AOSP keyboard. The name is
 Bulgarian for "secret".
 
-The current version is 2.0.0. It needs Android 11 or newer on a 64-bit ARM phone.
+The current version is 2.0.1. It needs Android 11 or newer on a 64-bit ARM phone.
 
 ## Changes from HeliBoard
 
@@ -72,6 +72,8 @@ described in `SECURITY.md`; other contributions are covered in `CONTRIBUTING.md`
 - English glide typing gets about 80 % of words right on a synthetic test set. It can be turned off in Settings > Gesture
   typing.
 - Voice typing and the next-word models have been measured on one low-end phone and one desktop only.
+- Some banking apps start only with a system keyboard, because their app shielding allows only the keyboards that came with the
+  phone. This cannot be bypassed. The Switch keyboard tile in Quick Settings changes the keyboard quickly.
 - Moving between lines and using several cursors depend on the app; some web and custom editors ignore them.
 
 ## Credits
