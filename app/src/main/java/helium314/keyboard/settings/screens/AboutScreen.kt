@@ -44,6 +44,7 @@ fun AboutScreen(
         SettingsWithoutKey.VERSION,
         SettingsWithoutKey.LICENSE,
         SettingsWithoutKey.HIDDEN_FEATURES,
+        SettingsWithoutKey.BANKING_APPS,
         SettingsWithoutKey.COMMUNITY_LINKS,
         SettingsWithoutKey.GITHUB,
     )
@@ -55,7 +56,7 @@ fun AboutScreen(
 }
 
 fun createAboutSettings(context: Context) = listOf(
-    Setting(context, SettingsWithoutKey.APP, R.string.english_ime_name, R.string.app_slogan) {
+    Setting(context, SettingsWithoutKey.APP, R.string.english_ime_name, R.string.about_slogan) {
         Preference(
             name = it.title,
             description = it.description,
@@ -117,6 +118,14 @@ fun createAboutSettings(context: Context) = listOf(
                 (builder.findViewById<View>(android.R.id.message) as TextView).movementMethod = LinkMovementMethod.getInstance()
             },
             icon = R.drawable.ic_settings_about_hidden_features
+        )
+    },
+    Setting(context, SettingsWithoutKey.BANKING_APPS, R.string.banking_apps_title, R.string.banking_apps_text) {
+        Preference(
+            name = it.title,
+            description = it.description,
+            onClick = { },
+            icon = R.drawable.ic_tile_switch_keyboard
         )
     },
     Setting(context, SettingsWithoutKey.COMMUNITY_LINKS, R.string.about_community_links, R.string.about_community_links_description) {

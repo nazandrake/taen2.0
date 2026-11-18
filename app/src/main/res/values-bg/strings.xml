@@ -293,6 +293,10 @@
     <string name="select_color_accent">Акцент</string>
     <string name="version">Версия</string>
     <string name="about_github_link">Вижте в GitHub</string>
+    <string name="about_slogan">"Частна клавиатура без интернет. Taen е базирана на HeliBoard и AOSP."</string>
+    <string name="tile_switch_keyboard_label">"Смяна на клавиатурата"</string>
+    <string name="banking_apps_title">"Банкови приложения"</string>
+    <string name="banking_apps_text">"Някои банкови приложения работят само със системна клавиатура, защото защитата им допуска само клавиатурите, които са били в телефона. Това не може да се заобиколи. Добавете плочката „Смяна на клавиатурата“ в бързите настройки и сменяйте с нея клавиатурата за това приложение, после я върнете."</string>
     <string name="gnu_gpl">Общ публичен лиценз на GNU v3.0</string>
     <string name="auto_hide_toolbar">Автоматично скриване на лентата с инструменти</string>
     <string name="dictionary_link_text">тук</string>
@@ -737,6 +741,7 @@
     <string name="guide_step_checklist">"4. Проверете тези неща"</string>
     <string name="guide_check_play_protect">"Изключете опцията „Подобряване на откриването на вредни приложения“ на Play Protect в настройките на Play Store, за да не се качват непознати приложения."</string>
     <string name="guide_check_app_lock">"Помислете за заключване на приложението (Настройки, Поверителност)."</string>
+    <string name="guide_check_banking">"Някои банкови приложения работят само със системна клавиатура. Добавете плочката „Смяна на клавиатурата“ в бързите настройки, за да сменяте клавиатурата."</string>
     <string name="guide_skip">"Пропусни"</string>
     <string name="guide_done">"Готово"</string>
     <string name="profiles_default_value">"по подразбиране"</string>

@@ -85,6 +85,7 @@ fun SetupGuideDialog(close: () -> Unit) {
                 Text(stringResource(R.string.guide_step_checklist), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
                 Text("• " + stringResource(R.string.guide_check_play_protect), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp))
                 Text("• " + stringResource(R.string.guide_check_app_lock), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp))
+                Text("• " + stringResource(R.string.guide_check_banking), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp))
 
               }
                 status?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 4.dp)) }

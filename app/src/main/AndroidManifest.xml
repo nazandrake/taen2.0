@@ -111,6 +111,19 @@ SPDX-License-Identifier: Apache-2.0 AND GPL-3.0-only
         <service android:name=".privacy.InactivityJobService" android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE"/>
 
+        <!-- Quick Settings tile "Switch keyboard": opens the system keyboard picker through the invisible activity below (no permission, no data) -->
+        <service android:name="helium314.keyboard.latin.quick.SwitchKeyboardTileService" android:exported="true"
+            android:label="@string/tile_switch_keyboard_label" android:icon="@drawable/ic_tile_switch_keyboard"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="false" />
+        </service>
+        <activity android:name="helium314.keyboard.latin.quick.SwitchKeyboardActivity" android:exported="false"
+            android:theme="@style/TransparentActivityTheme" android:excludeFromRecents="true" android:noHistory="true"
+            android:taskAffinity="" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"/>
+
         <!-- The one content provider of the app. It is not exported; only the app that the keyboard hands one picture to (commitContent, read grant for that one URI) can open it.
              The path is a random token that lives in memory (MediaTokens); the bytes go through a pipe, never a file. -->
         <provider android:name="helium314.keyboard.latin.media.MediaShareProvider" android:authorities="${applicationId}.mediashare"
