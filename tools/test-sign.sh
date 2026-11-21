@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Tests of tools/sign.sh: signing without a prompt from a password file or the desktop keyring, and the refusals.
-# Uses a throw-away key, a tiny APK built from tools/leak_audit/helper and a stub for secret-tool; nothing of the real key is read.
+# Uses a throw-away key, a tiny APK built from tools/leak_audit/helper and stubs for secret-tool; nothing of the real key is read and the
+# desktop keyring is never asked.
 # Usage: tools/test-sign.sh
 set -uo pipefail
 
@@ -18,6 +19,25 @@ contains() { # name haystack needle
 mkdir -p "$HOME/.cache"
 tmp="$(mktemp -d "$HOME/.cache/taen-test-sign.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT
+
+# The desktop keyring is never reached: a moved HOME does not cut off D-Bus. A program named secret-tool comes first on PATH and only
+# counts its calls, so even a lookup by the default name never reaches the real one; the scripts get a canary stub that counts its calls
+# and answers like an empty keyring. Both are set before the first call of a script.
+mkdir -p "$tmp/bin"
+cat > "$tmp/bin/secret-tool" <<EOF
+#!/usr/bin/env bash
+echo call >> "$tmp/default-secret-tool.calls"
+exit 1
+EOF
+cat > "$tmp/secret-tool-canary" <<EOF
+#!/usr/bin/env bash
+echo "\$1" >> "$tmp/canary.calls"
+exit 1
+EOF
+chmod +x "$tmp/bin/secret-tool" "$tmp/secret-tool-canary"
+export PATH="$tmp/bin:$PATH"
+export TAEN_SECRET_TOOL="$tmp/secret-tool-canary"
+calls() { [ -f "$1" ] && wc -l < "$1" | tr -d ' ' || echo 0; }
 
 pass="throwaway-$(date +%s)-pass"
 printf '%s\n' "$pass" > "$tmp/pass"
@@ -45,6 +65,14 @@ out="$("$sign" "$tmp/in.apk" "$tmp/none.apk" < /dev/null 2>&1)"; rc=$?
 check "no password source: refused" "2" "$rc"
 contains "no password source: names the setup command" "$out" "make keystore-pass"
 check "no password source: nothing signed" "no" "$([ -e "$tmp/none.apk" ] && echo yes || echo no)"
+check "no password source: the keyring was asked through the canary stub" "1" "$(calls "$tmp/canary.calls")"
+check "no password source: no secret-tool by its default name was called" "0" "$(calls "$tmp/default-secret-tool.calls")"
+
+# the old prompt switch no longer makes it ask: without a source it stops the same way
+out="$(TAEN_KS_PROMPT=1 timeout 60 "$sign" "$tmp/in.apk" "$tmp/prompt.apk" < /dev/null 2>&1)"; rc=$?
+check "TAEN_KS_PROMPT=1 without a password source: refused" "2" "$rc"
+contains "TAEN_KS_PROMPT=1 without a password source: names the setup command" "$out" "make keystore-pass"
+check "TAEN_KS_PROMPT=1 without a password source: nothing signed" "no" "$([ -e "$tmp/prompt.apk" ] && echo yes || echo no)"
 
 # a password file signs with no prompt
 out="$(TAEN_KS_PASS_FILE="$tmp/pass" "$sign" "$tmp/in.apk" "$tmp/file.apk" < /dev/null 2>&1)"; rc=$?
@@ -130,13 +158,31 @@ EOF
 out="$(drive "not-the-password" file 2>&1)"; rc=$?
 check "setup with a wrong password: refused" "1" "$rc"
 check "setup with a wrong password: nothing stored" "no" "$([ -e "$HOME/.config/taen/release.pass" ] && echo yes || echo no)"
+
+# a password file in a directory of the repository that does not exist yet is refused, and the directory is not made
+newdir="$root/.test-sign-newdir.$$"
+out="$(TAEN_PASS_FILE="$newdir/sub/release.pass" "$setup" file < /dev/null 2>&1)"; rc=$?
+check "setup into a new directory of the repository: refused" "2" "$rc"
+contains "setup into a new directory of the repository: says why" "$out" "inside the repository"
+check "setup into a new directory of the repository: no directory made" "no" "$([ -e "$newdir" ] && echo yes || echo no)"
+rm -rf "$newdir"
+out="$(TAEN_PASS_FILE="$HOME/.config/taen/new/release.pass" "$setup" file < /dev/null 2>&1)"; rc=$?
+contains "setup into a new directory outside the repository: passes the place check (then wants a terminal)" "$out" "run this in a terminal"
+
+# an earlier file that others can read is replaced by a new mode 600 file, not written in place
+printf '%s\n' "old" > "$HOME/.config/taen/release.pass"; chmod 644 "$HOME/.config/taen/release.pass"
+old_inode="$(stat -c '%i' "$HOME/.config/taen/release.pass")"
 out="$(drive "$pass" file 2>&1)"; rc=$?
 check "setup with the right password: stored" "0" "$rc"
+check "setup over a mode 644 file: a new file, not the old one rewritten" "yes" "$([ "$(stat -c '%i' "$HOME/.config/taen/release.pass")" != "$old_inode" ] && echo yes || echo no)"
+check "setup: no temporary file is left beside it" "release.pass" "$(ls -A "$HOME/.config/taen" | tr '\n' ' ' | sed 's/ $//')"
 check "setup: the password was not echoed" "" "$(printf '%s' "$out" | grep -c 'password echoed' | grep -v '^0$' || true)"
 check "setup: file mode" "600" "$(stat -c '%a' "$HOME/.config/taen/release.pass" 2> /dev/null)"
 check "setup: file content" "$pass" "$(cat "$HOME/.config/taen/release.pass" 2> /dev/null)"
 out="$("$sign" "$tmp/in.apk" "$tmp/afterwards.apk" < /dev/null 2>&1)"; rc=$?
 check "signing after the setup needs nothing" "0" "$rc"
+
+check "whole run: no secret-tool by its default name was ever called" "0" "$(calls "$tmp/default-secret-tool.calls")"
 
 echo "$fails failure(s)"
 [ "$fails" -eq 0 ]

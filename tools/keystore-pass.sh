@@ -19,8 +19,10 @@ if [ -z "$mode" ]; then
   if command -v "$secret_tool" > /dev/null 2>&1; then mode=keyring; else mode=file; fi
 fi
 case "$mode" in keyring|file) ;; *) echo "usage: $0 [keyring|file]" >&2; exit 2;; esac
-case "$(cd "$(dirname "$pass_file")" 2> /dev/null && pwd || echo none)/" in
-  "$root"/*) echo "error: the password file must not be inside the repository" >&2; exit 2;;
+# resolved as it will be written (symbolic links followed, missing directories included), so a directory of the repository that does not exist yet
+# is refused too
+case "$(realpath -m "$(dirname "$pass_file")")/" in
+  "$(realpath "$root")"/*) echo "error: the password file must not be inside the repository" >&2; exit 2;;
 esac
 [ -t 0 ] || { echo "error: run this in a terminal: it asks for the password once" >&2; exit 2; }
 
@@ -42,8 +44,11 @@ if [ "$mode" = keyring ]; then
   printf '%s' "$password" | "$secret_tool" store --label="Taen release keystore" service "$keyring_service"
   echo "stored in the keyring (service $keyring_service). make sign now needs no password."
 else
-  mkdir -p "$(dirname "$pass_file")"
-  ( umask 077 && printf '%s\n' "$password" > "$pass_file" )
-  chmod 600 "$pass_file"
+  # a new mode 600 file moved into place: the password is never in a file that others can read, even when an earlier file was mode 644
+  ( umask 077 && mkdir -p "$(dirname "$pass_file")" )
+  new="$(umask 077 && mktemp "$(dirname "$pass_file")/.release.pass.XXXXXX")"
+  trap 'rm -f "$check" "$new"; password=""' EXIT
+  printf '%s\n' "$password" > "$new"
+  mv -f "$new" "$pass_file"
   echo "stored in $pass_file (mode 600). make sign now needs no password."
 fi

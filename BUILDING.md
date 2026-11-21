@@ -164,9 +164,10 @@ make sign                 # dist/taen-2.0.2-signed.apk; no prompt: the password 
 `make sign` reads the keystore password from the first of: the file named by `TAEN_KS_PASS_FILE`, `~/.config/taen/release.pass`, the desktop keyring
 (`secret-tool`, entry `service taen-release-keystore`). A password file must be a regular file of yours with mode 600, outside the repository, and
 is refused otherwise. The password is passed to `apksigner` as a file, never on a command line, and is never printed; a keyring answer is written to a
-mode 600 file in `$XDG_RUNTIME_DIR` for the one call and removed. With none of the three the script stops and names `make keystore-pass`; it does not ask
-on the terminal (`TAEN_KS_PROMPT=1` brings the old prompt back). `make keystore-pass` checks the password against the keystore before it stores it
-(`tools/keystore-pass.sh keyring|file`). `make test-sign` tests all of this with a throw-away key.
+mode 600 file in `$XDG_RUNTIME_DIR` for the one call and removed. With none of the three the script stops and names `make keystore-pass`; it never asks
+on the terminal. `make keystore-pass` checks the password against the keystore before it stores it (`tools/keystore-pass.sh keyring|file`); a
+file is written with mode 600 as a new file and moved into place, and is refused inside the repository, also in a directory that does not exist yet.
+`make test-sign` tests all of this with a throw-away key and stubs of `secret-tool`, so it never reads your keyring.
 
 Write down the certificate SHA-256 that `make sign` prints and keep two offline copies of the keystore: an update must be signed with the
 same key, and losing it means uninstalling every installed copy (use the encrypted export first).

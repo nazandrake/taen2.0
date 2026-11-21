@@ -5,8 +5,8 @@
 #   1. TAEN_KS_PASS_FILE  a file holding the password (mode 600, outside the repository)
 #   2. ~/.config/taen/release.pass   the same kind of file, the default place (written by tools/keystore-pass.sh file)
 #   3. the desktop keyring (secret-tool, entry "service taen-release-keystore", written by tools/keystore-pass.sh keyring)
-# Without any of them the script stops and prints the one-time setup command (make keystore-pass); it never asks on the terminal,
-# unless TAEN_KS_PROMPT=1 (apksigner then asks). The password is never put on a command line or printed.
+# Without any of them the script stops and prints the one-time setup command (make keystore-pass); it never asks on the terminal.
+# The password is never put on a command line or printed.
 # Environment:
 #   TAEN_KEYSTORE        keystore path (default ~/.config/taen/release.p12)
 #   TAEN_KEY_ALIAS       key alias (default taen)
@@ -71,16 +71,10 @@ elif command -v "$secret_tool" > /dev/null 2>&1; then
   fi
 fi
 
-pass_args=()
-if [ -n "$pass_file" ]; then
-  pass_args=(--ks-pass "file:$pass_file")
-elif [ "${TAEN_KS_PROMPT:-}" != "1" ]; then
-  echo "error: no keystore password source: $setup_hint" >&2
-  exit 2
-fi
+[ -n "$pass_file" ] || { echo "error: no keystore password source: $setup_hint" >&2; exit 2; }
 
 mkdir -p "$(dirname "$out")"
-"$apksigner" sign --ks "$ks" --ks-key-alias "$alias_name" "${pass_args[@]}" \
+"$apksigner" sign --ks "$ks" --ks-key-alias "$alias_name" --ks-pass "file:$pass_file" \
   --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true \
   --out "$out" "$in"
 "$apksigner" verify --verbose "$out" | grep -E "^(Verifies|Verified using)"
