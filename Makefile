@@ -8,7 +8,7 @@ ENGINE   := $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/nu
 IMAGE    ?= taen-build:local
 GRADLE_CACHE ?= $(HOME)/.cache/taen-gradle
 
-.PHONY: help build debug test test-build-scripts check fetch-voice-model voice-smoke nextword-eval leak-audit leak-audit-device native-test native-test-tsan native-test-asan offline-build verify-repro keygen sign hooks container container-build container-verify-repro clean
+.PHONY: help build debug test test-build-scripts test-sign keystore-pass check fetch-voice-model voice-smoke nextword-eval leak-audit leak-audit-device native-test native-test-tsan native-test-asan offline-build verify-repro keygen sign hooks container container-build container-verify-repro clean
 
 help:
 	@echo "build         unsigned release APK -> dist/taen-$(VERSION)-unsigned.apk (runs privacyCheck first)"
@@ -26,7 +26,9 @@ help:
 	@echo "offline-build the release build with --offline (needs one earlier online build)"
 	@echo "verify-repro  two clean builds of HEAD in separate directories; the unsigned APK hashes must match"
 	@echo "keygen        create a signing key outside the repo (~/.config/taen/release.p12)"
-	@echo "sign          sign dist/taen-$(VERSION)-unsigned.apk -> dist/taen-$(VERSION)-signed.apk"
+	@echo "keystore-pass one-time setup: asks for the keystore password once and keeps it in the keyring (or a mode 600 file) for make sign"
+	@echo "test-sign     tests of tools/sign.sh and tools/keystore-pass.sh (throw-away key, clean environment; the real key is never read)"
+	@echo "sign          sign dist/taen-$(VERSION)-unsigned.apk -> dist/taen-$(VERSION)-signed.apk, no prompt (password from the keyring or the file of make keystore-pass)"
 	@echo "hooks         enable githooks/ (public check on commit, build gate and reproducibility on push)"
 	@echo "container     build the pinned build image (podman or docker)"
 	@echo "container-build  release build of HEAD inside the image -> dist/"
@@ -98,6 +100,13 @@ verify-repro: # stops the project's idle Gradle daemons first (tools/verify-repr
 
 keygen:
 	tools/keygen.sh
+
+keystore-pass:
+	tools/keystore-pass.sh
+
+test-sign:
+	tools/test-sign.sh
+	tools/test-sign-isolation.sh
 
 sign:
 	tools/sign.sh dist/taen-$(VERSION)-unsigned.apk dist/taen-$(VERSION)-signed.apk

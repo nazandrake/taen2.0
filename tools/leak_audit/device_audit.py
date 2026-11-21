@@ -208,6 +208,8 @@ def flow(run, audit_apk, release_apk):
     run.step("D6", "Clipboard", clips)
     run.step("D6b", "Clipboard at service start", lambda: fl.clipboard_restart_check(run))
     run.step("D6p", "Clipboard Forever and pinned entry", lambda: fl.pinned_forever_setup(run))
+    run.step("D6c", "Clipboard keys in password fields", lambda: fl.secure_clipboard_check(run))
+    run.step("D6d", "Clipboard suggestion of a password copy", lambda: fl.secure_suggestion_check(run))
     export = {}
 
     def exporting():

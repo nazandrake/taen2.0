@@ -560,7 +560,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     /**
      * A number, phone or date field has no suggestions, so its strip carries paste, select all and clear all: one tap, no need to open the toolbar.
      * A password field (a number password too) gets no strip: none of these keys and none of the keys the user pinned (PrivacyPolicy decides, the
-     * pinned keys come back in the next field). A key the user pinned already is not added again. Other fields get their own pinned keys back.
+     * pinned keys come back in the next field), unless "Clipboard keys in password fields" is on: then a number password field gets these keys and
+     * every password field the pinned keys. A key the user pinned already is not added again. Other fields get their own pinned keys back.
      * The keys are worked out from the field type at every call, whatever happened to the pinned row since (a key pinned or unpinned by a long
      * press, the row rebuilt).
      */

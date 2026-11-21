@@ -13,6 +13,7 @@
     "clipboard_history_retention_time": 5,
     "clipboard_history_max_items": 1,
     "suggest_clipboard_content": false,
+    "clipboard_in_secure_fields": false,
     "use_personalized_dicts": false,
     "add_to_personal_dictionary": false,
     "save_subtype_per_app": false,

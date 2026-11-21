@@ -65,6 +65,7 @@ fun PrivacyScreen(onClickBack: () -> Unit, onClickSelfDestruct: () -> Unit) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 IncognitoSection()
                 ScreenSection()
+                ClipboardSection()
                 AppLockSection()
                 Preference(name = stringResource(R.string.self_destruct_title), description = stringResource(R.string.self_destruct_intro_short), onClick = onClickSelfDestruct)
                 StatusSection()
@@ -108,6 +109,18 @@ private fun IncognitoSection() {
             checkTextValid = { true },
         )
     }
+}
+
+@Composable
+private fun ClipboardSection() {
+    PreferenceCategory(stringResource(R.string.privacy_category_clipboard))
+    SwitchPreference(
+        name = stringResource(R.string.clipboard_in_secure_fields_title),
+        key = Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS,
+        default = Defaults.PREF_CLIPBOARD_IN_SECURE_FIELDS,
+        description = stringResource(R.string.clipboard_in_secure_fields_summary),
+        onCheckedChange = { KeyboardSwitcher.getInstance().setThemeNeedsReload() },
+    )
 }
 
 @Composable

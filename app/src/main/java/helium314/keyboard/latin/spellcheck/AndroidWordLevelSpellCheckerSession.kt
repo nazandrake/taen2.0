@@ -160,8 +160,9 @@ abstract class AndroidWordLevelSpellCheckerSession(private val mService: Android
                 Log.i(TAG, "onGetSuggestionsInternal() : the word is NOT valid")
             }
 
-            // unknown word -> don't show suggestions if switched off
-            if (!mService.prefs().getBoolean(Settings.PREF_SPELLCHECK_SUGGEST, Defaults.PREF_SPELLCHECK_SUGGEST))
+            // unknown word -> don't show suggestions if switched off; an unknown name or abbreviation (capitalized) still needs the suggestions to decide
+            val showSuggestions = mService.prefs().getBoolean(Settings.PREF_SPELLCHECK_SUGGEST, Defaults.PREF_SPELLCHECK_SUGGEST)
+            if (!showSuggestions && capitalizeType == StringUtils.CAPITALIZE_NONE)
                 return AndroidSpellCheckerService.getTypoNoUiSuggestions()
 
             val keyboard = mService.getKeyboardForLocale(locale)
@@ -182,6 +183,10 @@ abstract class AndroidWordLevelSpellCheckerSession(private val mService: Android
                 }
                 Log.i(TAG, "onGetSuggestionsInternal() : suggestions found")
             }
+            // The word lists lack names, abbreviations and rarer word forms: a capitalized word is only underlined when the dictionary has a close word (SpellVerdict).
+            if (!SpellVerdict.isTypo(capitalizeType) { result.mHasRecommendedSuggestions })
+                return AndroidSpellCheckerService.getNotInDictEmptySuggestions(false)
+            if (!showSuggestions) return AndroidSpellCheckerService.getTypoNoUiSuggestions()
             // Handle word not in dictionary.
             // This is called only once per unique word, so entering multiple instances of the same word does not
             // result in more than one call to this method.

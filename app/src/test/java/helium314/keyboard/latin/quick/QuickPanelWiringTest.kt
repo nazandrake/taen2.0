@@ -105,8 +105,8 @@ class QuickPanelWiringTest {
         assertEquals(false, ctx.prefs().getBoolean("show_emoji_key", true)) // on by default, so the first tap hides it
         assertTrue(switcher.isShowingQuickPanel())
         panel.perform(QuickControl.HEIGHT, up = false)
-        assertEquals(0.95f, ctx.prefs().getFloat("keyboard_height_scale_false_false", 1f))
-        assertEquals(0.95f, Settings.getValues().mKeyboardHeightScale) // the running keyboard saw it
+        assertEquals(1.05f, ctx.prefs().getFloat("keyboard_height_scale_false_false", 1f)) // one step below the portrait default 1.1
+        assertEquals(1.05f, Settings.getValues().mKeyboardHeightScale) // the running keyboard saw it
         panel.perform(QuickControl.NUMBER_ROW)
         assertEquals(false, ctx.prefs().getBoolean("show_number_row", true))
         assertEquals(ceBefore, ctx.protectedPrefs().all.toMap(), "the panel never writes the credential-encrypted preferences")

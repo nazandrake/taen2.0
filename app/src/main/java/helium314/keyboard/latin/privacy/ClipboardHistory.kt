@@ -36,9 +36,17 @@ object ClipboardCapture {
      * @param sensitiveFlag the EXTRA_IS_SENSITIVE flag of the clip, null when the clip does not say
      * @param incognito PrivacyPolicy says nothing is kept in this field (password field, no-learning flag, force-incognito, listed app, locked device)
      * @param storeAvailable false while the encrypted store cannot be opened (device locked)
+     * @param clipMadeAt when the clip was put on the clipboard (milliseconds); [serviceStartedAt] when this keyboard service started. A clip that was
+     * already there when the service started was copied in a field the keyboard did not see (a password field copy is not flagged sensitive), whenever
+     * the system reports it to the service, so it is never stored: only copies seen while the service runs, with their field known, are. A clip from the
+     * same millisecond as the start may have been made just before it, so only a strictly newer clip counts as seen (fail closed).
      */
-    fun shouldStore(historyEnabled: Boolean, storeAvailable: Boolean, sensitiveFlag: Boolean?, incognito: Boolean, text: CharSequence?): Boolean {
+    fun shouldStore(
+        historyEnabled: Boolean, storeAvailable: Boolean, sensitiveFlag: Boolean?, incognito: Boolean, text: CharSequence?,
+        clipMadeAt: Long, serviceStartedAt: Long,
+    ): Boolean {
         if (!historyEnabled || !storeAvailable) return false
+        if (clipMadeAt <= serviceStartedAt) return false
         if (sensitiveFlag == true) return false
         if (incognito) return false
         return !text.isNullOrEmpty() && text.length <= MAX_TEXT_LENGTH

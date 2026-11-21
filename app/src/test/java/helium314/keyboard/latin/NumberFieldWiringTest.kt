@@ -14,6 +14,7 @@ import android.widget.TextView
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowInputMethodService
 import helium314.keyboard.ShadowLocaleManagerCompat
+import helium314.keyboard.event.Event
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.clipboard.ClipboardHistoryView
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
@@ -31,6 +32,7 @@ import org.robolectric.annotation.Config
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -130,6 +132,129 @@ class NumberFieldWiringTest {
         }
         startField(ime, number)
         assertTrue(keys.all { it in pinnedKeys(ime) }, "the keys come back in a plain number field: ${pinnedKeys(ime)}")
+    }
+
+    /** on, a number password field has the strip keys, and a copy from a password field is flagged sensitive. */
+    @Test fun withTheClipboardSettingANumberPasswordFieldGetsTheStripKeys() = withKeyboard { ime ->
+        val keys = listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL)
+        val type = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        ime.prefs().edit().putBoolean(Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, true).commit()
+        startField(ime, type)
+        assertTrue(keys.all { it in pinnedKeys(ime) }, "${pinnedKeys(ime)}")
+    }
+
+    private fun copyFrom(ime: LatinIME, inputType: Int, content: String): Boolean? {
+        startField(ime, inputType, content)
+        ShadowInputMethodService.selectionStart = 0
+        ShadowInputMethodService.selectionEnd = content.length
+        val cm = ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(System.currentTimeMillis())) // a clip is stamped when it is made: the clock is on the wall time, as on the phone
+        ime.onEvent(Event.createSoftwareKeypressEvent(KeyCode.CLIPBOARD_COPY, 0, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false))
+        assertEquals(content, cm.primaryClip?.getItemAt(0)?.text?.toString(), "the copy reached the clipboard")
+        return helium314.keyboard.compat.ClipboardManagerCompat.getClipSensitivity(cm.primaryClip?.description)
+    }
+
+    @Test fun aCopyFromAPasswordFieldIsFlaggedSensitiveAndOneFromATextFieldIsNot() = withKeyboard { ime ->
+        assertEquals(true, copyFrom(ime, text or InputType.TYPE_TEXT_VARIATION_PASSWORD, "hunter2"))
+        assertNotEquals(true, copyFrom(ime, text, "plain words"))
+    }
+
+    private val passwordTypes = listOf(
+        InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD,
+        InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or InputType.TYPE_NUMBER_VARIATION_PASSWORD,
+        text or InputType.TYPE_TEXT_VARIATION_PASSWORD,
+        text or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
+        text or InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+    )
+
+    /** on, every password variation has the keys its class has (a number class: paste, select all, clear all; the user's pinned keys in all), and still no clip is suggested. */
+    @Test fun withTheClipboardSettingEveryPasswordVariationHasItsStripKeysButNoClipboardSuggestion() = withKeyboard { ime ->
+        val fieldKeys = listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL)
+        val pinnedByUser = listOf(ToolbarKey.UNDO)
+        ime.prefs().edit().putString(Settings.PREF_PINNED_TOOLBAR_KEYS, helium314.keyboard.latin.utils.defaultPinnedToolbarPref.replace("UNDO:false", "UNDO:true")).commit()
+        ime.setInputView(KeyboardSwitcher.getInstance().onCreateInputView(ime, true))
+        fun shown(): List<Any?> = pinned(ime).let { row -> (0 until row.childCount).map { row.getChildAt(it) }.filter { it.visibility == View.VISIBLE }.map { it.tag } }
+        startField(ime, text or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        assertTrue(pinnedByUser.none { it in shown() }, "off: nothing the user pinned is shown in a password field: ${shown()}")
+        ime.prefs().edit().putBoolean(Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, true).commit()
+        for (type in passwordTypes) {
+            startField(ime, type)
+            assertTrue(Settings.getValues().mPrivacy.passwordField, "type $type is a password field")
+            assertTrue(pinnedByUser.all { it in shown() }, "type $type: the pinned keys are shown: ${shown()}")
+            val numeric = helium314.keyboard.latin.utils.FieldText.isNumericField(type)
+            for (key in fieldKeys) assertEquals(numeric, key in shown(), "type $type, $key: ${shown()}")
+            assertNull(suggestion(ime, type, "12"), "type $type: the clip is not suggested")
+        }
+        startField(ime, text)
+        assertTrue(fieldKeys.none { it in shown() }, "a text field has none of the field keys: ${shown()}")
+    }
+
+    @Test fun withTheClipboardSettingThePasteKeyOfANumberPasswordFieldPastesWhatItAccepts() = withKeyboard { ime ->
+        ime.prefs().edit().putBoolean(Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, true).commit()
+        startField(ime, InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD)
+        (ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("t", "pin 4711 x"))
+        tap(ime, ToolbarKey.PASTE)
+        assertEquals("4711", ShadowInputMethodService.text)
+    }
+
+    /**
+     * the history stays clean with the setting on: a copy made in a password field with the keyboard's own copy key does not enter the
+     * history (it is flagged sensitive and the field is incognito), a copy in a plain field does (the positive control that the path is live).
+     */
+    @Test fun withTheClipboardSettingACopyFromAPasswordFieldNeverEntersTheHistory() = withKeyboard { ime ->
+        ime.prefs().edit().putBoolean(Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, true).putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, true).commit()
+        val history = ime.clipboardHistoryManager
+        assertEquals(0, history.getHistorySize())
+        assertNotEquals(true, copyFrom(ime, text, "ordinary words"))
+        assertEquals(1, history.getHistorySize(), "positive control: a plain copy is stored")
+        assertEquals(true, copyFrom(ime, text or InputType.TYPE_TEXT_VARIATION_PASSWORD, "hunter2"))
+        assertEquals(true, copyFrom(ime, InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD, "424242"))
+        assertEquals(1, history.getHistorySize(), "nothing from the password fields was stored")
+        assertEquals(listOf("ordinary words"), (0 until history.getHistorySize()).map { history.getHistoryEntry(it)?.text })
+    }
+
+    /** The clipboard suggestion the next field would show for the clip that is on the clipboard now. */
+    private fun suggestionOfTheClip(ime: LatinIME, inputType: Int): View? {
+        startField(ime, inputType)
+        return ime.clipboardHistoryManager.getClipboardSuggestionView(EditorInfo().apply { this.inputType = inputType }, FrameLayout(ime))
+    }
+
+    /**
+     * a copy made in a password field with the keyboard's copy key is never offered as a clipboard suggestion, also not in the next normal
+     * field; a copy made in a text field is (the positive control that the suggestion path is live).
+     */
+    @Test fun withTheClipboardSettingACopyFromAPasswordFieldIsNeverSuggestedInTheNextField() = withKeyboard { ime ->
+        ime.prefs().edit().putBoolean(Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, true).putBoolean(Settings.PREF_SUGGEST_CLIPBOARD_CONTENT, true)
+            .putBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, true).commit()
+        assertNotEquals(true, copyFrom(ime, text, "ordinary words"))
+        val shown = assertNotNull(suggestionOfTheClip(ime, text), "positive control: a plain copy is suggested in the next field")
+        assertEquals("ordinary words", shown.findViewById<TextView>(R.id.clipboard_suggestion_text).text.toString())
+        assertEquals(true, copyFrom(ime, text or InputType.TYPE_TEXT_VARIATION_PASSWORD, "hunter2"))
+        assertNull(suggestionOfTheClip(ime, text), "the password copy is not suggested in the next text field")
+        assertEquals(true, copyFrom(ime, InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD, "424242"))
+        for (type in listOf(text, number, InputType.TYPE_CLASS_PHONE)) assertNull(suggestionOfTheClip(ime, type), "type $type: the number password copy is not suggested")
+    }
+
+    /** a clip flagged sensitive by any app is not suggested in any field, with the setting on or off; the same clip without the flag is. */
+    @Test fun aClipFlaggedSensitiveIsNeverSuggestedInAnyField() = withKeyboard { ime ->
+        ime.prefs().edit().putBoolean(Settings.PREF_SUGGEST_CLIPBOARD_CONTENT, true).commit()
+        val cm = ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        recentClip("") // the clock on the wall time once; each recentClip doubles it, so the clips below are made at that time
+        fun put(sensitive: Boolean) = cm.setPrimaryClip(ClipData.newPlainText("t", "1234").apply {
+            if (sensitive) description.extras = android.os.PersistableBundle().apply {
+                putBoolean(helium314.keyboard.compat.ClipboardManagerCompat.EXTRA_IS_SENSITIVE, true)
+            }
+        })
+        val types = listOf(text, number, decimal, InputType.TYPE_CLASS_PHONE)
+        for (settingOn in listOf(false, true)) {
+            ime.prefs().edit().putBoolean(Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, settingOn).commit()
+            for (type in types) {
+                put(sensitive = false)
+                assertNotNull(suggestionOfTheClip(ime, type), "positive control, setting $settingOn, type $type: the clip without the flag is suggested")
+                put(sensitive = true)
+                assertNull(suggestionOfTheClip(ime, type), "setting $settingOn, type $type: the sensitive clip is not suggested")
+            }
+        }
     }
 
     /** P9: the keys the user pinned follow the same decision: a password field shows none of them (the strip is not there), other fields show them. */

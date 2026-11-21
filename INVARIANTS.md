@@ -66,7 +66,7 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   fields also get no suggestion strip, key previews or clipboard suggestion. The flag, the password tests and the list are read through
   the policy only (SourceRules). Tests: `PrivacyPolicyTest`, `AntiSnoopingWiringTest`, `PersonalSourcesPrivacyTest`.
 - **P10 Clipboard.** Text only. A copy flagged sensitive, made in a password or no-learning field, or made while the store is locked is
-  never stored (`ClipboardCapture`). Entries expire at the retention time (default 1 hour, 5 minutes to 7 days, or Forever: exactly
+  never stored (`ClipboardCapture`); so is a clip that was already on the clipboard when the keyboard service started (its timestamp is older than the service start), whenever the system reports it. Entries expire at the retention time (default 1 hour, 5 minutes to 7 days, or Forever: exactly
   `ClipboardLimits.FOREVER_MINUTES`, the largest value, so "lower is stricter" holds for profiles), at most 50 unpinned; pinned entries never expire. "Clear clipboard" removes every entry, pinned ones too;
   every self-destruct trigger deletes the store and a screen lock drops all entries from memory (`ClipboardWipeTest`).
   Pasting from the history uses `commitText`; `setPrimaryClip` is allowed only for copy, clear and theme export.
@@ -75,7 +75,12 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   part; a decimal field keeps the fraction with its own separator, "." unless the field names a locale; a number that reads two ways,
   such as 1,234, pastes nothing; a text of digits and spaces only, such as a card number, is one number with the spaces dropped; a number
   is never pasted in part); a phone field keeps digits, +, space, -, ( and ); a date field its own characters. Clear all selects the whole field and replaces it by nothing: it reads, copies and learns no text.
-  The strip carries those keys in number, phone and date fields only, never in a password field, which shows no pinned key either (P9, `PrivacyPolicy.Decision.suggestionStrip`).
+  The strip carries those keys in number, phone and date fields only, never in a password field, which shows no pinned key either (P9, `PrivacyPolicy.Decision.suggestionStrip`),
+  unless the user turns on "Clipboard keys in password fields" (`PREF_CLIPBOARD_IN_SECURE_FIELDS`, Privacy, off by default, a PRIVACY key of the profiles: a profile can only turn it off).
+  Then a password field shows the strip keys (its number class: paste, select all, clear all; all classes: the pinned keys) and nothing else changes: it stays incognito,
+  no clip is suggested in it, and a copy made in it with the keyboard's copy key is flagged `EXTRA_IS_SENSITIVE` (`Decision.sensitiveCopy`, `RichInputConnection.copyText`),
+  so it is never stored, suggested or learned: a clip flagged sensitive, by the keyboard or another app, is offered as a clipboard suggestion in no field, not even
+  as stars (`ClipboardHistoryManager.getClipboardSuggestionView`). Tests: `PrivacyPolicyTest`, `NumberFieldWiringTest` (history stays clean, no suggestion), device cases D6c and D6d.
   Tests: `FieldTextTest`, `NumberFieldWiringTest`, `InputLogicTest`.
 - **P11 No diagnostics retention.** No crash report, log buffer, stack trace or diagnostic file. `utils/Log.kt` forwards one tag and one
   fixed string literal (debug builds); the release build strips `android.util.Log` (R8, `app/proguard-release.pro`) and

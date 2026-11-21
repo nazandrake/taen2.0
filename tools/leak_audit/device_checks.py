@@ -13,7 +13,10 @@ CANARIES = {
     "clip_normal": "clipqzxcanary",  # copied by the helper in a normal field (kept in the history)
     "clip_sensitive": "sensqzxcanary",  # copied with the sensitive flag (never kept)
     "clip_password": "pwqzxcanary",  # copied while a password field has focus (never kept)
+    "clip_secure": "zqsecurecopyx",  # typed in a password field and copied with the keyboard's own keys while "Clipboard keys in password fields" is on (D6c; never kept, flagged sensitive)
     "clip_pinned": "pinqzxcanary",   # copied in a normal field, pinned, retention Forever (kept until the wipe, D6p and D13b)
+    "clip_suggest": "suggqzxcanary",  # copied by the helper in a normal field with "Suggest clipboard content" on (D6d: offered in the next field, the control)
+    "clip_secure_suggest": "zqsensuggestx",  # typed in a password field and copied with the keyboard's copy key (D6d: never offered as a suggestion)
     "trigger_word": "zqtrigwordqx9871",
     "passphrase": "zqpassphraseqz",
     "profile": "TaenCanaryProfile7q",  # 1.1.0: the name of a saved settings profile (one value of the encrypted preferences; never in plain text, in the export or after a wipe)
@@ -153,3 +156,47 @@ def entry_pin_node(nodes, entry):
         if len(inside) == 1 and (best is None or area < best[0]):
             best = (area, inside[0])
     return best[1] if best else None
+
+
+def secure_clipboard_problems(control_has_paste, off_has_paste, on_has_paste, copied, sensitive, history, canary, kept_control, never_kept=()):
+    """D6c: the setting "Clipboard keys in password fields". The plain number field has the paste key on its strip (control), a number password field has it
+    only with the setting on, a copy made in a password field with the keyboard's copy key reaches the system clipboard flagged sensitive, and the history holds
+    neither that text nor anything it did not hold before (the earlier normal copy is still there: the history was on screen)."""
+    problems = []
+    if not control_has_paste:
+        problems.append("no paste key on the strip of a plain number field: the check has no positive control")
+    if off_has_paste:
+        problems.append("a number password field has the paste key with the setting off")
+    if not on_has_paste:
+        problems.append("a number password field has no paste key with the setting on")
+    if copied != canary:
+        problems.append("the copy key did not put the password field's text on the clipboard (got %r)" % copied)
+    if sensitive is not True:
+        problems.append("the copy made in a password field is not flagged sensitive (flag %r)" % sensitive)
+    if any(canary in t for t in history):
+        problems.append("the copy made in a password field is in the history: %s" % history)
+    for other in never_kept:  # the clips of the earlier checks that must not be there either (D6: sensitive and password-field copies)
+        if any(other in t for t in history):
+            problems.append("a clip that is never kept (%s) is in the history: %s" % (other, history))
+    if not kept_control:
+        problems.append("the earlier normal copy is not in the history: the history was not shown, the check has no positive control")
+    return problems
+
+
+def secure_suggestion_problems(control_chip, copied, sensitive, chip_after, strip_after, canary, control_canary):
+    """D6d: a copy flagged sensitive is never offered as a clipboard suggestion. control_chip: the text of the clipboard suggestion shown in a normal field after a
+    normal copy (None when none is shown); copied, sensitive: the system clip after the copy in a password field; chip_after: the suggestion text shown in the next
+    normal field then (None when none); strip_after: every text of the keyboard window then. A starred chip (the password's length in stars) counts as offered."""
+    problems = []
+    if not control_chip or control_canary not in control_chip:
+        problems.append("a normal copy was not offered in the next field (chip %r): the check has no positive control" % control_chip)
+    if copied != canary:
+        problems.append("the copy key did not put the password field's text on the clipboard (got %r)" % copied)
+    if sensitive is not True:
+        problems.append("the copy made in a password field is not flagged sensitive (flag %r)" % sensitive)
+    if chip_after is not None:
+        problems.append("the copy made in a password field is offered as a clipboard suggestion in the next field (chip %r)" % chip_after)
+    stars = "*" * len(canary)
+    if any(canary in t or stars in t for t in strip_after):
+        problems.append("the copy made in a password field, or its stars, is on the strip of the next field: %s" % strip_after)
+    return problems

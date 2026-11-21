@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.rememberScrollState
@@ -319,7 +320,8 @@ private fun TriggerWordDialog(onDismiss: () -> Unit, onWord: (CharArray) -> Unit
         properties = DialogProperties(securePolicy = SecureFlagPolicy.SecureOn),
         title = { Text(stringResource(R.string.self_destruct_word_set)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // at most 200 dp high and scrolling, so that the buttons stay above the keyboard on a 1080x1920 phone (the keyboard is tall by default)
+            Column(Modifier.heightIn(max = 200.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.self_destruct_word_rules))
                 OutlinedTextField(word, { word = it }, singleLine = true, visualTransformation = PasswordVisualTransformation(), keyboardOptions = options,
                     label = { Text(stringResource(R.string.self_destruct_word_label)) })

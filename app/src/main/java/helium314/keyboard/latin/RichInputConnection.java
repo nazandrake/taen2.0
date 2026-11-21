@@ -12,11 +12,13 @@ import android.content.Context;
 import android.inputmethodservice.InputMethodService;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PersistableBundle;
 import android.os.SystemClock;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.text.style.CharacterStyle;
 
+import helium314.keyboard.compat.ClipboardManagerCompat;
 import helium314.keyboard.keyboard.KeyboardSwitcher;
 import helium314.keyboard.latin.common.ConstantsKt;
 import helium314.keyboard.latin.define.DebugFlags;
@@ -811,7 +813,13 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         }
         if (text == null || text.length() == 0) return;
         final ClipboardManager cm = (ClipboardManager) mParent.getSystemService(Context.CLIPBOARD_SERVICE);
-        cm.setPrimaryClip(ClipData.newPlainText("copied text", text));
+        final ClipData clip = ClipData.newPlainText("copied text", text);
+        if (Settings.getValues().mPrivacy.getSensitiveCopy()) { // a copy made in a password field (PrivacyPolicy): the system hides it, the history never takes it
+            final PersistableBundle extras = new PersistableBundle();
+            extras.putBoolean(ClipboardManagerCompat.EXTRA_IS_SENSITIVE, true);
+            clip.getDescription().setExtras(extras);
+        }
+        cm.setPrimaryClip(clip);
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
             KeyboardSwitcher.getInstance().showToast(mParent.getString(R.string.toast_msg_clipboard_copy), true);
         }

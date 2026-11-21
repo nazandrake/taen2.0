@@ -151,6 +151,7 @@ object ProfileKeys {
         Settings.PREF_CLIPBOARD_HISTORY_MAX_ITEMS to PrivacyRule(
             Defaults.PREF_CLIPBOARD_HISTORY_MAX_ITEMS, 1, ValueSpec.IntRange(1, ClipboardLimits.MAX_ITEMS), lowerInt()),
         Settings.PREF_SUGGEST_CLIPBOARD_CONTENT to PrivacyRule(Defaults.PREF_SUGGEST_CLIPBOARD_CONTENT, false, bool, stricterBool(false)),
+        Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS to PrivacyRule(Defaults.PREF_CLIPBOARD_IN_SECURE_FIELDS, false, bool, stricterBool(false)),
         Settings.PREF_KEY_USE_PERSONALIZED_DICTS to PrivacyRule(Defaults.PREF_KEY_USE_PERSONALIZED_DICTS, false, bool, stricterBool(false)),
         Settings.PREF_ADD_TO_PERSONAL_DICTIONARY to PrivacyRule(Defaults.PREF_ADD_TO_PERSONAL_DICTIONARY, false, bool, stricterBool(false)),
         Settings.PREF_SAVE_SUBTYPE_PER_APP to PrivacyRule(Defaults.PREF_SAVE_SUBTYPE_PER_APP, false, bool, stricterBool(false)),
