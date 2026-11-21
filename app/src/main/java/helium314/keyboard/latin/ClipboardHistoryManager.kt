@@ -169,10 +169,6 @@ class ClipboardHistoryManager(
         dao()?.listener = listener
     }
 
-    // password fields get no clipboard suggestion at all (PrivacyPolicy, SettingsValues.mSuggestClipboardContent), so only the clip's own flag matters here
-    private fun isClipSensitive(): Boolean =
-        ClipboardManagerCompat.getClipSensitivity(clipboardManager.primaryClip?.description) ?: false
-
     fun getClipboardSuggestionView(editorInfo: EditorInfo?, parent: ViewGroup?): View? {
         // maybe no need to create a new view
         // but a cache has to consider a few possible changes, so better don't implement without need
@@ -185,6 +181,9 @@ class ClipboardHistoryManager(
         val clipData = clipboardManager.primaryClip ?: return null
         if (clipData.itemCount == 0) return null
         val clipItem = clipData.getItemAt(0) ?: return null
+        // password fields get no clipboard suggestion at all (PrivacyPolicy, SettingsValues.mSuggestClipboardContent); a clip flagged sensitive (a copy made
+        // in a password field, or by another app that marks it) is offered in no field, not even as stars
+        if (ClipboardManagerCompat.getClipSensitivity(clipData.description) == true) return null
         val hasText = clipData.description?.hasMimeType("text/*") == true
         val hasImage = clipData.description?.hasMimeType("image/*") == true && clipItem.uri != null
         if (!hasText && !hasImage) return null
@@ -205,7 +204,7 @@ class ClipboardHistoryManager(
             if (pasteText.isEmpty()) return null
             val shortenedContent = pasteText.take(200) // for display only
             KeyboardTypeface.applyToTextView(textView)
-            textView.text = (if (isClipSensitive()) "*".repeat(shortenedContent.length) else shortenedContent)
+            textView.text = shortenedContent
         }
         val onClickListener = View.OnClickListener {
             dontShowCurrentSuggestion = true

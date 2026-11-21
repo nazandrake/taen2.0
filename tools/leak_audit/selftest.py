@@ -324,6 +324,28 @@ def secure_clipboard_checks():
                    PASS if ok else FAIL, "control: %s; failed: %s" % ("clean" if control_ok else "problems", ", ".join("%s=%s" % kv for kv in failed.items())))]
 
 
+def secure_suggestion_checks():
+    """D6d detects a password copy offered as a clipboard suggestion (as text or as stars) and a missing control or copy."""
+    import device_checks as dc
+    c, n = dc.CANARIES["clip_secure_suggest"], dc.CANARIES["clip_suggest"]
+    good = dict(control_chip=n, copied=c, sensitive=True, chip_after=None, strip_after=["Clipboard", "Paste"], canary=c, control_canary=n)
+    planted = {
+        "password copy offered as a chip": dict(good, chip_after="*" * len(c)),
+        "password copy offered as text": dict(good, chip_after=c),
+        "stars on the strip": dict(good, strip_after=["*" * len(c)]),
+        "the copy itself on the strip": dict(good, strip_after=[c]),
+        "no control chip": dict(good, control_chip=None),
+        "control chip of another clip": dict(good, control_chip="other"),
+        "copy not on the clipboard": dict(good, copied="other"),
+        "copy not flagged sensitive": dict(good, sensitive=False),
+    }
+    control_ok = not dc.secure_suggestion_problems(**good)
+    failed = {name: bool(dc.secure_suggestion_problems(**args)) for name, args in planted.items()}
+    ok = control_ok and all(failed.values())
+    return [Result("T-D6d", "D6d passes on the clean data and fails on a password copy offered as a chip, as text or stars on the strip, a missing control and a missing or unflagged copy",
+                   PASS if ok else FAIL, "control: %s; failed: %s" % ("clean" if control_ok else "problems", ", ".join("%s=%s" % kv for kv in failed.items())))]
+
+
 def native_allowance_checks():
     """ONNX Runtime may link liblog and import logger, console and writer functions by name; no library may import a network function, and no other
     library may link liblog or import a log function (the planted S8 above already proves the base rules)."""
@@ -380,7 +402,7 @@ def model_checks():
 
 
 def list_checks():
-    out = native_allowance_checks() + native_loading_checks() + model_checks() + secure_clipboard_checks()
+    out = native_allowance_checks() + native_loading_checks() + model_checks() + secure_clipboard_checks() + secure_suggestion_checks()
     deps = ["com.google.firebase:firebase-analytics:21.0.0", "org.example:no-licence:1.0", "org.example:gpl-lib:1.0", "org.apache:fine:1.0"]
     lic = {"com.google.firebase:firebase-analytics": "Apache 2.0", "org.example:gpl-lib": "Proprietary EULA", "org.apache:fine": "Apache License, Version 2.0"}
     r = sc.check_dependencies(deps, lic)

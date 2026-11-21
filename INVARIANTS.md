@@ -79,7 +79,8 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   unless the user turns on "Clipboard keys in password fields" (`PREF_CLIPBOARD_IN_SECURE_FIELDS`, Privacy, off by default, a PRIVACY key of the profiles: a profile can only turn it off).
   Then a password field shows the strip keys (its number class: paste, select all, clear all; all classes: the pinned keys) and nothing else changes: it stays incognito,
   no clip is suggested in it, and a copy made in it with the keyboard's copy key is flagged `EXTRA_IS_SENSITIVE` (`Decision.sensitiveCopy`, `RichInputConnection.copyText`),
-  so it is never stored, suggested (the strip shows stars) or learned. Tests: `PrivacyPolicyTest`, `NumberFieldWiringTest` (history stays clean), device case D6c.
+  so it is never stored, suggested or learned: a clip flagged sensitive, by the keyboard or another app, is offered as a clipboard suggestion in no field, not even
+  as stars (`ClipboardHistoryManager.getClipboardSuggestionView`). Tests: `PrivacyPolicyTest`, `NumberFieldWiringTest` (history stays clean, no suggestion), device cases D6c and D6d.
   Tests: `FieldTextTest`, `NumberFieldWiringTest`, `InputLogicTest`.
 - **P11 No diagnostics retention.** No crash report, log buffer, stack trace or diagnostic file. `utils/Log.kt` forwards one tag and one
   fixed string literal (debug builds); the release build strips `android.util.Log` (R8, `app/proguard-release.pro`) and

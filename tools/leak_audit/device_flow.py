@@ -501,6 +501,66 @@ def secure_clipboard_check(run):
                    ["history: %s" % history, "copied: %r" % copied])
 
 
+def set_suggest_clipboard(run):
+    """Turns "Suggest clipboard content" (Text correction, off by default) over once: the first call turns it on, the next off."""
+    d = run.dev
+    run.settings_home()
+    run.open_section("Text correction")
+    time.sleep(1)
+    run.scroll_to("Suggest clipboard content")
+    d.tap_text("Suggest clipboard content", exact=True)
+    time.sleep(1)
+    d.key("KEYCODE_BACK")
+    time.sleep(1)
+
+
+def suggestion_chip(run):
+    """The text of the clipboard suggestion on the strip of the field that has the focus, or None when none is shown."""
+    n = next((x for x in run.dev.nodes(True) if x["id"] == "clipboard_suggestion_text"), None)
+    return n["text"] if n else None
+
+
+def secure_suggestion_check(run):
+    """D6d: with "Suggest clipboard content" and "Clipboard keys in password fields" on, a normal copy is offered as a clipboard suggestion in the next normal field
+    (control), and a copy made in a password field with the keyboard's own keys (flagged sensitive) is not offered there, neither as text nor as stars.
+    Both settings are turned off again."""
+    d = run.dev
+    set_suggest_clipboard(run)
+    set_clipboard_secure_fields(run)
+    try:
+        run.field("normal", copy=CANARIES["clip_suggest"], delay=500)
+        time.sleep(1.5)
+        run.field("normal")
+        control_chip = suggestion_chip(run)
+        run.field("password")
+        d.type_keys("en", CANARIES["clip_secure_suggest"])
+        run.toolbar_open()
+        select = d.find("Select all", windows=True, exact=True)
+        if select:
+            d.tap(select["cx"], select["cy"])
+            time.sleep(0.8)
+        clip_key = d.find("Clipboard", windows=True, exact=True)
+        if clip_key:
+            d.tap(clip_key["cx"], clip_key["cy"])
+            time.sleep(1.5)
+        copy = d.find("Copy", windows=True, exact=True)
+        if copy:
+            d.tap(copy["cx"], copy["cy"])
+            time.sleep(1)
+        run.close_clipboard()
+        copied, sensitive = run.read_system_clip_flag()
+        run.field("normal")
+        chip_after = suggestion_chip(run)
+        strip_after = [x["text"] or x["desc"] for x in d.nodes(True) if x["pkg"].startswith(run.pkg) and (x["text"] or x["desc"])]
+    finally:
+        set_clipboard_secure_fields(run)
+        set_suggest_clipboard(run)
+    problems = dc.secure_suggestion_problems(control_chip, copied, sensitive, chip_after, strip_after, CANARIES["clip_secure_suggest"], CANARIES["clip_suggest"])
+    return verdict("D6d", "Clipboard suggestion: a copy made in a password field (flagged sensitive) is never offered in the next field; a normal copy is (control)", problems,
+                   "normal copy offered as %r; the password copy (sensitive %s) is offered as %r" % (control_chip, sensitive, chip_after),
+                   ["strip after the password copy: %s" % strip_after, "copied: %r" % copied])
+
+
 def language_key_check(run):
     """D15: a new install has English and Bulgarian enabled and a language key on the main layout; one tap switches
     EN -> BG (phonetic) and the next tap back. Evidence: the character a letter key types after each tap."""

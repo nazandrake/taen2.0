@@ -7,7 +7,7 @@
   are such names and abbreviations. A misspelled lowercase word is still underlined, and a language without a dictionary is not underlined at all.
 - New setting Privacy > Clipboard keys in password fields (off by default). When it is on, password and number password fields get the paste, select all
   and clear all keys and your pinned keys like other fields. A copy made in a password field is marked sensitive: Android hides its preview, and Taen
-  never stores, suggests or logs it.
+  never stores, suggests or logs it. "Suggest clipboard content" no longer offers any clip marked sensitive, from Taen or another app, not even as stars.
 - The keyboard is 10 percent taller in portrait by default, so that letters are easier to hit. A height you set yourself is kept; set 100 percent
   under Appearance to go back.
 - Fixed: a clip copied in a password field before the keyboard restarted could be taken into the clipboard history some seconds after the restart.
