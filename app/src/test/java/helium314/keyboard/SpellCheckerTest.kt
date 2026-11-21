@@ -71,6 +71,13 @@ class SpellCheckerTest {
         assertEquals(locales.size, locales.toSet().size, "no locale twice")
     }
 
+    private fun typo(word: String) =
+        (checker.onGetSuggestions(TextInfo(word), 2).suggestionsAttributes and SuggestionsInfo.RESULT_ATTR_LOOKS_LIKE_TYPO) != 0
+
+    @Test fun `a number or a word made mostly of digits is still not underlined`() {
+        for (word in listOf("123", "a1b2", "1a")) assertFalse(typo(word), word)
+    }
+
     @Test fun `spell checker settings never allow learned or personal words`() {
         assertFalse(personalized())
         checkService.onSharedPreferenceChanged(checkService.prefs(), helium314.keyboard.latin.settings.Settings.PREF_BLOCK_POTENTIALLY_OFFENSIVE)

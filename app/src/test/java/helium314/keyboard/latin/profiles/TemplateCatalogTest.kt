@@ -48,7 +48,7 @@ class TemplateCatalogTest {
             mapOf<String, Any>(
                 "always_incognito_mode" to true, "secure_keyboard_window" to true, "accessibility_warning" to true, "overlay_mode" to "block",
                 "enable_clipboard_history" to false, "clipboard_history_retention_time" to 5, "clipboard_history_max_items" to 1,
-                "suggest_clipboard_content" to false, "use_personalized_dicts" to false, "add_to_personal_dictionary" to false,
+                "suggest_clipboard_content" to false, "clipboard_in_secure_fields" to false, "use_personalized_dicts" to false, "add_to_personal_dictionary" to false,
                 "save_subtype_per_app" to false, "voice_typing" to false, "nextword_model" to false,
             ),
             t.getValue("privacy_max").values,

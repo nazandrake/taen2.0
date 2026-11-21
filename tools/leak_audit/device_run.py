@@ -164,7 +164,19 @@ class Run:
                 if m:
                     d.tap(m["cx"], m["cy"])
                 time.sleep(1.0)
-        return [x["text"] for x in d.nodes(True) if x["pkg"].startswith(self.pkg) and x["bounds"][1] > 1250 and x["text"]]
+        nodes = d.nodes(True)
+        close = next((x for x in nodes if x["desc"] == "Close clipboard history"), None)
+        below = close["bounds"][3] if close else 1250  # the entries are below the toolbar row of the open history
+        return [x["text"] for x in nodes if x["pkg"].startswith(self.pkg) and x["bounds"][1] >= below and x["text"]]
+
+    def read_system_clip_flag(self):
+        """(text, sensitive) of the primary clip as another app reads it: the helper logs both when it comes to the front."""
+        self.field("normal", read=True)
+        time.sleep(1.5)
+        text = self.dev.adb("logcat", "-d", "-s", "AuditHelper:I").stdout.decode(errors="replace")
+        t = re.findall(r"primary clip read: text=(.*)", text)
+        f = re.findall(r"primary clip sensitive: (\w+)", text)
+        return (t[-1].strip() if t else None), ({"true": True, "false": False}.get(f[-1]) if f else None)
 
     def toolbar_open(self):
         d = self.dev
@@ -236,7 +248,7 @@ class Run:
             if d.find("More keys", windows=True):
                 break
             time.sleep(1)
-        d.sh("input swipe 540 1822 540 1822 900")
+        d.sh("input swipe 540 1812 540 1812 900")
         time.sleep(1.3)
         return [t for t in d.texts() if "\n" in t]
 

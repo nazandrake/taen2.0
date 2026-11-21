@@ -19,6 +19,7 @@ EXPORTED_ALLOWED = {
     "helium314.keyboard.settings.SettingsActivity": "launcher activity (FLAG_SECURE)",
     "helium314.keyboard.settings.SettingsActivity2": "settings alias for older Android, also opens a .dict file the user chose (content: VIEW); reads, sends nothing",
     "helium314.keyboard.latin.spellcheck.SpellCheckerSettingsActivity": "settings page the system opens for the spell checker",
+    "helium314.keyboard.latin.quick.SwitchKeyboardTileService": "Quick Settings tile (2.0.1), protected by BIND_QUICK_SETTINGS_TILE: only the system binds it; it opens the keyboard picker, no data",
     "helium314.keyboard.latin.SystemBroadcastReceiver": "system broadcasts (boot, locale, package replaced); acts on its own state only",
     "androidx.profileinstaller.ProfileInstallReceiver": "AndroidX baseline-profile installer, protected by the DUMP permission",
 }

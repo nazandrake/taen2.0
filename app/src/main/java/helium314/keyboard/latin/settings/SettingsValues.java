@@ -192,7 +192,8 @@ public class SettingsValues {
                 prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE),
                 // the per-app list is in the credential-encrypted preferences (empty while locked, when everything is incognito anyway)
                 PrivacyPolicy.INSTANCE.parseApps(KtxKt.protectedPrefs(context).getString(Settings.PREF_INCOGNITO_APPS, Defaults.PREF_INCOGNITO_APPS)),
-                deviceLocked || Privacy.INSTANCE.isLocked());
+                deviceLocked || Privacy.INSTANCE.isLocked(),
+                prefs.getBoolean(Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, Defaults.PREF_CLIPBOARD_IN_SECURE_FIELDS));
     }
 
     public SettingsValues(final Context context, final SharedPreferences prefs, final Resources res,

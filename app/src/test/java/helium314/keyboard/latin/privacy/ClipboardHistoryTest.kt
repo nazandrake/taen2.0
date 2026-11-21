@@ -225,7 +225,24 @@ class ClipboardHistoryTest {
 
     private fun capture(
         enabled: Boolean = true, available: Boolean = true, sensitive: Boolean? = null, secure: Boolean = false, text: CharSequence? = "text",
-    ) = ClipboardCapture.shouldStore(enabled, available, sensitive, secure, text)
+        madeAt: Long = 5_000, startedAt: Long = 1_000,
+    ) = ClipboardCapture.shouldStore(enabled, available, sensitive, secure, text, madeAt, startedAt)
+
+    // a clip that was on the clipboard before the keyboard service started was copied in a field the keyboard did not see: it is never stored,
+    // whenever the system reports it (measured: a password-field copy was stored after a restart of the service)
+    @Test fun aClipMadeBeforeTheServiceStartedIsNeverStored() {
+        assertFalse(capture(madeAt = 999, startedAt = 1_000))
+        assertTrue(capture(madeAt = 5_000, startedAt = 1_000), "positive control: a clip made after the start is stored")
+    }
+
+    @Test fun theStartOfTheServiceIsTheExactBoundaryAndTheOtherReasonsStillApply() {
+        assertTrue(capture(madeAt = 1_000, startedAt = 1_000), "made in the same millisecond as the start: seen while running")
+        assertFalse(capture(madeAt = 0, startedAt = 1_000))
+        assertFalse(capture(madeAt = Long.MIN_VALUE, startedAt = 1_000))
+        assertFalse(capture(madeAt = 5_000, startedAt = 1_000, sensitive = true), "after the start but flagged sensitive")
+        assertFalse(capture(madeAt = 5_000, startedAt = 1_000, secure = true), "after the start but in a password field")
+        assertFalse(capture(madeAt = 999, startedAt = 1_000, text = null))
+    }
 
     @Test fun captureDecisionTable() {
         assertTrue(capture()) // positive control: a normal copy is stored

@@ -19,6 +19,7 @@ class ProfileApplyPrivacyTest {
         "clipboard_history_retention_time" to (5 to 60),
         "clipboard_history_max_items" to (1 to 50),
         "suggest_clipboard_content" to (false to true),
+        "clipboard_in_secure_fields" to (false to true),
         "use_personalized_dicts" to (false to true),
         "add_to_personal_dictionary" to (false to true),
         "save_subtype_per_app" to (false to true),

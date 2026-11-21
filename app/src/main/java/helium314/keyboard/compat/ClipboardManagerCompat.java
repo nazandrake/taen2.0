@@ -8,6 +8,8 @@ import android.content.ClipboardManager;
 import android.os.Build;
 
 public class ClipboardManagerCompat {
+    /** ClipDescription.EXTRA_IS_SENSITIVE (a constant of API 33; the extra itself is read since API 31). */
+    public static final String EXTRA_IS_SENSITIVE = "android.content.extra.IS_SENSITIVE";
 
     public static void clearPrimaryClip(ClipboardManager cm) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -33,7 +35,7 @@ public class ClipboardManagerCompat {
 
     public static Boolean getClipSensitivity(final ClipDescription cd) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            return cd != null && cd.getExtras() != null && cd.getExtras().getBoolean("android.content.extra.IS_SENSITIVE");
+            return cd != null && cd.getExtras() != null && cd.getExtras().getBoolean(EXTRA_IS_SENSITIVE);
         }
         return null; // can't determine
     }

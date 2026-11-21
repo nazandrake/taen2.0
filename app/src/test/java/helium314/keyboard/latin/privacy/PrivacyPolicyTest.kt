@@ -14,8 +14,8 @@ class PrivacyPolicyTest {
 
     private fun decide(
         inputType: Int = text, imeOptions: Int = 0, packageName: String? = "org.example.app", force: Boolean = false,
-        apps: Set<String> = emptySet(), locked: Boolean = false,
-    ) = PrivacyPolicy.decide(PrivacyPolicy.Input(inputType, imeOptions, packageName, force, apps, locked))
+        apps: Set<String> = emptySet(), locked: Boolean = false, secureClipboard: Boolean = false,
+    ) = PrivacyPolicy.decide(PrivacyPolicy.Input(inputType, imeOptions, packageName, force, apps, locked, secureClipboard))
 
     // ---- the core behaviour -----------------------------------------------------------------------------------
 
@@ -28,6 +28,60 @@ class PrivacyPolicyTest {
         assertFalse(plain.passwordField)
         assertFalse(plain.incognito) // positive control: the policy does not make everything incognito
         assertTrue(plain.keyPreviews)
+    }
+
+    /** it gives a password field the strip keys and marks its copies, and nothing is remembered more. */
+    @Test fun theClipboardSettingGivesAPasswordFieldItsStripKeys() {
+        val pw = text or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        assertFalse(decide(inputType = pw).suggestionStrip, "off: no strip keys")
+        val on = decide(inputType = pw, secureClipboard = true)
+        assertTrue(on.suggestionStrip)
+        assertTrue(on.sensitiveCopy)
+        assertTrue(on.incognito)
+        assertFalse(on.storeClipboard)
+    }
+
+    /** every password variation, on and off; the setting changes the strip keys and nothing that is remembered. */
+    @Test fun theClipboardSettingChangesOnlyTheStripKeysOfEveryPasswordVariation() {
+        for ((name, type) in passwordTypes) {
+            val off = decide(inputType = type)
+            val on = decide(inputType = type, secureClipboard = true)
+            assertFalse(off.suggestionStrip, "$name off: no strip keys")
+            assertTrue(on.suggestionStrip, "$name on: strip keys")
+            for (d in listOf(off, on)) {
+                assertTrue(d.passwordField, name)
+                assertTrue(d.incognito, "$name stays incognito")
+                assertFalse(d.learn, name)
+                assertFalse(d.storeClipboard, "$name: its copies are never stored")
+                assertFalse(d.recordRecents, name)
+                assertFalse(d.personalizedSuggestions, name)
+                assertFalse(d.clipboardSuggestion, "$name: the clip is never suggested in it")
+                assertFalse(d.keyPreviews, name)
+                assertFalse(d.fieldEditing, "$name: no space bar selection, no reading of the field")
+                assertTrue(d.sensitiveCopy, "$name: a copy from it is sensitive")
+            }
+        }
+    }
+
+    @Test fun theClipboardSettingDoesNotMakeAPlainFieldDifferent() {
+        val plainOff = decide()
+        val plainOn = decide(secureClipboard = true)
+        for (d in listOf(plainOff, plainOn)) {
+            assertTrue(d.suggestionStrip)
+            assertFalse(d.sensitiveCopy, "a copy from a plain field is not flagged")
+            assertFalse(d.incognito)
+            assertTrue(d.storeClipboard)
+            assertTrue(d.clipboardSuggestion)
+        }
+        // a field that is only no-learning is not a password field: the setting is not what gives it its strip
+        val noLearning = decide(imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING, secureClipboard = false)
+        assertTrue(noLearning.suggestionStrip)
+        assertFalse(noLearning.sensitiveCopy)
+    }
+
+    @Test fun theSettingIsOffInTheDecisionUnlessSet() {
+        assertFalse(PrivacyPolicy.decide(text or InputType.TYPE_TEXT_VARIATION_PASSWORD, 0, null, false, emptySet(), false).suggestionStrip)
+        assertTrue(PrivacyPolicy.decide(text or InputType.TYPE_TEXT_VARIATION_PASSWORD, 0, null, false, emptySet(), false, true).suggestionStrip)
     }
 
     @Test fun forceIncognitoMakesAPlainFieldIncognito() {

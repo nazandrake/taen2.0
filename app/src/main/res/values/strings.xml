@@ -346,6 +346,9 @@
     <string name="incognito_apps_count">%1$d apps: nothing is learned or kept in them</string>
     <string name="incognito_apps_info">Package names (for example org.example.bank), one per line, at most %1$d. Invalid entries are dropped. The list is stored encrypted.</string>
     <string name="privacy_category_screen">Screen capture and snooping</string>
+    <string name="privacy_category_clipboard">Clipboard</string>
+    <string name="clipboard_in_secure_fields_title">Clipboard keys in password fields</string>
+    <string name="clipboard_in_secure_fields_summary">Show the paste, select all and clear all keys and your pinned keys also in password and number password fields, so you can paste and copy there. A copy made in a password field is marked sensitive: Android hides its preview, and Taen never stores, suggests or logs it. Off by default.</string>
     <string name="secure_keyboard_window_title">Hide the keyboard from screenshots and screen recording</string>
     <string name="secure_keyboard_window_summary">While the keyboard is open, Android refuses screenshots and records the screen black. The keyboard window covers the whole screen, so the app behind it is blanked too. Turn this off to take screenshots while typing.</string>
     <string name="a11y_warning_title">Warn about accessibility services</string>

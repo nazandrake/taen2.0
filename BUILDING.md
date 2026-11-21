@@ -150,21 +150,28 @@ The key is generated outside the repository and never committed (`.gitignore` bl
 refuses a keystore inside the repo, the pre-push hook refuses key files). Only you hold it: nobody else generates, stores or
 sees your release key or its passphrase.
 
-Release steps, run by you on your machine (the version is `versionName` in `app/build.gradle.kts`: 2.0.1 now):
+Release steps, run by you on your machine (the version is `versionName` in `app/build.gradle.kts`: 2.0.2 now):
 
 ```
 make keygen               # once: ~/.config/taen/release.p12 (PKCS12, RSA 4096, mode 600); keytool asks for the password and a name
+make keystore-pass        # once: asks for the keystore password one time and keeps it in your desktop keyring (or a mode 600 file)
 make verify-repro         # two clean builds of HEAD must print REPRODUCIBLE <hash>
-make build                # runs privacyCheck, writes dist/taen-2.0.1-unsigned.apk (same hash as verify-repro) and SHA256SUMS
+make build                # runs privacyCheck, writes dist/taen-2.0.2-unsigned.apk (same hash as verify-repro) and SHA256SUMS
 make leak-audit           # static leak checks and the planted-failure proofs (section 9)
-make sign                 # dist/taen-2.0.1-signed.apk; apksigner asks for the password, it is never stored
+make sign                 # dist/taen-2.0.2-signed.apk; no prompt: the password comes from the keyring or the file of make keystore-pass
 ```
+
+`make sign` reads the keystore password from the first of: the file named by `TAEN_KS_PASS_FILE`, `~/.config/taen/release.pass`, the desktop keyring
+(`secret-tool`, entry `service taen-release-keystore`). A password file must be a regular file of yours with mode 600, outside the repository, and
+is refused otherwise. The password is passed to `apksigner` as a file, never on a command line, and is never printed; a keyring answer is written to a
+mode 600 file in `$XDG_RUNTIME_DIR` for the one call and removed. With none of the three the script stops and names `make keystore-pass`; it does not ask
+on the terminal (`TAEN_KS_PROMPT=1` brings the old prompt back). `make keystore-pass` checks the password against the keystore before it stores it
+(`tools/keystore-pass.sh keyring|file`). `make test-sign` tests all of this with a throw-away key.
 
 Write down the certificate SHA-256 that `make sign` prints and keep two offline copies of the keystore: an update must be signed with the
 same key, and losing it means uninstalling every installed copy (use the encrypted export first).
 
-Environment: `TAEN_KEYSTORE` (path), `TAEN_KEY_ALIAS` (default `taen`), `TAEN_KS_PASS_FILE` (a file with the password, for throw-away
-test keys only; for your release key type the password). The v1 scheme is off; apksigner requests v2 and v3 and produced a v3
+Environment: `TAEN_KEYSTORE` (path), `TAEN_KEY_ALIAS` (default `taen`), `TAEN_KS_PASS_FILE` (a mode 600 file with the password). The v1 scheme is off; apksigner requests v2 and v3 and produced a v3
 signature (apkSigningVersion=3 on Android 12).
 
 The device leak audit runs on an APK signed with a throw-away test key made for that purpose (the audit installs and removes it on the
@@ -269,7 +276,7 @@ GAP is a named check that could not be run. What is checked:
   D3 no canary in any encoding in both data directories and the external directories (`run-as` on the audit build, which is the release code with
   `debuggable=true`; on the release build itself it is the GAP D3r, because without root nothing can read the data of a non-debuggable app); D4 `bmgr backupnow` refuses and `adb backup` yields no user data (on the release build); D5 screenshot and screen recording are
   refused or black with the keyboard and the settings screen on screen; D6 clipboard (normal copy kept, sensitive and password-field copies not, paste
-  leaves the system clip, other UIDs cannot read the stores; D6p sets the retention to Forever and pins a copied entry with its pin button); D7 accessibility and overlay warnings fire (helper app); D8 granted permissions; D9
+  leaves the system clip, other UIDs cannot read the stores; D6p sets the retention to Forever and pins a copied entry with its pin button); D6c turns "Clipboard keys in password fields" on: a number password field gets its paste key (not without the setting), and a copy made in a password field with the keyboard's copy key reaches the system clipboard flagged sensitive and is not in the history; D7 accessibility and overlay warnings fire (helper app); D8 granted permissions; D9
   `dumpsys` holds no canary; D10 the encrypted export; D11 typing session with incognito; D12 screen lock; D13 self-destruct test mode and real wipe (the pinned Forever entry of D6p must be in the history before and gone after).
 - Voice (`tools/leak_audit/device_voice.py`, audit build, needs the model files and the FLEURS samples of section 8; the model is copied into the audit build
   with `adb push` and `run-as`): V1 the microphone permission is requested but not granted at install, the microphone is idle, and the first tap on the voice key

@@ -47,6 +47,9 @@ class ClipboardHistoryManager(
     /** The encrypted history. Null while the device or the screen is locked (then nothing is stored); it is opened again on later calls. */
     private fun dao(): ClipboardDao? = ClipboardDao.getInstance(latinIME)
 
+    /** When this service started (ClipboardCapture: a clip that was on the clipboard before is never stored). */
+    private val startedAt = System.currentTimeMillis()
+
     fun onCreate() {
         clipboardManager = latinIME.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(this)
@@ -111,6 +114,8 @@ class ClipboardHistoryManager(
             sensitiveFlag = ClipboardManagerCompat.getClipSensitivity(description),
             incognito = !privacyDecision().storeClipboard, // PrivacyPolicy: password field, no-learning flag, force-incognito, listed app, locked device
             text = content,
+            clipMadeAt = timeStamp,
+            serviceStartedAt = startedAt,
         )
         if (!store) return
         dao()?.addClip(timeStamp, content.toString())

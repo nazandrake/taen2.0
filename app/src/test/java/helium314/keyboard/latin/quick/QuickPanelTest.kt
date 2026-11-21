@@ -96,12 +96,12 @@ class QuickPanelTest {
         assertEquals(1.5f, step(1.45f, true).first)
         assertEquals(1.5f, step(1.5f, true).first); assertTrue(step(1.5f, true).second.isEmpty())
         assertEquals(1.45f, step(1.5f, false).first)
-        assertEquals(0.95f, step(null, false).first); assertEquals(1.05f, step(null, true).first) // from the default 1.0
+        assertEquals(1.05f, step(null, false).first); assertEquals(1.15f, step(null, true).first) // from the portrait default 1.1
         assertEquals(0.3f, step(0.32f, false).first); assertEquals(1.5f, step(1.48f, true).first) // a value off the grid is pulled into the range
         val de = FakePrefs(); QuickSettings.stepHeight(de, portrait, true)
-        assertEquals(mapOf<String, Any>(key to 1.05f), de.map)
+        assertEquals(mapOf<String, Any>(key to 1.15f), de.map)
         assertEquals(setOf(key), de.commits.single().keys)
-        assertEquals(1.05f, ProfileKeys.validate(key, de.map[key]))
+        assertEquals(1.15f, ProfileKeys.validate(key, de.map[key]))
     }
 
     @Test fun everyStepFromBottomToTopStaysOnTheGridAndIsAValidProfileValue() {

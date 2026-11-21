@@ -44,6 +44,7 @@ object Defaults {
     }
 
     private const val DEFAULT_SIZE_SCALE = 1.0f // 100%
+    private const val PORTRAIT_HEIGHT_SCALE = 1.1f // 110%
     const val PREF_THEME_STYLE = KeyboardTheme.STYLE_MATERIAL
     fun PREF_ICON_STYLE(prefs: SharedPreferences) = prefs.getString(Settings.PREF_THEME_STYLE, PREF_THEME_STYLE)!!
     const val PREF_ACCENT_SHIFTED_ICON = false
@@ -93,7 +94,9 @@ object Defaults {
     @JvmField
     val PREF_SPLIT_SPACER_SCALE = Array(4) { DEFAULT_SIZE_SCALE }
     @JvmField
-    val PREF_KEYBOARD_HEIGHT_SCALE = Array(4) { DEFAULT_SIZE_SCALE }
+    // taller keys in portrait (index = landscape + 2 * folded; landscape keeps its height): 110 %, measured on a 1080x1920 phone (keys 166 -> 183 px).
+    // Only the default moves: a height the user chose is stored under its own key and stays.
+    val PREF_KEYBOARD_HEIGHT_SCALE = arrayOf(PORTRAIT_HEIGHT_SCALE, DEFAULT_SIZE_SCALE, PORTRAIT_HEIGHT_SCALE, DEFAULT_SIZE_SCALE)
     @JvmField
     val PREF_BOTTOM_ROW_SCALE = Array(4) { DEFAULT_SIZE_SCALE }
     @JvmField
@@ -126,6 +129,8 @@ object Defaults {
     const val PREF_BIGRAM_PREDICTIONS = true
     const val PREF_SUGGEST_PUNCTUATION = false
     const val PREF_SUGGEST_CLIPBOARD_CONTENT = false
+    /** Off: a password field has no strip keys. On: it has them, and a copy made in it is flagged sensitive (PrivacyPolicy). */
+    const val PREF_CLIPBOARD_IN_SECURE_FIELDS = false
     const val PREF_GESTURE_INPUT = true // the glide quality gate passes (GlideQualityGateTest)
     const val PREF_VIBRATION_DURATION_SETTINGS = -1
     const val PREF_KEYPRESS_SOUND_VOLUME = -0.01f

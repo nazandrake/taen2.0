@@ -31,7 +31,7 @@ import android.widget.TextView;
  * focus=image: a fourth field that announces image/gif, image/png, image/jpeg and image/webp (EditorInfo.contentMimeTypes) and, when the keyboard commits a picture,
  * reads the content URI and logs "image received: type=... bytes=N sha256=..." (the receiver of the picture check)
  * focus=number: a number field; focus=numberpassword: a number field with the password variation (the keyboard's strip has no paste, select all or clear all there)
- * --ez read true                      reads the primary clip while in front and logs it (what another app can read)
+ * --ez read true                      reads the primary clip while in front and logs it, and whether it is flagged sensitive (what another app can read)
  * --ez keyboard false                  no focus and no keyboard: a plain white screen (the control for the screenshot and recording checks)
  * --ez overlay true                     draws a small touchable overlay over a corner of the keyboard (tapjacking)
  * Logs only with tag AuditHelper. It has no network permission either.
@@ -141,6 +141,8 @@ public class FieldActivity extends Activity {
             ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             ClipData c = cm.getPrimaryClip();
             Log.i("AuditHelper", "primary clip read: " + (c == null || c.getItemCount() == 0 ? "none" : "text=" + c.getItemAt(0).getText()));
+            PersistableBundle extras = c == null ? null : c.getDescription().getExtras();
+            Log.i("AuditHelper", "primary clip sensitive: " + (extras != null && extras.getBoolean("android.content.extra.IS_SENSITIVE")));
         }
     }
 

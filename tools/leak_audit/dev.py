@@ -128,10 +128,11 @@ class Dev:
         """Text into an app text field (not through the keyboard): input text, spaces as %s."""
         self.sh("input text '%s'" % s.replace(" ", "%s"))
 
-    # ---- the Taen soft keyboard (portrait 1080x1920: strip 1133-1253, rows at y 1335/1497/1660, bottom row 1822; measured on the reference phone)
-    EN_ROWS = (("qwertyuiop", 1335, 54, 108.0), ("asdfghjkl", 1497, 108, 108.0), ("zxcvbnm", 1660, 216, 108.0))
-    BG_ROWS = (("явертъуиопч", 1340, 48, 98.2), ("асдфгхйклшщ", 1500, 48, 98.2), ("зьцжбнмю", 1660, 210, 94.5))
-    SPACE = (540, 1822)
+    # ---- the Taen soft keyboard (portrait 1080x1920, default height 110 %: strip 1067-1187, rows at y 1277/1455/1634, bottom row 1812; measured on the reference phone;
+    # at the former 100 % the strip was 1133-1253 and the rows 1335/1497/1660/1822, which are still inside the same four rows)
+    EN_ROWS = (("qwertyuiop", 1277, 54, 108.0), ("asdfghjkl", 1455, 108, 108.0), ("zxcvbnm", 1634, 216, 108.0))
+    BG_ROWS = (("явертъуиопч", 1282, 48, 98.2), ("асдфгхйклшщ", 1457, 48, 98.2), ("зьцжбнмю", 1634, 210, 94.5))
+    SPACE = (540, 1812)
 
     def key_xy(self, layout, ch):
         if ch == " ":

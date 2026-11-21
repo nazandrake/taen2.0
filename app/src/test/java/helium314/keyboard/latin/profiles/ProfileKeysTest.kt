@@ -26,7 +26,7 @@ class ProfileKeysTest {
 
     private val contractPrivacy = listOf(
         "always_incognito_mode", "secure_keyboard_window", "accessibility_warning", "overlay_mode", "enable_clipboard_history",
-        "clipboard_history_retention_time", "clipboard_history_max_items", "suggest_clipboard_content", "use_personalized_dicts",
+        "clipboard_history_retention_time", "clipboard_history_max_items", "suggest_clipboard_content", "clipboard_in_secure_fields", "use_personalized_dicts",
         "add_to_personal_dictionary", "save_subtype_per_app", "voice_typing", "nextword_model",
     )
 
