@@ -24,6 +24,8 @@ case "$mode" in keyring|file) ;; *) echo "usage: $0 [keyring|file]" >&2; exit 2;
 case "$(realpath -m "$(dirname "$pass_file")")/" in
   "$(realpath "$root")"/*) echo "error: the password file must not be inside the repository" >&2; exit 2;;
 esac
+# a directory (or a link to one) is not a password file: mv would put the file inside it and report success
+[ ! -d "$pass_file" ] || { echo "error: $pass_file is a directory, not a file" >&2; exit 2; }
 [ -t 0 ] || { echo "error: run this in a terminal: it asks for the password once" >&2; exit 2; }
 
 read -r -s -p "Keystore password (not shown): " password; echo
