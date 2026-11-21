@@ -235,8 +235,11 @@ class ClipboardHistoryTest {
         assertTrue(capture(madeAt = 5_000, startedAt = 1_000), "positive control: a clip made after the start is stored")
     }
 
+    // only a clip strictly newer than the start was seen while the service ran: one made in the same millisecond may have been copied in a
+    // password field just before the restart, so it is refused (fail closed)
     @Test fun theStartOfTheServiceIsTheExactBoundaryAndTheOtherReasonsStillApply() {
-        assertTrue(capture(madeAt = 1_000, startedAt = 1_000), "made in the same millisecond as the start: seen while running")
+        assertFalse(capture(madeAt = 1_000, startedAt = 1_000), "made in the same millisecond as the start: maybe before it, never stored")
+        assertTrue(capture(madeAt = 1_001, startedAt = 1_000), "positive control: one millisecond after the start is stored")
         assertFalse(capture(madeAt = 0, startedAt = 1_000))
         assertFalse(capture(madeAt = Long.MIN_VALUE, startedAt = 1_000))
         assertFalse(capture(madeAt = 5_000, startedAt = 1_000, sensitive = true), "after the start but flagged sensitive")
