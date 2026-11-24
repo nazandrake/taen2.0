@@ -160,7 +160,7 @@ An operator works on the text that a motion or a text object covers. Type the op
 - `d`: delete. `c`: change (delete, then type). `y`: yank (copy).
 - `dd` `cc` `yy`: the whole line. `D` `C`: to the end of the line.
 - `x` deletes the character under the cursor, `X` the one before it. `s` changes one character, `S` the line.
-- `r` and a character replaces the character under the cursor.
+- `r` and a character replaces the character under the cursor. `R` replaces as you type: the typing keyboard opens, and when you press Esc the text you typed has taken the place of the same number of characters.
 - `J` joins the next line to this one with a space; `gJ` joins without a space.
 - `~` switches the case of the character and moves right. `g~`, `gu` and `gU` and a motion switch, lower and upper the case of the text.
 - `>` and `<` and a motion indent and unindent by four spaces (or a tab: see **Vim indent with a tab** in [Preferences](page:preferences)).
@@ -250,6 +250,15 @@ After
 
 ```example
 Before
+|xyz1
+Keys
+Rab<Esc>
+After
+a|bz1
+```
+
+```example
+Before
 |abc
 Keys
 ~~
@@ -301,9 +310,10 @@ A text object is a piece of text around the cursor. Use it after an operator (or
 - `iw` `aw`: a word, and a word with the space after it. `iW` `aW`: the same for a word between spaces.
 - `i"` `a"`, `i'` `a'`, and the backtick versions: inside quotes, and with the quotes.
 - `i(` `a(` (also `ib` `ab`), `i[` `a[`, `i{` `a{` (also `iB` `aB`), `i<` `a<`: inside brackets, and with the brackets. Brackets can span several lines.
+- `ip` `ap`: a paragraph (the lines up to the next empty line), and a paragraph with the empty lines after it. They work on whole lines.
 - A count makes the object bigger: `2iw` is two words.
 
-Sentence and paragraph objects (`is` `as` `ip` `ap`) are not supported. See [What is not supported](page:vim-limits).
+Sentence objects (`is` `as`) are not supported. See [What is not supported](page:vim-limits).
 
 ```example
 Before
@@ -356,6 +366,31 @@ f(
 
 ```example
 Before
+one
+t|wo
+
+three
+Keys
+dip
+After
+|
+three
+```
+
+```example
+Before
+one
+t|wo
+
+three
+Keys
+dap
+After
+|three
+```
+
+```example
+Before
 |one two three four
 Keys
 d2w
@@ -365,7 +400,7 @@ After
 
 ## Counts
 
-A count goes before a command (`3dd`, `3x`), or between an operator and its motion (`d3w`). A count before the operator and a count before the motion multiply: `2d3w` deletes six words.
+A count goes before a command (`3dd`, `3x`), or between an operator and its motion (`d3w`). A count can be as large as 999. A count before the operator and a count before the motion multiply: `2d3w` deletes six words.
 
 ```example
 Before
@@ -393,6 +428,7 @@ After
 
 - `i` inserts before the cursor, `a` after it. `I` inserts at the first non-blank of the line and `A` at the end of the line.
 - `o` opens a new line below and `O` above.
+- `gi` inserts again where you last stopped typing.
 - After the typing keyboard is back, Esc (the key on the strip) returns to Normal mode with the cursor on the last character you typed.
 
 ```example
@@ -414,4 +450,15 @@ After
 one
 tw|o
 three
+```
+
+```example
+Before
+|one
+two
+Keys
+Aab<Esc>jgiX<Esc>
+After
+oneab|X
+two
 ```

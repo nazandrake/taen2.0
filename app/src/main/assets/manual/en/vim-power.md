@@ -101,7 +101,7 @@ three|;
 
 ## Marks
 
-`m` and a letter sets a mark at the cursor. `` `a `` goes to the mark, `'a` goes to the line of the mark. `''` and ` `` ` go back to where you jumped from. Long press `q` for `m`, `%` for `'` and `~` for the backtick. Marks go away when the text is changed by anything but Vim mode, and when you leave the field.
+`m` and a letter sets a mark at the cursor. `` `a `` goes to the mark, `'a` goes to the line of the mark. `''` and ` `` ` go back to where you jumped from. Long press `q` for `m`, `%` for `'` and `~` for the backtick. The marks `<` and `>` hold the last Visual selection, `[` and `]` the last change, and `^` where you last stopped typing. Marks go away when the text is changed by anything but Vim mode, and when you leave the field.
 
 ```example
 Before
@@ -118,7 +118,7 @@ one |three four
 - `*` and `#` search for the word under the cursor, forward and backward. `g*` and `g#` do not need the whole word.
 - A search works after an operator: `d/x` and Enter deletes up to the match.
 - An offset after the pattern (`/text/e`, `/text/+1`) moves the cursor from the match.
-- Patterns are the usual Vim ones: `.` `*` `\+` `\=` `^` `$` `\<` `\>` `[ ]` `\( \)` `\|` `\c` `\C`. They are limited to 3 million steps and 0.4 seconds, so no pattern can hang the keyboard. See [What is not supported](page:vim-limits) for what is missing.
+- Patterns are the usual Vim ones: `.` `*` `\+` `\=` `\{n,m}` `^` `$` `\<` `\>` `[ ]` `\( \)` `\|` `\c` `\C`. They are limited to 3 million steps and 0.4 seconds, so no pattern can hang the keyboard. See [What is not supported](page:vim-limits) for what is missing.
 - The search text is typed on the typing keyboard into the engine only. It never goes into the field.
 
 ```example
@@ -218,6 +218,15 @@ Keys
 :s/cat/<&>/<CR>
 After
 |<cat> dog
+```
+
+```example
+Before
+|aaaa b
+Keys
+:s/a\{2,3}/X/<CR>
+After
+|Xa b
 ```
 
 ```example

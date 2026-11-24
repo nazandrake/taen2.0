@@ -11,7 +11,7 @@ Vim mode is the editing part of Vim on a keyboard. A keyboard sees one text fiel
 
 ## Not built yet
 
-- Sentence and paragraph text objects: `is` `as` `ip` `ap`. The sentence moves `(` and `)` and the paragraph moves `{` and `}` work.
+- Sentence text objects: `is` and `as`. The sentence moves `(` and `)`, the paragraph moves `{` and `}` and the paragraph objects `ip` and `ap` work.
 - In patterns: `\n` and `\v`, and back references. A pattern with one of them shows "This pattern is not supported here".
 - The `c` (confirm) flag of `:s`.
 - `ge`.

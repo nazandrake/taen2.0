@@ -31,7 +31,8 @@ A line above the keys shows the mode (NORMAL, VISUAL, V-LINE, V-BLOCK), what you
 
 ## Back to typing
 
-- `i` `a` `I` `A` `o` `O`, and the change commands (`cw`, `cc`, `s`, `S`, `C`) give you the normal typing keyboard back. Esc, from the strip or the toolbar, returns to Normal mode.
+- `i` `a` `I` `A` `o` `O` `R` `gi`, and the change commands (`cw`, `cc`, `s`, `S`, `C`) give you the normal typing keyboard back. Esc, from the strip or the toolbar, returns to Normal mode.
+- Keys that ask for one more character (`f` `F` `t` `T` `r`, a register after `"`, a mark after `m` `'` or the backtick, `q`, `@`) and the command line (`:` `/` `?`) show the normal typing keyboard for what you type, so that you can reach any letter or symbol.
 - When you leave the field, the typing keyboard is back the next time you type.
 
 ## Safe by design
