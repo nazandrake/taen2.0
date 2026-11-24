@@ -284,6 +284,52 @@ class VimWiringTest {
         assertEquals("foobar", text) // the caret was on the blank: dw takes it
     }
 
+    /** The selection of a field can run backwards (the anchor after the cursor): the whole text is still the whole text and the same range is meant. */
+    private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+
+    @Test fun aReversedSelectionIsTheSameRangeAsAForwardOne() = withKeyboard { ime ->
+        // Normal mode: Esc puts the caret where the selection starts, whichever way it runs and whichever way the editor answers for the text around it
+        for ((name, start, end, ordered) in listOf(Quad("forward", 1, 4, false), Quad("reversed", 4, 1, false), Quad("reversed, platform editor", 4, 1, true))) {
+            ShadowInputMethodService.cursorReadsOrdered = ordered
+            field(ime, "foo bar", 1)
+            press(ime, KeyCode.VIM_MODE)
+            ShadowInputMethodService.selectionStart = start
+            ShadowInputMethodService.selectionEnd = end
+            press(ime, KeyCode.VIM_MODE)
+            assertEquals(1 to 1, selection, name)
+            keys(ime, "x")
+            assertEquals("fo bar", text, name)
+            assertEquals(1 to 1, selection, name)
+        }
+        // Visual mode: the same range is deleted whichever way the editor reports it
+        for ((name, reversed, ordered) in listOf(Triple("forward", false, false), Triple("reversed", true, false), Triple("reversed, platform editor", true, true))) {
+            ShadowInputMethodService.cursorReadsOrdered = ordered
+            field(ime, "foo bar baz", 1)
+            press(ime, KeyCode.VIM_MODE)
+            keys(ime, "vll")
+            assertEquals(KeyboardElement.VIM_VISUAL, element, name)
+            assertEquals(0 to 3, selection, name)
+            if (reversed) {
+                ShadowInputMethodService.selectionStart = 3
+                ShadowInputMethodService.selectionEnd = 0
+            }
+            keys(ime, "d")
+            assertEquals(" bar baz", text, name)
+            assertEquals(0 to 0, selection, name)
+            assertEquals(KeyboardElement.VIM_NORMAL, element, name)
+        }
+        // an editor that cuts its answer short is still refused with a reversed selection
+        ShadowInputMethodService.extractedTextTransform = { "Y" + it.drop(1) }
+        field(ime, "foo bar", 1)
+        press(ime, KeyCode.VIM_MODE)
+        ShadowInputMethodService.selectionStart = 4
+        ShadowInputMethodService.selectionEnd = 1
+        press(ime, KeyCode.VIM_MODE)
+        assertEquals(4 to 1, selection) // refused: the caret was not moved
+        keys(ime, "x")
+        assertEquals("foo bar", text)
+    }
+
     @Test fun aLineBreakIsNotInsertedInASingleLineField() = withKeyboard { ime ->
         field(ime, "one two", 1, InputType.TYPE_CLASS_TEXT)
         press(ime, KeyCode.VIM_MODE)

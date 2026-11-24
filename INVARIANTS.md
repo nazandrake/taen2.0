@@ -123,8 +123,12 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   only while `Decision.storeClipboard` holds (the clipboard capture rule), never put on the system clipboard, never stored or logged,
   cleared at `Privacy.lock` and wipe and whenever the value of the setting is off (a change of any key, `clear()`, a restored backup, an
   applied profile); `p` and `P` insert through the connection's `commitText` (the history paste path) and, as that path, also work in a
-  no-learning or incognito field. The vim package has no Android, file, network, clipboard, log (also `print`, `System.out`, `System.err`),
-  preference or storage class (SourceRules). Expected values of the engine tests are Vim's own
+  no-learning or incognito field. The selection is ordered once in `VimInput.read` (it may run backwards). The vim package is an allow
+  list (SourceRules): it imports only `kotlin.*` (not `kotlin.io`, `system`, `concurrent`, `reflect`), its own package and, for the character
+  boundaries, `java.text.BreakIterator` and `java.util.Locale`; it names no other class by its full name and none of the `java.lang` or
+  Kotlin names that print, run a process or thread, or reach a class by name (`System`, `Runtime`, `ProcessBuilder`, `Thread`,
+  `Class.forName`, `javaClass`, `::class.java`, `.invoke(`, `print`, `println`, `readLine`). The release dex denies `java.lang.ProcessBuilder`
+  and `java.lang.Process` (what `Runtime.exec` returns, `privacy/dex-rules.txt`). Expected values of the engine tests are Vim's own
   (`tools/gen-vim-golden.py` runs `vim -u NONE -N -es` and writes `app/src/test/resources/vim/golden.jsonl`). Tests: `VimBasicTest`,
   `VimGoldenTest`, `VimEngineTest`, `VimWiringTest`, `PrivacyPolicyTest`, `SourceRulesTest`.
 

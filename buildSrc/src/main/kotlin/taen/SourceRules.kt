@@ -216,19 +216,43 @@ object SourceRules {
             listOf("navigation: the navigation package never stores, logs, copies or sends field text (no file, network, clipboard, log, preference or storage class): found ${it.value} in $relativePath")
         } ?: emptyList()
 
-    // Vim layer: the vim package works on the field text it is handed (and keeps one unnamed register in a plain String) and has no
-    // Android class at all: no file, network, clipboard, log, preference or storage class, so what it reads can neither be kept nor sent.
+    // Vim layer: the vim package works on the field text it is handed (and keeps one unnamed register in a plain String). It is an ALLOW
+    // list, because a deny list of writers failed twice (a process that runs `log` was never named): the package may import only kotlin.*
+    // (not kotlin.io, system, concurrent or reflect) and its own package, and may name no java., javax., jdk., sun., dalvik., android.,
+    // androidx. or other class by its full name. Kotlin imports java.lang.* and kotlin.io and kotlin.jvm by itself, so the names in them
+    // that do I/O, run a process or thread, or reach another class are forbidden by name. The one exception: java.text.BreakIterator
+    // and java.util.Locale (VimText finds the character boundaries with them; pure computation on a String, no I/O). Anything else
+    // that the engine needs from the platform belongs in the adapter (keyboard/VimInput.kt), outside this package.
     private const val VIM_PACKAGE = "helium314/keyboard/latin/vim/"
+    private const val VIM_OWN = "helium314.keyboard.latin.vim"
+    private val vimPureJava = setOf("java.text.BreakIterator", "java.util.Locale")
+    private val vimBannedKotlin = listOf("kotlin.io", "kotlin.system", "kotlin.concurrent", "kotlin.reflect")
+    private val vimImport = Regex("""(?m)(?:^|;)[ \t]*import[ \t]+([\w.`]+)""")
+    private val vimQualified = Regex("""(?<![\w.`])((?:java|javax|jdk|sun|dalvik|android|androidx|kotlin|kotlinx|org|com|helium314)\.[\w.]*)""")
     private val vimForbidden = Regex(
         """\bjava\.(?:io|nio|net)\.|\bFile\w*\b|\bLog\b|\bprintln\b|\bPrivacy\b|\bSettings\b|SharedPreferences|\bprefs\s*\(|\bSecureStore\b|\bClip(?:boardManager|Data)\b|\bandroid\.|\bprintStackTrace\b""" +
             // every writer to stdout or stderr (Kotlin print and println reach logcat through System.out), and java.util.logging
-            """|\bprint\b|\bPrint(?:Stream|Writer)\b|\bdumpStack\b|\bSystem\.(?:out|err|console|setOut|setErr|getLogger)\b|\bjava\.util\.logging\b|\bLogger\b""")
+            """|\bprint\b|\bPrint(?:Stream|Writer)\b|\bdumpStack\b|\bSystem\.(?:out|err|console|setOut|setErr|getLogger)\b|\bjava\.util\.logging\b|\bLogger\b""" +
+            // the java.lang and kotlin names that do I/O, run a process or a thread, or reach any class by name (reflection)
+            """|\b(?:System|Runtime|ProcessBuilder|ProcessHandle|Process|Thread|ClassLoader|javaClass|getClass|KClass|readLine|readln)\b""" +
+            """|\bClass\s*\.\s*forName\b|::\s*class\s*\.\s*java|\.\s*java\b|\.\s*invoke\s*\(""")
 
-    private fun vimPackageProblems(relativePath: String, text: String): List<String> =
-        if (!relativePath.startsWith(VIM_PACKAGE)) emptyList()
-        else vimForbidden.find(text)?.let {
-            listOf("vim: the vim package never stores, logs, copies or sends field text and has no Android class (no file, network, clipboard, log, preference or storage class): found ${it.value} in $relativePath")
-        } ?: emptyList()
+    private fun vimNameAllowed(name: String): Boolean {
+        val n = name.trimEnd('.')
+        if (n == "kotlin" || n.startsWith("kotlin.")) return vimBannedKotlin.none { n == it || n.startsWith("$it.") }
+        if (n == VIM_OWN || n.startsWith("$VIM_OWN.")) return true
+        return vimPureJava.any { n == it || n.startsWith("$it.") }
+    }
+
+    private fun vimPackageProblems(relativePath: String, text: String): List<String> {
+        if (!relativePath.startsWith(VIM_PACKAGE)) return emptyList()
+        val found = vimForbidden.find(text)?.value
+            ?: vimImport.findAll(text).map { it.groupValues[1] }.firstOrNull { !vimNameAllowed(it) }
+            ?: vimQualified.findAll(text).map { it.groupValues[1] }.firstOrNull { !vimNameAllowed(it) }
+            ?: return emptyList()
+        return listOf("vim: the vim package may import only kotlin.* (not kotlin.io, system, concurrent, reflect), its own package, java.text.BreakIterator and java.util.Locale, " +
+            "and has no file, network, clipboard, log, process, thread, reflection, preference or storage class: found $found in $relativePath")
+    }
 
     // the emoji search (public CLDR keywords read from the app's assets, a query typed in the search field or the word being typed)
     // and the smart quotes (one character and the one before it) work in memory on what they are given. They have no file or

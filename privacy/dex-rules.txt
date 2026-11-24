@@ -47,3 +47,8 @@ deny dalvik/system/DelegateLastClassLoader
 # Typed text must not reach logcat: the release build strips every android.util.Log call (R8, app/proguard-release.pro) and this
 # rule keeps it so. The app's own wrapper (helium314/keyboard/latin/utils/Log) has another name and is not matched.
 deny android/util/Log
+
+# P11 and P1: nothing shipped starts a process (ProcessBuilder, Runtime.exec: its signature names java.lang.Process, so the descriptor is in the
+# string table; the rest of java.lang.Runtime is used and stays allowed). Measured on the release APK before this rule: no reference.
+deny java/lang/ProcessBuilder
+deny java/lang/Process

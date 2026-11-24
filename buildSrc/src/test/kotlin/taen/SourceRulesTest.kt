@@ -434,6 +434,38 @@ class SourceRulesTest {
         }
     }
 
+    /** The vim package is an allow list: planted violations that no deny list named (a process that runs `log`, reflection, other imports). */
+    @Test fun theVimPackageMayUseOnlyKotlinItsOwnPackageAndTwoPureJavaClasses() {
+        for (text in listOf(
+            "ProcessBuilder(\"log\", \"-t\", \"v\", registerText).start()", "java.lang.ProcessBuilder(\"log\", registerText).start()",
+            "Runtime.getRuntime().exec(arrayOf(\"log\", registerText))", "val p = Runtime . getRuntime()", "import java.io.File", "import java.io.*",
+            "android.util.Log.d(\"v\", registerText)", "val c = Class.forName(\"android.util.Log\")", "val c = Class . forName(n)",
+            "import java.lang.reflect.Method", "val k = VimBuf::class.java", "val k = VimBuf :: class . java", "val k = x.javaClass", "val k = x.getClass()",
+            "Thread { register = null }.start()", "val l = ClassLoader.getSystemClassLoader()", "val t = System.currentTimeMillis()", "System.exit(1)",
+            "import kotlin.io.println", "import kotlin.io.*", "import kotlin.system.exitProcess", "import kotlin.concurrent.thread", "import kotlin.reflect.full.memberFunctions",
+            "val x = kotlin.io.readLine()", "val line = readLine()", "val line = readln()", "f.invoke(registerText)", "f?.invoke(registerText)",
+            "import org.example.Sink", "import helium314.keyboard.latin.utils.Sink", "import helium314.keyboard.latin.common.Constants", "import okhttp3.OkHttpClient",
+            "val s = javax.crypto.Cipher.getInstance(a)", "val s = dalvik.system.DexClassLoader(a, b, c, d)", "val s = androidx.core.util.Pair(a, b)",
+            "val s = jdk.internal.misc.Unsafe.getUnsafe()", "import java.util.concurrent.Executors", "val d = java.util.Date()", "import java.text.Normalizer",
+            "val r = foo.java", "package helium314.keyboard.latin.vim; import okhttp3.OkHttpClient", "kotlin.system.exitProcess(1)", "val f = kotlin.io.path.Path(x)",
+            "val s = org.example.Sink()", "helium314.keyboard.latin.utils.Sink.send(t)", "val p = Process.myPid()", "val k: KClass<*> = x"
+        )) {
+            val found = problems(vimEngine, text).filter { it.startsWith("vim:") }
+            assertEquals("$text: $found", 1, found.size)
+        }
+        // positive controls: what the engine may use stays clean
+        for (text in listOf(
+            "import kotlin.math.max", "import kotlin.collections.ArrayList", "import kotlin.*", "val m = kotlin.math.abs(x)", "package helium314.keyboard.latin.vim",
+            "import helium314.keyboard.latin.vim.VimBuf", "val n = helium314.keyboard.latin.vim.VimNav.LEFT", "import java.text.BreakIterator", "import java.util.Locale",
+            "val i = java.text.BreakIterator.getCharacterInstance(java.util.Locale.ROOT)", "import java.util.Locale as L",
+            "val systematic = processed + threshold + runtimeOf(x)", "val readLineCount = 1 // threads are not needed; the system stays out", "class VimBuf(val text: String) { fun next(p: Int) = p + 1 }",
+            "val n = person.org.name + node.com.size", // members that only look like a package
+        )) assertEquals(text, emptyList<String>(), problems(vimEngine, text))
+        // the rule is for the vim package only
+        for (text in listOf("ProcessBuilder(\"log\", t).start()", "import org.example.Sink", "val k = x.javaClass")) assertTrue(text, problems("helium314/keyboard/keyboard/VimInput.kt", text).none { it.startsWith("vim:") })
+        assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/vim/VimText.kt", "import kotlin.math.min\nimport java.text.BreakIterator\nimport java.util.Locale"))
+    }
+
     @Test fun theVimRuleOnlyAppliesToThatPackageAndLetsOrdinaryCodeThrough() {
         // positive controls: the same text elsewhere is no vim problem; clean vim code (a register as a plain String, a text buffer) passes
         assertTrue(problems("helium314/keyboard/keyboard/VimInput.kt", "import android.text.InputType\nval c = Settings.getInstance()").none { it.startsWith("vim:") })

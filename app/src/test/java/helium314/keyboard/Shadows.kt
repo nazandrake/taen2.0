@@ -160,6 +160,8 @@ class ShadowInputMethodService {
         var extractedStartOffset = 0
         /** Changes the text the fake field gives as extracted text (null: the whole text); the selection stays the field's own. An editor that cuts its answer short does this. */
         var extractedTextTransform: ((String) -> String)? = null
+        /** How the fake field answers the text before and after the cursor for a reversed selection: false as reported (the text up to selectionStart, from selectionEnd), true as the platform editors do (up to the lower end, from the higher end). */
+        var cursorReadsOrdered = false
         /** How often the keyboard read the text of the field (before the cursor, after it, the selection or the extracted text). */
         var textReads = 0
         /** The context menu actions (select all) the keyboard asked the field to perform. */
@@ -205,6 +207,7 @@ class ShadowInputMethodService {
             extractedTextWithText = false
             extractedStartOffset = 0
             extractedTextTransform = null
+            cursorReadsOrdered = false
             switchedToNextKeyboard = 0
             offersNextKeyboard = false
             systemSubtypes.clear()
@@ -246,9 +249,9 @@ class ShadowInputMethodService {
     private val ic = object : InputConnection {
         // pretty clear (though this may be slow depending on the editor)
         // bad return value here is likely the cause for that weird bug improved/fixed by fixIncorrectLength
-        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence { textReads++; return textBeforeCursor.take(p0) }
+        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence { textReads++; return (if (cursorReadsOrdered) text.substring(0, minOf(selectionStart, selectionEnd)) else textBeforeCursor).take(p0) }
         // pretty clear (though this may be slow depending on the editor)
-        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence { textReads++; return textAfterCursor.take(p0) }
+        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence { textReads++; return (if (cursorReadsOrdered) text.substring(maxOf(selectionStart, selectionEnd)) else textAfterCursor).take(p0) }
         // pretty clear
         override fun getSelectedText(p0: Int): CharSequence? {
             textReads++

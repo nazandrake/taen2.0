@@ -41,17 +41,25 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
             val text = extracted.text ?: return VimRead.Unreadable
             if (extracted.startOffset != 0) return VimRead.Partial
             if (text.length > VimEngine.MAX_CHARS) return VimRead.TooLong
-            val a = minOf(extracted.selectionStart, extracted.selectionEnd)
-            val b = maxOf(extracted.selectionStart, extracted.selectionEnd)
+            // The selection can run backwards (the anchor after the cursor): it is ordered once here, and a and b are the only pair used below
+            // and handed to the engine, which sees the same range whichever way the editor reports it.
+            val rawStart = extracted.selectionStart
+            val rawEnd = extracted.selectionEnd
+            val a = minOf(rawStart, rawEnd)
+            val b = maxOf(rawStart, rawEnd)
             if (a < 0 || b > text.length) return VimRead.Partial
             // The editor's size hint and startOffset prove nothing: an editor may cut its answer short and still say offset 0. The text counts
             // as the whole field only when the text on both sides of the selection, read from the editor with explicit bounds, is exactly
-            // what the extracted text has there; any doubt is a refusal.
+            // what the extracted text has there; any doubt is a refusal. Editors differ for a reversed selection: the text before the
+            // cursor ends at the lower end of the selection (the platform editors) or at its start as reported (some others); either one
+            // is a match, and the reported pair is used for nothing else.
             val before = connection.getTextBeforeCursorFromEditor(VimEngine.MAX_CHARS + 1, 0) ?: return VimRead.Unreadable
             val after = connection.getTextAfterCursor(VimEngine.MAX_CHARS + 1, 0) ?: return VimRead.Unreadable
             if (before.length + (b - a) + after.length > VimEngine.MAX_CHARS) return VimRead.TooLong
             val whole = text.toString()
-            if (before.toString() != whole.substring(0, a) || after.toString() != whole.substring(b)) return VimRead.Partial
+            val ordered = before.toString() == whole.substring(0, a) && after.toString() == whole.substring(b)
+            val asReported = before.toString() == whole.substring(0, rawStart) && after.toString() == whole.substring(rawEnd)
+            if (!ordered && !asReported) return VimRead.Partial
             return VimRead.Text(whole, a, b)
         }
 

@@ -134,6 +134,16 @@ class ApkScanTest {
         assertEquals(emptyList<String>(), ApkRules.scanDex("classes.dex", dex("Lhelium314/keyboard/latin/utils/Log;"), real))
     }
 
+    // nothing shipped starts a process: ProcessBuilder and Runtime.exec (its signature names java.lang.Process) are in no dex string table
+    @Test fun theCommittedRulesDenyStartingAProcess() {
+        val real = ApkRules.parse(File("../privacy/dex-rules.txt").readLines())
+        assertEquals(1, ApkRules.scanDex("classes.dex", dex("Ljava/lang/ProcessBuilder;"), real).size)
+        assertEquals(1, ApkRules.scanDex("classes.dex", dex("Ljava/lang/Process;"), real).size) // what Runtime.exec returns
+        assertEquals(1, ApkRules.scanDex("classes.dex", dex("java.lang.ProcessBuilder"), real).size)
+        // positive controls: the rest of java.lang.Runtime, Thread and the like stay allowed
+        assertEquals(emptyList<String>(), ApkRules.scanDex("classes.dex", dex("Ljava/lang/Runtime;", "Ljava/lang/Thread;", "availableProcessors"), real))
+    }
+
     @Test fun apkWithoutDexIsAnError() {
         val problems = ApkRules.scanApk(apk("res/x.xml" to byteArrayOf(1)), rules, libs)
         assertTrue(problems.any { it.contains("no classes") })
