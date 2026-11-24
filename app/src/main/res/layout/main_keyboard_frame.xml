@@ -16,6 +16,17 @@
         android:id="@+id/strip_container"
         layout="@layout/strip_container" />
 
+    <!-- the mode line of the Vim layer (mode, pending count and operator); hidden unless Vim mode is on -->
+    <TextView
+        android:id="@+id/vim_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="3dp"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <!-- To ensure that key preview popup is correctly placed when the current system locale is
          one of RTL locales, layoutDirection="ltr" is needed in the SDK version 17+. -->
     <helium314.keyboard.latin.KeyboardWrapperView

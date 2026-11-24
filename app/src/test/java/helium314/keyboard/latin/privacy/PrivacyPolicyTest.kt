@@ -110,6 +110,7 @@ class PrivacyPolicyTest {
                 assertFalse(d.keyPreviews, name)
                 assertFalse(d.clipboardSuggestion, name)
                 assertFalse(d.suggestionStrip, name)
+                assertFalse(d.vimMode, name) // no Vim layer in a password field
                 assertFalse(d.storeClipboard, name)
                 assertFalse(d.learn, name)
                 assertFalse(d.recordRecents, name)
@@ -137,6 +138,7 @@ class PrivacyPolicyTest {
             assertFalse(d.incognito, name)
             assertTrue(d.keyPreviews, name)
             assertTrue(d.clipboardSuggestion, name)
+            assertTrue(d.vimMode, name)
             assertTrue(d.storeClipboard, name)
             assertTrue(d.learn, name)
             assertTrue(d.recordRecents, name)
@@ -200,6 +202,7 @@ class PrivacyPolicyTest {
             )
             assertEquals(mask != 0, d.incognito, "mask $mask")
             assertEquals(mask != 0, !d.storeClipboard, "mask $mask")
+            assertEquals(mask and 1 == 0, d.vimMode, "mask $mask") // only a password field takes the Vim layer away; the register follows storeClipboard
         }
     }
 

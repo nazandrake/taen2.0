@@ -102,6 +102,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         override fun commitText(text: CharSequence) = connection.commitText(text, 1)
     }, { SystemClock.uptimeMillis() }, { settings.current.mPrivacy.fieldEditing })
 
+    // the Vim layer: Normal and Visual mode (keys of its layouts never go through the typing path)
+    private val vim = VimInput(latinIME, inputLogic) { code -> onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false) }
+
     init {
         Privacy.onLock("navigation") {
             multiCursor.forgetAll()
@@ -179,11 +182,13 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
                 keyboardSwitcher.toggleQuickPanel()
                 return
             }
+            KeyCode.VIM_MODE -> return vim.escapeKey()
             KeyCode.SELECT_MODE -> return toggleSelectMode()
             KeyCode.NEXT_OCCURRENCE -> return addCursor { multiCursor.addNextOccurrence(it.first, it.second) }
             KeyCode.CARET_BELOW -> return addCursor { multiCursor.addCaretOnNextLine(it.first, it.second) }
             KeyCode.UNDO -> if (multiCursor.hasUndo()) multiCursor.undoLastEdit()?.let { return showNavigationResult(it) }
         }
+        if (vim.consumes(primaryCode)) return
         if (multiCursor.isActive && typeIntoCursors(primaryCode)) return
         if (Settings.getValues().mIsLocked && KeyCode.isIsBlockedWhenLocked(primaryCode))
             return
@@ -290,6 +295,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onFieldFinished() {
+        vim.fieldFinished()
         multiCursor.forgetAll()
         spaceSelection.sticky = false
         shiftHeld = false

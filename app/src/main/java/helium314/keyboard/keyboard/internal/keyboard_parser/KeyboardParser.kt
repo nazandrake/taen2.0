@@ -54,6 +54,8 @@ class KeyboardParser(private val params: KeyboardParams, private val context: Co
             KeyboardElement.NUMPAD -> if (Settings.getValues().mDisplayOrientation == Configuration.ORIENTATION_LANDSCAPE)
                 LayoutType.NUMPAD_LANDSCAPE else LayoutType.NUMPAD
             KeyboardElement.DPAD -> LayoutType.DPAD
+            KeyboardElement.VIM_NORMAL -> LayoutType.VIM_NORMAL
+            KeyboardElement.VIM_VISUAL -> LayoutType.VIM_VISUAL
             KeyboardElement.EMOJI_BOTTOM_ROW -> LayoutType.EMOJI_BOTTOM
             KeyboardElement.CLIPBOARD_BOTTOM_ROW -> LayoutType.CLIPBOARD_BOTTOM
             else -> LayoutType.MAIN

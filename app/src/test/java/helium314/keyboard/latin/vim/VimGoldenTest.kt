@@ -1,0 +1,82 @@
+// SPDX-License-Identifier: GPL-3.0-only
+package helium314.keyboard.latin.vim
+
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonPrimitive
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/**
+ * The engine against Vim itself. src/test/resources/vim/golden.jsonl is written by tools/gen-vim-golden.py, which runs each
+ * case in the real vim (text, cursor and keys in; text, cursor and unnamed register out). Nothing here needs vim.
+ */
+class VimGoldenTest {
+    private class Row(val name: String, val text: String, val cursor: Int, val keys: String, val insert: Boolean,
+                      val textAfter: String, val cursorAfter: Int, val reg: String, val regtype: String)
+
+    private fun rows(): List<Row> {
+        val stream = javaClass.classLoader!!.getResourceAsStream("vim/golden.jsonl") ?: error("vim/golden.jsonl is missing: run tools/gen-vim-golden.py")
+        return stream.bufferedReader(Charsets.UTF_8).readLines().filter { it.isNotBlank() }.map {
+            val o = Json.parseToJsonElement(it) as JsonObject
+            fun str(k: String) = o.getValue(k).jsonPrimitive.content
+            Row(str("name"), str("text"), o.getValue("cursor").jsonPrimitive.int, str("keys"), o.getValue("insert").jsonPrimitive.boolean,
+                str("text_after"), o.getValue("cursor_after").jsonPrimitive.int, str("reg"), str("regtype"))
+        }
+    }
+
+    /** Runs one case the way the keyboard does and returns what differs from Vim (empty when equal). */
+    private fun run(row: Row): String? {
+        val caret = row.text.offsetByCodePoints(0, row.cursor)
+        val b = VimBuf(row.text)
+        // the typing caret that leaves the cursor on this character after Esc: just after it (an empty line has only one place)
+        val insertCaret = if (caret < b.lineEnd(caret)) b.next(caret) else caret
+        val field = FakeVimField(row.text, insertCaret)
+        val engine = VimEngine(field, TestRules())
+        engine.escape()
+        if (field.selStart != caret || field.selEnd != caret) return "Esc left the caret at ${field.selStart}, expected $caret"
+        engine.feed(field, row.keys)
+        // a command that failed inside Visual mode leaves Vim in Visual mode, where the cursor is the end of the selection: Esc shows it
+        if (engine.mode == VimMode.VISUAL || engine.mode == VimMode.VISUAL_LINE) engine.escape()
+        if (row.insert && engine.mode == VimMode.INSERT) {
+            field.type("X")
+            engine.escape()
+        }
+        val problems = ArrayList<String>()
+        if (field.text != row.textAfter) problems.add("text '${field.text}' expected '${row.textAfter}'")
+        val cursorAfter = if (field.selStart == field.selEnd) field.text.codePointCount(0, field.selStart) else -1
+        // Vim can leave the cursor on the end of the line after a Visual command that ended there ($, or a word motion that ran out of
+        // text); this layer puts it on the last character, where Vim moves it with the next key
+        val endOfLineQuirk = row.keys.first() in "vV" && field.selStart == field.selEnd && row.cursorAfter <= field.text.codePointCount(0, field.text.length) &&
+            field.text.offsetByCodePoints(0, row.cursorAfter).let { at -> VimBuf(field.text).let { fb -> at == fb.lineEnd(at) && fb.lineStart(at) < at && field.selStart == fb.prev(at) } }
+        if (cursorAfter != row.cursorAfter && !endOfLineQuirk) problems.add("cursor $cursorAfter (${field.selStart}-${field.selEnd}) expected ${row.cursorAfter}")
+        val reg = engine.register ?: ""
+        val regtype = if (engine.register == null) "" else if (engine.registerIsLinewise) "V" else "v"
+        if (reg != row.reg) problems.add("register '$reg' expected '${row.reg}'")
+        if (reg.isNotEmpty() && regtype != row.regtype) problems.add("register type $regtype expected ${row.regtype}")
+        return if (problems.isEmpty()) null else problems.joinToString("; ")
+    }
+
+    @Test fun theTableIsBigAndCoversEveryCategory() {
+        val rows = rows()
+        assertTrue(rows.size >= 3000, "only ${rows.size} cases")
+        for (key in listOf("w", "b", "e", "dw", "cw", "dd", "yy", "p", "P", "x", "r", "f", "t", "vd", "Vd", "i\"", "iw", "3", "gg", "G", "$", "^", "0"))
+            assertTrue(rows.any { it.keys.contains(key) }, "no case with $key")
+    }
+
+    @Test fun everyCaseMatchesVim() {
+        val rows = rows()
+        val failures = ArrayList<String>()
+        for (row in rows) {
+            val problem = try { run(row) } catch (e: Throwable) { "threw $e" }
+            if (problem != null && row.name !in knownDeviations) failures.add("${row.name}: $problem".replace("\n", "\\n"))
+        }
+        assertEquals(emptyList(), failures.take(60), "${failures.size} of ${rows.size} cases differ from Vim")
+    }
+
+    /** Cases where this layer differs from Vim on purpose; each name is listed with the reason. */
+    private val knownDeviations: Set<String> = emptySet()
+}

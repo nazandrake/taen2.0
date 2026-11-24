@@ -38,6 +38,7 @@ class KeyboardState(private val switchActions: SwitchActions) {
         fun setClipboardKeyboard()
         fun setNumpadKeyboard()
         fun setDpadKeyboard()
+        fun setVimKeyboard(visual: Boolean)
         fun setSymbolsKeyboard()
         fun setSymbolsShiftedKeyboard()
 
@@ -173,6 +174,8 @@ class KeyboardState(private val switchActions: SwitchActions) {
             Utility.CLIPBOARD -> switchActions.setClipboardKeyboard()
             Utility.NUMPAD -> switchActions.setNumpadKeyboard()
             Utility.DPAD -> switchActions.setDpadKeyboard()
+            Utility.VIM_NORMAL -> switchActions.setVimKeyboard(false)
+            Utility.VIM_VISUAL -> switchActions.setVimKeyboard(true)
         }
         mode = layout.mode()
         if (layout is Alphabet) shiftMode = layout.shiftMode
@@ -181,6 +184,17 @@ class KeyboardState(private val switchActions: SwitchActions) {
         if (layout is Alphabet && layout.shiftMode == ShiftMode.AUTOMATIC) {
             onUpdateShiftState(layout.autoCapsFlags, layout.recapitalizeMode)
         }
+    }
+
+    /** The Vim layer shows its Normal or Visual layout (the engine owns the mode; there is no way back through the previous layouts). */
+    fun showVim(visual: Boolean) {
+        prevLayouts.wipe()
+        loadLayout(if (visual) Utility.VIM_VISUAL else Utility.VIM_NORMAL)
+    }
+
+    /** The Vim layer is done: the typing keyboard again. */
+    fun leaveVim(autoCapsFlags: Int, recapitalizeMode: RecapitalizeMode?) {
+        if (mode == Mode.VIM_NORMAL || mode == Mode.VIM_VISUAL) resetToAlpha(autoCapsFlags, recapitalizeMode)
     }
 
     fun onLongPressAlphaSymbolForNumpad() {
@@ -506,6 +520,8 @@ class KeyboardState(private val switchActions: SwitchActions) {
         CLIPBOARD,
         NUMPAD,
         DPAD,
+        VIM_NORMAL,
+        VIM_VISUAL,
     ;
         fun directive(shiftMode: ShiftMode, autoCapsFlags: Int, recapitalizeMode: RecapitalizeMode?): LayoutDirective {
             return when (this) {
@@ -516,6 +532,8 @@ class KeyboardState(private val switchActions: SwitchActions) {
                 CLIPBOARD -> Utility.CLIPBOARD
                 NUMPAD -> Utility.NUMPAD
                 DPAD -> Utility.DPAD
+                VIM_NORMAL -> Utility.VIM_NORMAL
+                VIM_VISUAL -> Utility.VIM_VISUAL
             }
         }
     }

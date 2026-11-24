@@ -112,6 +112,7 @@ class AppLockWiringTest {
         override fun setClipboardKeyboard() { clipboard++ }
         override fun setNumpadKeyboard() {}
         override fun setDpadKeyboard() {}
+        override fun setVimKeyboard(visual: Boolean) {}
         override fun setSymbolsKeyboard() {}
         override fun setSymbolsShiftedKeyboard() {}
         override fun startDoubleTapShiftKeyTimer() {}

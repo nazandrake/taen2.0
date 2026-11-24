@@ -1368,4 +1368,22 @@ New dictionary:
     <string name="nav_nothing">No word at the cursor</string>
     <string name="nav_no_more_lines">No more lines below</string>
     <string name="nav_undone">Multi-cursor edit undone</string>
+    <!-- Vim mode: Normal and Visual mode on the keyboard -->
+    <string name="vim" tools:keep="@string/vim">Vim Esc (Normal mode)</string>
+    <string name="vim_mode">Vim mode</string>
+    <string name="vim_mode_summary">The Esc key on the strip opens Normal mode with its own keys: h l w b e 0 $ f t, d c y x p, v, counts and more. Not in password fields.</string>
+    <string name="vim_normal">NORMAL</string>
+    <string name="vim_visual">VISUAL</string>
+    <string name="vim_visual_line">V-LINE</string>
+    <string name="layout_vim_normal">Vim Normal mode</string>
+    <string name="layout_vim_visual">Vim Visual mode</string>
+    <string name="vim_not_available">Vim mode is not available in this field</string>
+    <string name="vim_no_text">This app does not share its text: only cursor moves work</string>
+    <string name="vim_partial_text">This app shares only part of its text: nothing was changed</string>
+    <string name="vim_too_long">The text is too long (over 20 000 characters): nothing was changed</string>
+    <string name="vim_changed">The text changed: nothing was done</string>
+    <string name="vim_selected">Text is selected: press Esc, then the command</string>
+    <string name="vim_not_accepted">This field does not take that text</string>
+    <string name="vim_register_off">Nothing is kept for pasting in this field</string>
+    <string name="vim_register_empty">Nothing to paste</string>
 </resources>

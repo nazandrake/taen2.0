@@ -418,6 +418,26 @@ class SourceRulesTest {
         assertEquals(emptyList<String>(), problems(multiCursor, "class FieldText(val text: CharSequence, val startOffset: Int)\nfun type(insert: String) = edit(insert)"))
     }
 
+    // ---- Vim layer: the vim package works on field text in memory and has no Android, file, network, clipboard, log or storage class ---
+
+    private val vimEngine = "helium314/keyboard/latin/vim/VimEngine.kt"
+
+    @Test fun theVimPackageHasNoStorageLoggingClipboardNetworkOrAndroidClass() {
+        for (text in listOf("import java.io.File", "val f = java.io.FileOutputStream(p)", "Log.d(TAG, \"x\")", "println(text)", "val p = Privacy.prefs", "val s = Settings.getInstance()",
+            "ctx.getSharedPreferences(\"n\", 0)", "import java.net.Socket", "val c = ClipData.newPlainText(a, b)", "cm as ClipboardManager", "import android.content.Context",
+            "System.out.println(register)", "e.printStackTrace()", "val x = SecureStore(f)")) {
+            val found = problems(vimEngine, text).filter { it.startsWith("vim:") }
+            assertEquals("$text: $found", 1, found.size)
+        }
+    }
+
+    @Test fun theVimRuleOnlyAppliesToThatPackageAndLetsOrdinaryCodeThrough() {
+        // positive controls: the same text elsewhere is no vim problem; clean vim code (a register as a plain String, a text buffer) passes
+        assertTrue(problems("helium314/keyboard/keyboard/VimInput.kt", "import android.text.InputType\nval c = Settings.getInstance()").none { it.startsWith("vim:") })
+        assertEquals(emptyList<String>(), problems(vimEngine, "private var registerText: String? = null\nclass VimBuf(val text: String) { fun next(p: Int) = p + 1 }"))
+        assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/vim/VimText.kt", "import java.text.BreakIterator\nimport java.util.Locale"))
+    }
+
     // ---- Glide typing: the gesture package never stores, logs or sends a gesture ----------------------------------------
 
     private val engine = "helium314/keyboard/latin/gesture/GlideEngine.kt"

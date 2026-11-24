@@ -216,6 +216,18 @@ object SourceRules {
             listOf("navigation: the navigation package never stores, logs, copies or sends field text (no file, network, clipboard, log, preference or storage class): found ${it.value} in $relativePath")
         } ?: emptyList()
 
+    // Vim layer: the vim package works on the field text it is handed (and keeps one unnamed register in a plain String) and has no
+    // Android class at all: no file, network, clipboard, log, preference or storage class, so what it reads can neither be kept nor sent.
+    private const val VIM_PACKAGE = "helium314/keyboard/latin/vim/"
+    private val vimForbidden = Regex(
+        """\bjava\.(?:io|nio|net)\.|\bFile\w*\b|\bLog\b|\bprintln\b|\bPrivacy\b|\bSettings\b|SharedPreferences|\bprefs\s*\(|\bSecureStore\b|\bClip(?:boardManager|Data)\b|\bandroid\.|\bSystem\.(?:out|err)\b|\bprintStackTrace\b""")
+
+    private fun vimPackageProblems(relativePath: String, text: String): List<String> =
+        if (!relativePath.startsWith(VIM_PACKAGE)) emptyList()
+        else vimForbidden.find(text)?.let {
+            listOf("vim: the vim package never stores, logs, copies or sends field text and has no Android class (no file, network, clipboard, log, preference or storage class): found ${it.value} in $relativePath")
+        } ?: emptyList()
+
     // the emoji search (public CLDR keywords read from the app's assets, a query typed in the search field or the word being typed)
     // and the smart quotes (one character and the one before it) work in memory on what they are given. They have no file or
     // network class, no logger, no storage owner and no preferences, so a typed query can neither be kept nor sent.
@@ -497,6 +509,6 @@ object SourceRules {
     /** Returns one problem text for every rule that [text] of the file at [relativePath] breaks. */
     fun check(relativePath: String, text: String): List<String> =
         rules.filter { relativePath !in it.allowedIn }.mapNotNull { rule -> rule.find(text)?.let { "${rule.reason}: found ${rule.pattern} in $relativePath" } } +
-            logLeaks(relativePath, text) + activityProblems(relativePath, text) + gesturePackageProblems(relativePath, text) + navigationPackageProblems(relativePath, text) +
+            logLeaks(relativePath, text) + activityProblems(relativePath, text) + gesturePackageProblems(relativePath, text) + navigationPackageProblems(relativePath, text) + vimPackageProblems(relativePath, text) +
             m8StatelessProblems(relativePath, text) + voicePackageProblems(relativePath, text) + profilePackageProblems(relativePath, text) + appLockThreadProblems(relativePath, text) + mediaDownloadsPackageProblems(relativePath, text) + nextwordPackageProblems(relativePath, text)
 }

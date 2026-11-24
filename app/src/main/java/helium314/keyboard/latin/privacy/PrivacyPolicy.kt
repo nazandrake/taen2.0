@@ -29,7 +29,8 @@ object PrivacyPolicy {
      * @property passwordField one of the four password variations: the secure mode (no suggestion strip, key previews or clipboard suggestion)
      * @property secureClipboard the strip keys (paste, select all, clear all, the pinned keys) are allowed in a password field; nothing else changes:
      * the field stays incognito, a copy made in it is flagged sensitive, and it is never stored, suggested or learned
-     * @property noPersonalizedLearning the field asks for no personalized learning (any input class)
+     * @property vimMode the Vim layer may be used (not in a password field); its register is filled only where [storeClipboard] holds
+ * @property noPersonalizedLearning the field asks for no personalized learning (any input class)
      * @property incognito nothing is learned, no clipboard entry or recent emoji is kept: password field, no-learning flag,
      * force-incognito, an app on the list, or a locked device
      */
@@ -52,6 +53,8 @@ object PrivacyPolicy {
         val sensitiveCopy: Boolean get() = passwordField
         /** The space bar may select, and the whole field text may be read for several cursors: not in a password or incognito field. */
         val fieldEditing: Boolean get() = !passwordField && !incognito
+        /** The Vim layer (Normal and Visual mode: it reads and edits the field text) is not offered in a password field. */
+        val vimMode: Boolean get() = !passwordField
     }
 
     /** The field asks for no personalized learning. Read in every input class: a number or phone field can ask for it too. */

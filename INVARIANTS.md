@@ -109,6 +109,21 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   no file, network, clipboard, log or preference class (SourceRules). Tests: `SpaceSwipe2DTest`, `SpaceSelectionTest`,
   `MultiCursorTest`, `NavigationWiringTest`.
 
+- **Vim mode.** The `helium314.keyboard.latin.vim` package (`VimEngine`, `VimMotions`, `VimObjects`, `VimBuf`) is pure Kotlin behind
+  the narrow `VimPort` and `VimRules` interfaces; `VimInput` (keyboard package) is its one adapter. The keys of the Normal and Visual
+  layouts never reach the typing path (`KeyboardActionListenerImpl.onCodeInput` gives them to `VimInput.consumes` first: no learning,
+  suggestions, auto-correct, recents or trigger word check; `InputLogic.setVimActive` stops word resume and suggestions). Every edit
+  is computed from the whole field text read for that command (at most 20 000 characters, from offset 0) and the field is read again
+  just before the edit: text or selection changed, text unreadable, partial or too long, text selected in Normal mode, a field that does
+  not take the inserted text: nothing is done and a notice is shown; a range is never widened. Only pure cursor motions fall back to
+  cursor keys when the text cannot be read. `PrivacyPolicy.Decision.vimMode` (no password field) is the only place that decides
+  availability. The one unnamed register is a String in memory, filled only while `Decision.storeClipboard` holds (the clipboard capture
+  rule), never put on the system clipboard, never stored or logged, cleared at `Privacy.lock` and wipe and when the setting is turned off;
+  `p` and `P` insert through the connection's `commitText` (the history paste path). The vim package has no Android, file, network,
+  clipboard, log, preference or storage class (SourceRules). Expected values of the engine tests are Vim's own
+  (`tools/gen-vim-golden.py` runs `vim -u NONE -N -es` and writes `app/src/test/resources/vim/golden.jsonl`). Tests: `VimBasicTest`,
+  `VimGoldenTest`, `VimEngineTest`, `VimWiringTest`, `PrivacyPolicyTest`, `SourceRulesTest`.
+
 ## App lock and self-destruct
 
 - **App lock.** PIN of 4 to 16 digits, Argon2id, record in the device-protected `security` store, never exported. The attempt is stored

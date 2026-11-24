@@ -853,4 +853,22 @@
     <string name="nav_nothing">Няма дума при курсора</string>
     <string name="nav_no_more_lines">Няма повече редове отдолу</string>
     <string name="nav_undone">Редакцията с няколко курсора е отменена</string>
+    <!-- Vim mode: Normal and Visual mode on the keyboard -->
+    <string name="vim" tools:keep="@string/vim">Vim Esc (нормален режим)</string>
+    <string name="vim_mode">Vim режим</string>
+    <string name="vim_mode_summary">"Клавишът Esc в лентата отваря нормален режим със собствени клавиши: h l w b e 0 $ f t, d c y x p, v, броячи и други. Не работи в полета за парола."</string>
+    <string name="vim_normal">НОРМАЛЕН</string>
+    <string name="vim_visual">ВИЗУАЛЕН</string>
+    <string name="vim_visual_line">ВИЗУАЛЕН РЕД</string>
+    <string name="layout_vim_normal">Vim нормален режим</string>
+    <string name="layout_vim_visual">Vim визуален режим</string>
+    <string name="vim_not_available">Vim режимът не е наличен в това поле</string>
+    <string name="vim_no_text">Това приложение не споделя текста си: работят само движенията на курсора</string>
+    <string name="vim_partial_text">Това приложение споделя само част от текста си: нищо не е променено</string>
+    <string name="vim_too_long">Текстът е твърде дълъг (над 20 000 знака): нищо не е променено</string>
+    <string name="vim_changed">Текстът се промени: нищо не е направено</string>
+    <string name="vim_selected">Има избран текст: натиснете Esc и после командата</string>
+    <string name="vim_not_accepted">Полето не приема този текст</string>
+    <string name="vim_register_off">В това поле нищо не се пази за поставяне</string>
+    <string name="vim_register_empty">Няма какво да се постави</string>
 </resources>

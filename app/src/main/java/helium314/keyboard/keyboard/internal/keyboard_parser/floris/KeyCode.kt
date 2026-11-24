@@ -188,6 +188,7 @@ object KeyCode {
     const val NEXT_OCCURRENCE =           -10057 // adds the next occurrence of the selection or the word to the cursors (toolbar key)
     const val CARET_BELOW =               -10058 // adds a cursor at the same column on the next line (toolbar key)
     const val CLEAR_ALL =                 -10059 // empties the field without reading it (toolbar key CLEAR_ALL)
+    const val VIM_MODE =                  -10060 // Esc: enters Vim Normal mode (toolbar key VIM)
 
     // Valid in popups and for toolbar key long press only
     const val KEY_REPEAT =                -11000

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.0.3
+
+- New: Vim mode (Settings > Preferences, off by default). With it on, an Esc key appears on the suggestion strip. One tap opens
+  Normal mode with its own keys: move with h l w b e W B E 0 ^ $ gg G f F t T ; , (j and k go by visual line), type a count first
+  (3w), and use d, c, y with a motion or twice (dd, cc, yy), x X D C s S, r and a letter, p P, u and Ctrl-R (they use the
+  undo and redo of the keyboard), v and V for Visual mode with d, c, y and x, and the text objects iw aw and quotes and brackets on
+  the line (diw, ci", da(). i a I A o O, and c commands, give you the normal keyboard back; Esc returns. A line above the keys shows
+  the mode (NORMAL, VISUAL, V-LINE) and what you typed so far. English and Bulgarian.
+- Vim mode is not available in password fields. The text it cuts or copies is kept in one memory-only register, only where clipboard
+  history may keep a copy; it is forgotten when the screen locks, at a wipe and when you turn Vim mode off, and it never reaches the
+  system clipboard. If an app does not share its text, or changes it while a command runs, the command does nothing and says so; only
+  cursor motions then work, as cursor keys.
+- Not in this version: `.` (repeat), macros, marks, search with /, named registers, ex commands, J, counts on text objects, and
+  brackets that span lines.
+
 ## 2.0.2
 
 - Bulgarian and other languages: names (Джеймс) and abbreviations (САЩ, ЦСКА) that no word list contains are no longer underlined in red by Taen's

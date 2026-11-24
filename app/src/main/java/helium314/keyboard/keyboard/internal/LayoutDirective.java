@@ -36,6 +36,8 @@ public sealed interface LayoutDirective {
         CLIPBOARD(KeyboardState.Mode.CLIPBOARD),
         NUMPAD(KeyboardState.Mode.NUMPAD),
         DPAD(KeyboardState.Mode.DPAD),
+        VIM_NORMAL(KeyboardState.Mode.VIM_NORMAL),
+        VIM_VISUAL(KeyboardState.Mode.VIM_VISUAL),
     ;
         private final KeyboardState.Mode mMode;
 

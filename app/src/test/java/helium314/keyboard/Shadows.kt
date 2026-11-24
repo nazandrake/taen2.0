@@ -156,6 +156,8 @@ class ShadowInputMethodService {
         /** Every getExtractedText call the keyboard made, and whether the fake field answers with its text. */
         var extractedTextCalls = 0
         var extractedTextWithText = false
+        /** The offset the fake field reports for the extracted text (0: the text is the whole field; otherwise it is a part of it). */
+        var extractedStartOffset = 0
         /** How often the keyboard read the text of the field (before the cursor, after it, the selection or the extracted text). */
         var textReads = 0
         /** The context menu actions (select all) the keyboard asked the field to perform. */
@@ -199,6 +201,7 @@ class ShadowInputMethodService {
             textReads = 0
             extractedTextCalls = 0
             extractedTextWithText = false
+            extractedStartOffset = 0
             switchedToNextKeyboard = 0
             offersNextKeyboard = false
             systemSubtypes.clear()
@@ -376,7 +379,7 @@ class ShadowInputMethodService {
             textReads++
             return ExtractedText().also {
                 if (extractedTextWithText) it.text = text
-                it.startOffset = 0
+                it.startOffset = extractedStartOffset
                 it.selectionStart = selectionStart
                 it.selectionEnd = selectionEnd
             }

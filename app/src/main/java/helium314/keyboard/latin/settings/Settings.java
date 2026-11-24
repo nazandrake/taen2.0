@@ -95,6 +95,7 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_KEY_USE_PERSONALIZED_DICTS = "use_personalized_dicts";
     public static final String PREF_KEY_USE_DOUBLE_SPACE_PERIOD = "use_double_space_period";
     public static final String PREF_SMART_QUOTES = "smart_quotes";
+    public static final String PREF_VIM_MODE = "vim_mode"; // Vim Normal and Visual mode on the keyboard (off until turned on)
     public static final String PREF_EMOJI_HOLD = "emoji_hold"; // the key that opens the emoji panel when held (comma, period, space, language, none)
     public static final String PREF_MEDIA_STARTER_PACK = "media_starter_pack"; // show the starter stickers of the APK in the picture panel (off until turned on)
     public static final String PREF_NEXTWORD_MODEL = "nextword_model"; // the downloaded next-word model orders the prediction strip (when one is installed and ready)

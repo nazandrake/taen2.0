@@ -1,0 +1,49 @@
+[
+  [
+    {"label": "1", "type": "numeric"},
+    {"label": "2", "type": "numeric"},
+    {"label": "3", "type": "numeric"},
+    {"label": "4", "type": "numeric"},
+    {"label": "5", "type": "numeric"},
+    {"label": "6", "type": "numeric"},
+    {"label": "7", "type": "numeric"},
+    {"label": "8", "type": "numeric"},
+    {"label": "9", "type": "numeric"},
+    {"label": "0", "type": "numeric"}
+  ],
+  [
+    {"label": "Esc", "code": 27, "type": "function"},
+    {"label": "w", "popup": {"main": {"label": "W"}}},
+    {"label": "e", "popup": {"main": {"label": "E"}}},
+    {"label": "r", "type": "function"},
+    {"label": "t", "popup": {"main": {"label": "T"}}},
+    {"label": "y", "type": "function", "popup": {"main": {"label": "Y"}}},
+    {"label": "u"},
+    {"label": "i", "popup": {"main": {"label": "I"}}},
+    {"label": "o", "popup": {"main": {"label": "O"}}},
+    {"label": "p", "type": "function", "popup": {"main": {"label": "P"}}}
+  ],
+  [
+    {"label": "a", "popup": {"main": {"label": "A"}}},
+    {"label": "s", "popup": {"main": {"label": "S"}}},
+    {"label": "d", "type": "function", "popup": {"main": {"label": "D"}}},
+    {"label": "f", "popup": {"main": {"label": "F"}}},
+    {"label": "g", "popup": {"main": {"label": "G"}}},
+    {"label": "h"},
+    {"label": "j"},
+    {"label": "k"},
+    {"label": "l"},
+    {"label": ";", "groupId": -1}
+  ],
+  [
+    {"label": "^R", "code": 18, "type": "function"},
+    {"label": "x", "type": "function", "popup": {"main": {"label": "X"}}},
+    {"label": "c", "type": "function", "popup": {"main": {"label": "C"}}},
+    {"label": "v", "popup": {"main": {"label": "V"}}},
+    {"label": "b", "popup": {"main": {"label": "B"}}},
+    {"label": "^", "groupId": -1},
+    {"label": "$", "groupId": -1},
+    {"label": ",", "groupId": -1},
+    {"label": "ABC", "code": 105, "type": "function"}
+  ]
+]
