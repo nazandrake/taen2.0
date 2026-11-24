@@ -6,6 +6,7 @@
   objects, counts, registers, macros, marks, search and a command line. Esc brings the normal keyboard back.
 - Vim mode is not available in password fields or while the device is locked, and what it remembers stays in memory only.
 - New: the first time you open Taen's settings after an update, a box like this one shows what is new in that version, once.
+- Help: a manual for every setting and for Vim mode, with examples and lessons, under Settings › Help.
 
 Details of the Vim mode:
 
