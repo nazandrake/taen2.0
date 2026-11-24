@@ -11,7 +11,7 @@ object ManualFiles {
      * The languages whose pages the tests check: parity with English, links, examples, keys. The folders of assets/manual are exactly this list
      * (ManualNavigationTest), so a new language is added here in the same change as its pages and is then checked like English.
      */
-    val checkedLanguages = listOf("en")
+    val checkedLanguages = listOf("en", "bg")
 
     /** The language folders that exist. */
     fun languages(): List<String> = root.listFiles { f -> f.isDirectory }.orEmpty().map { it.name }.sorted()

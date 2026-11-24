@@ -12,7 +12,7 @@ Details of the Vim mode:
 
 - New: Vim mode (Settings > Preferences, off by default). With it on, an Esc key appears on the suggestion strip. One tap opens
   Normal mode with its own keys (the Normal layout has more on long press): move with h l w b e W B E 0 ^ $ gg G f F t T ; , % { } ( ),
-  type a count first (3w), and use d, c, y with a motion, a text object (iw aw, quotes, brackets over several lines, with counts) or twice
+  type a count first (3w), and use d, c, y with a motion, a text object (iw aw, ip ap, quotes, brackets over several lines, with counts) or twice
   (dd, cc, yy), x X D C s S r R, J gJ, ~ and g~ gu gU, > and < (a tab or four spaces: a setting), Ctrl-A and Ctrl-X on numbers, p P, u and
   Ctrl-R (the undo and redo of the keyboard), v V and Ctrl-V (a block, shown as its span in the field) with d c y x r I A and more, gv, gi,
   i a I A o O and c commands (they give you the normal keyboard back; Esc returns), and in insert mode Ctrl-R (a register), Ctrl-W, Ctrl-U,
@@ -29,7 +29,7 @@ Details of the Vim mode:
   screen locks, at a wipe and whenever Vim mode is off (also after a restored backup). The command line text never goes into the field and
   is never learned or suggested. If an app does not share its text, or changes it while a command runs, the command does nothing and says so;
   only cursor motions then work, as cursor keys.
-- Not in this version: sentence and paragraph text objects (is as ip ap), `\n` and `\v` in patterns, back references, the `c` flag of :s, Vim
+- Not in this version: sentence text objects (is as), `\n` and `\v` in patterns, back references, the `c` flag of :s, Vim
   scripts, `ge`, and undo inside a macro.
 
 ## 2.0.2
