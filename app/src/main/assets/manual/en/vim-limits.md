@@ -21,7 +21,8 @@ Vim mode is the editing part of Vim on a keyboard. A keyboard sees one text fiel
 
 - Text: Vim mode edits a field only when the app shares the whole text, up to 20 000 characters. Otherwise nothing changes and a message says so. Without any text, only cursor motions work, as cursor keys.
 - A register, a macro and the command line hold at most 20 000 characters. A macro records at most 2 000 keys.
-- A play of keys (a macro, a repeat with `.`, `:normal`, `:global`) stops at 20 000 keys or 2.5 seconds.
+- One command that runs several steps (a macro, a repeat with `.`, `:normal`, `:global`, a command line) has one budget: 20 000 keys, 100 000 steps and 2.5 seconds together. No command may make the text longer than 20 000 characters. At a limit it stops, says so and changes nothing.
+- A command line that Vim mode does not understand (characters left after a command, an unknown flag, an expression register such as `:put =x`) is refused with a message and is not run in part.
 - A search, a pattern and `:substitute` stop at 3 million steps or 0.4 seconds. At a limit the command changes nothing.
 - Vim mode is not available in password fields or while the device is locked.
 

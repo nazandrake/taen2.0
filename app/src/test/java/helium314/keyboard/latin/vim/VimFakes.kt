@@ -101,11 +101,43 @@ class TestRules(var available: Boolean = true, var registerAllowed: Boolean = tr
     var clock = 0L
     /** Added to the clock at every reading, so that a limit in time is reached by reading it often enough. */
     var tick = 0L
+    /** How many times the engine asked whether anything may be kept. */
+    var asked = 0
+    /** After this many answers the decision turns to "no" (a toolbar incognito switch in the middle of a command); -1: never. */
+    var turnsOffAfter = -1
     override fun available() = available
-    override fun registerAllowed() = registerAllowed
+    override fun registerAllowed(): Boolean {
+        asked++
+        if (turnsOffAfter in 0 until asked) registerAllowed = false
+        return registerAllowed
+    }
     override fun accepts(text: String) = multiLine || '\n' !in text
     override fun nowMillis(): Long { clock += tick; return clock }
     override fun indentWithTab() = tabs
+}
+
+/** An engine on a fake field, put into Normal mode, with the key helpers the tests of the Vim package share. */
+class VimRig(text: String, caret: Int, val rules: TestRules = TestRules()) {
+    val field = FakeVimField(text, caret)
+    val engine = VimEngine(field, rules)
+    init { engine.escape() }
+    val text get() = field.text
+    /** Keys as the keyboard sends them (typed text in insert mode); the sequence goes on after a failed command. */
+    fun keys(k: String) = engine.feed(field, k, stopOnFail = false)
+    /** Presses each character as a key and returns what the last one answered (the engine is not in insert mode). */
+    fun send(k: String): VimOutcome {
+        var out = VimOutcome()
+        for (c in k) out = engine.key(c.code)
+        return out
+    }
+    /** The app moves to another field: the engine is told, the fake holds the new text, and Esc puts Vim in Normal mode there. */
+    fun newField(text: String, caret: Int = 0) {
+        engine.reset()
+        field.text = text
+        field.selStart = caret
+        field.selEnd = caret
+        engine.escape()
+    }
 }
 
 /**

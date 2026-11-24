@@ -83,7 +83,7 @@ A macro records keys and plays them back.
 
 - `q` and a letter starts recording into that register. The mode line shows `recording @a`. `q` stops.
 - `@a` plays the macro in register `a`. `@@` plays the last one again. A count plays it many times: `5@a`.
-- A macro holds at most 2 000 keys, and a play stops at 20 000 keys or 2.5 seconds, so a wrong macro cannot hang the keyboard. A macro or a repeat stops at the first command that fails.
+- A macro holds at most 2 000 keys, and a play has one budget of 20 000 keys, 100 000 steps and 2.5 seconds, and may not make the text longer than 20 000 characters, so a wrong macro cannot hang the keyboard or use up its memory; at a limit nothing is changed. A macro or a repeat stops at the first command that fails.
 - Undo cannot run inside a macro. A macro is one change: one undo takes all of it back.
 
 ```example
@@ -186,7 +186,7 @@ The commands:
 - `:g/pattern/command` runs the command on every line that matches. `:v/pattern/command` (or `:g!`) runs it on every line that does not.
 - `:normal keys` plays Normal mode keys on each line of the range.
 - A line number alone (`:3`) goes to that line. `:k` and a letter (or `:mark`) sets a mark on a line.
-- `:reg` and `:marks` show registers and marks in a message. `:undo` and `:redo` use the keyboard's undo and redo.
+- `:reg` and `:marks` show registers and marks in the line above the keys (never in a pop-up message), until your next key. `:undo` and `:redo` use the keyboard's undo and redo.
 - `:w`, `:q` and the like say that a keyboard cannot save or quit.
 
 A command line that changes text is one change.

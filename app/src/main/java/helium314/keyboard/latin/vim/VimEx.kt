@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.vim
 
-/** What an ex command wants remembered between commands: the last substitute (pattern, replacement, flags). */
-internal class ExState {
-    var subPattern: String? = null
-    var subReplacement: String? = null
-    var subFlags: String = ""
-}
-
 /** The result of one ex command line: the whole new [text] and the cursor, or a [notice]; [undo] is 1 for :undo, 2 for :redo. */
 internal class ExResult(
     val text: String,
@@ -24,18 +17,23 @@ internal class ExResult(
  * :s with & and \1 to \9, :&&, :d, :y, :pu, :m, :t and :co, :j, :> and :<, :normal, :g and :v with these commands, :reg, :marks, :undo and
  * :redo, and a notice for what a keyboard cannot do (:w, :q, :x, :wq). The whole line is run on a copy; the engine applies the result as one
  * text change, or nothing (an error or a spent budget changes nothing). Nothing here reads or writes the field.
+ *
+ * Fail closed: a command line is parsed to its end, and what no part of the syntax takes (trailing characters, an unknown flag or argument, an
+ * expression register, a range where none is allowed) is an error, never ignored. Bounds: every command, line and iteration is a step of the
+ * one budget of the command ([Host.charge]), and the text never gets longer than [Host.maxChars]: the size is checked before a larger string is built.
  */
 internal class VimEx(private val host: Host) {
     interface Host {
-        val regs: VimRegisters
-        val captureOk: Boolean
-        val state: ExState
+        /** The memory of the layer (registers, marks, the last substitute): every write in it asks the capture rule, so nothing here does. */
+        val memory: VimMemory
         val budget: VimRegex.Budget
+        /** Counts [steps] steps of this command line against its budget; false when the budget is spent (the line stops). */
+        fun charge(steps: Int): Boolean
+        /** The most characters the text may have; a command that would make it longer stops. */
+        val maxChars: Int
         /** The 0-based line of mark [name] (a to z, < > ' [ ]), or null. */
         fun markLine(name: Char): Int?
         fun setMark(name: Char, line: Int)
-        /** The last search pattern. */
-        val searchPattern: String?
         /** Runs Normal mode [keys] on [text] with the cursor at [caret]; the new text and cursor, or null when it cannot (a failure or a limit). */
         fun normal(text: String, caret: Int, keys: String): Pair<String, Int>?
         /** The register's content for :put; "+ and "* read the system clipboard. */
@@ -60,6 +58,35 @@ internal class VimEx(private val host: Host) {
     private var inGlobal = false
     private var cursorKept = false
 
+    /**
+     * The characters the lines hold, counted with one line break per line (so one more than the text). Every change of [lines] goes through
+     * [setLine], [addLine], [removeLines] or [replaceAll], which keep this number, so the ceiling is checked without building the text.
+     */
+    private var size = 0L
+
+    private fun spend(steps: Int = 1) { if (!host.charge(steps)) throw Stop(VimNotice.PLAY_LIMIT) }
+
+    /** A change that adds [chars] characters to the text must still fit: checked before the larger string is built. */
+    private fun guardGrow(chars: Long) { if (size - 1 + chars > host.maxChars) throw Stop(VimNotice.PLAY_LIMIT) }
+
+    private fun setLine(l: Int, s: String) {
+        size += s.length - lines[l].s.length
+        lines[l].s = s
+        if (size - 1 > host.maxChars) throw Stop(VimNotice.PLAY_LIMIT)
+    }
+
+    private fun addLine(at: Int, line: Line) {
+        lines.add(at, line)
+        size += line.s.length + 1
+        if (size - 1 > host.maxChars) throw Stop(VimNotice.PLAY_LIMIT)
+    }
+
+    private fun removeLines(from: Int, count: Int) {
+        val gone = lines.subList(from, from + count)
+        for (l in gone) size -= l.s.length + 1
+        gone.clear()
+    }
+
     /** A command that fails after it moved the cursor to [line] (0-based, the column stays): the failure keeps that move, as in Vim. */
     private var stopLine = -1
     private var stopCol0 = false
@@ -79,6 +106,7 @@ internal class VimEx(private val host: Host) {
     fun run(text: String, cursor: Int, cmdLine: String): ExResult {
         lines = ArrayList()
         for (s in text.split('\n')) lines.add(Line(s))
+        size = text.length + 1L
         cur = lineIndexOf(text, cursor)
         curCol = cursor - lineStartOf(text, cur)
         val origLine = cur
@@ -117,8 +145,8 @@ internal class VimEx(private val host: Host) {
         return sb.toString()
     }
 
-    private fun lineIndexOf(text: String, offset: Int): Int = VimMarks.lineOf(text, offset)
-    private fun lineStartOf(text: String, line: Int): Int = VimMarks.lineStartOf(text, line)
+    private fun lineIndexOf(text: String, offset: Int): Int = VimLines.lineOf(text, offset)
+    private fun lineStartOf(text: String, line: Int): Int = VimLines.lineStartOf(text, line)
 
     /** The text offset of the cursor: line [cur], and the column [curCol] (first non-blank when -1). */
     private fun offsetOf(line: Int): Int {
@@ -181,7 +209,7 @@ internal class VimEx(private val host: Host) {
                 p.i++
                 val sp = VimSearch.splitPattern(p.rest(), c)
                 p.i += sp.first.length + (if (sp.second != null) 1 else 0)
-                val pat = if (sp.first.isEmpty()) (host.searchPattern ?: throw Stop(VimNotice.NO_PATTERN)) else sp.first
+                val pat = if (sp.first.isEmpty()) (currentPattern() ?: throw Stop(VimNotice.NO_PATTERN)) else sp.first
                 newSearch = pat
                 line = findLine(pat, from, c == '/')
             }
@@ -207,6 +235,7 @@ internal class VimEx(private val host: Host) {
         val re = compile(pat, false)
         val n = lines.size
         for (k in 1..n) {
+            spend()
             val idx = if (forward) (from - 1 + k).mod(n) else (from - 1 - k).mod(n)
             val found = re.find(lines[idx].s, 0, host.budget)
             if (host.budget.exhausted) throw Stop(VimNotice.SEARCH_LIMIT)
@@ -215,7 +244,10 @@ internal class VimEx(private val host: Host) {
         throw Stop(VimNotice.NOT_FOUND)
     }
 
-    private fun compile(pat: String, ignoreCase: Boolean): VimRegex = when (val c = VimRegex.compile(pat, ignoreCase)) {
+    /** The pattern that an empty one stands for: the last one this line used (Vim's last search pattern moves with an address, :s and :g), else the last search. */
+    private fun currentPattern(): String? = newSearch ?: host.memory.lastSearch
+
+    private fun compile(pat: String, ignoreCase: Boolean): VimRegex =when (val c = VimRegex.compile(pat, ignoreCase)) {
         is VimRegex.Compiled.Ok -> c.regex
         VimRegex.Compiled.TooBig -> throw Stop(VimNotice.SEARCH_LIMIT)
         VimRegex.Compiled.Unsupported -> throw Stop(VimNotice.PATTERN_UNSUPPORTED)
@@ -274,6 +306,9 @@ internal class VimEx(private val host: Host) {
         Cmd("close", 3), Cmd("only", 2), Cmd("list", 1), Cmd("sno", 3),
     )
 
+    /** The commands that take a "!": :put! (above), :join! (no blank), :global! (the lines that do not match), :normal! and the ones that only answer that a keyboard cannot save or quit. */
+    private val bangCommands = setOf("put", "join", "global", "normal", "write", "wq", "xit", "quit", "qall", "wall", "xall", "wqall", "exit", "update", "close", "only")
+
     private fun lookup(word: String): String? {
         if (word.isEmpty()) return null
         if (word == "p" || word == "pr" || word == "pri" || word == "prin") return "show" // the command that only shows lines: it does nothing here (the full name is not offered)
@@ -281,7 +316,17 @@ internal class VimEx(private val host: Host) {
         return null
     }
 
+    /** The command is parsed to its end: anything left that no part of the syntax took (trailing characters, an unknown argument) is an error, never ignored. */
+    private fun finish(p: P) {
+        p.skipBlanks()
+        if (p.more()) throw Stop(VimNotice.EX_ERROR)
+    }
+
+    /** The commands that take no range (:reg, :marks, :undo...): a range in front is an error, as in Vim, not something to skip. */
+    private fun noRange(range: Range) { if (range.count != 0) throw Stop(VimNotice.EX_ERROR) }
+
     private fun execCommand(p: P) {
+        spend()
         val range = parseRange(p)
         p.skipBlanks()
         if (!p.more()) { // a line number alone: go there
@@ -317,10 +362,14 @@ internal class VimEx(private val host: Host) {
             while (p.peek() == name[0]) { n++; p.i++ }
             p.skipBlanks()
             val count = if (p.peek() in '0'..'9') parseNumber(p) else 0
+            finish(p)
             val r = checkRange(if (count > 0) Range(range.line2, minOf(range.line2 + count - 1, lines.size), 2) else range)
+            spend(r.line2 - r.line1 + 1)
+            // each shifted line gets this much longer at most: checked before any line is built
+            if (name == ">") guardGrow((r.line2 - r.line1 + 1L) * n * (if (host.indentWithTab) 1 else VimOps.SHIFT_WIDTH))
             for (l in r.line1..r.line2) {
                 val ln = lines[l - 1]
-                if (ln.s.isNotEmpty()) ln.s = VimOps.shiftLine(ln.s, name == "<", n, host.indentWithTab)
+                if (ln.s.isNotEmpty()) setLine(l - 1, VimOps.shiftLine(ln.s, name == "<", n, host.indentWithTab))
             }
             changed = true
             moved(r.line2 - 1)
@@ -328,6 +377,8 @@ internal class VimEx(private val host: Host) {
         }
         val bang = p.peek() == '!'
         if (bang && name != "&") p.i++
+        // a "!" after a command that has no use for it is an error (the commands below read it as their own flag)
+        if (bang && name != "&" && name !in bangCommands) throw Stop(VimNotice.EX_ERROR)
         when (name) {
             "substitute", "&" -> substitute(p, range, name == "&", bang)
             "sno" -> throw Stop(VimNotice.EX_ERROR)
@@ -340,36 +391,43 @@ internal class VimEx(private val host: Host) {
             "normal" -> normal(p, range)
             "global" -> global(p, range, invert = bang)
             "vglobal" -> global(p, range, invert = true)
-            "registers", "display" -> message = host.registerListing()
-            "marks" -> message = host.markListing()
-            "undo" -> undo = 1
-            "redo" -> undo = 2
+            // a register or mark name, or a count, after these is not offered (Vim shows only those registers or marks): an error, not the whole listing
+            "registers", "display" -> { noRange(range); finish(p); message = host.registerListing() }
+            "marks" -> { noRange(range); finish(p); message = host.markListing() }
+            "undo" -> { noRange(range); finish(p); undo = 1 }
+            "redo" -> { noRange(range); finish(p); undo = 2 }
             "write", "wq", "xit", "quit", "qall", "wall", "xall", "wqall", "exit", "update", "close", "only" -> throw Stop(VimNotice.CANNOT_SAVE)
-            "nohlsearch" -> throw Stop(VimNotice.NO_HIGHLIGHT)
+            "nohlsearch" -> { noRange(range); finish(p); throw Stop(VimNotice.NO_HIGHLIGHT) }
             "k", "mark" -> {
                 p.skipBlanks()
                 val n = p.peek()
                 if (n !in 'a'..'z') throw Stop(VimNotice.EX_ERROR)
+                p.i++
+                finish(p)
                 val l = if (range.count == 0) cur else range.line2 - 1
                 if (l !in 0 until lines.size) throw Stop(VimNotice.EX_ERROR)
                 host.setMark(n, l)
             }
-            "number", "list", "show" -> { checkRange(range); if (range.count > 0) moved(range.line2 - 1) }
+            "number", "list", "show" -> { finish(p); checkRange(range); if (range.count > 0) moved(range.line2 - 1) }
             else -> throw Stop(VimNotice.EX_ERROR)
         }
     }
 
     // ---- :d :y :pu :m :t :j ---------------------------------------------------------------------------------------------------
 
-    private fun regArg(p: P): Char? {
+    /**
+     * A register name after :d, :y or :put, or null. A yank or delete writes a to z, A to Z, ", - , _ , + and *; :put also reads a digit, ".", ":" and "/".
+     * For :d and :y a digit is the count. Any other character is left where it is, and the command then ends in an error (finish), so an expression
+     * register ("=") or a name that is not a register never falls back to the unnamed one.
+     */
+    private fun regArg(p: P, read: Boolean = false): Char? {
         p.skipBlanks()
         val c = p.peek()
-        if (c.isLetter() || c == '"' || c == '-' || c == '_' || c in '0'..'9' || c == '+' || c == '*' || c == '.' || c == ':' || c == '/') {
-            if (c in '0'..'9') return null // a count
-            p.i++
-            return c
-        }
-        return null
+        val ok = c in 'a'..'z' || c in 'A'..'Z' || c == '"' || c == '-' || c == '_' || c == '+' || c == '*' ||
+            (read && (c in '0'..'9' || c == '.' || c == ':' || c == '/'))
+        if (!ok) return null
+        p.i++
+        return c
     }
 
     private fun countArg(p: P): Int? {
@@ -394,36 +452,47 @@ internal class VimEx(private val host: Host) {
 
     private fun deleteLines(p: P, range: Range) {
         val reg = regArg(p)
-        val r = checkRange(withCount(range, countArg(p)))
+        val count = countArg(p)
+        finish(p)
+        val r = checkRange(withCount(range, count))
+        spend(r.line2 - r.line1 + 1)
         val text = linesText(r)
-        if (host.captureOk) {
-            if (!host.regs.delete(reg, Reg(text, RegType.LINE), multiLine = true, useRegOne = false)) throw Stop(VimNotice.REGISTER_FULL)
-        } else host.regs.invalidateDelete(reg, multiLine = true)
-        repeat(r.line2 - r.line1 + 1) { lines.removeAt(r.line1 - 1) }
-        if (lines.isEmpty()) lines.add(Line(""))
+        // where nothing may be kept the memory empties the registers this delete would have replaced and keeps nothing
+        if (host.memory.delete(reg, Reg(text, RegType.LINE), multiLine = true, useRegOne = false) == Kept.FULL) throw Stop(VimNotice.REGISTER_FULL)
+        removeLines(r.line1 - 1, r.line2 - r.line1 + 1)
+        if (lines.isEmpty()) addLine(0, Line(""))
         changed = true
         moved(minOf(r.line1 - 1, lines.size - 1))
     }
 
     private fun yankLines(p: P, range: Range) {
         val reg = regArg(p)
-        val r = checkRange(withCount(range, countArg(p)))
-        if (!host.captureOk) throw Stop(VimNotice.REGISTER_OFF)
-        if (!host.regs.yank(reg, Reg(linesText(r), RegType.LINE))) throw Stop(VimNotice.REGISTER_FULL)
+        val count = countArg(p)
+        finish(p)
+        val r = checkRange(withCount(range, count))
+        spend(r.line2 - r.line1 + 1)
+        when (host.memory.yank(reg, Reg(linesText(r), RegType.LINE))) {
+            Kept.OFF -> throw Stop(VimNotice.REGISTER_OFF)
+            Kept.FULL -> throw Stop(VimNotice.REGISTER_FULL)
+            Kept.OK -> {}
+        }
     }
 
     private fun putLines(p: P, range: Range, above0: Boolean) {
-        val reg = regArg(p) ?: '"'
+        val reg = regArg(p, read = true) ?: '"'
+        finish(p) // ":put =expr" and anything else after the register name is not offered: an error, never the unnamed register
         val rr = checkRange(range, allowZero = true)
         var above = above0
         var line2 = rr.line2
         if (line2 == 0) { line2 = 1; above = true } // ":0put" is ":1put!"
         stopAt(line2 - 1, clamp = true) // the cursor goes to the line before the put is tried
         val r = host.register(reg)?.takeIf { it.text.isNotEmpty() || it.type == RegType.LINE } ?: throw Stop(VimNotice.REGISTER_EMPTY)
+        guardGrow(r.text.length + 1L) // the lines of the register are added as they are: its text and one more line break
         val put = r.text.split('\n')
+        spend(put.size)
         var at = line2 // insert after this 1-based line
         if (above) at = maxOf(0, at - 1)
-        for ((k, s) in put.withIndex()) lines.add(at + k, Line(s))
+        for ((k, s) in put.withIndex()) addLine(at + k, Line(s))
         changed = true
         moved(at + put.size - 1)
     }
@@ -437,18 +506,25 @@ internal class VimEx(private val host: Host) {
     private fun moveLines(p: P, range0: Range, copy: Boolean) {
         val range = checkRange(range0)
         val dest = address(p)
+        finish(p)
         val n = range.line2 - range.line1 + 1
+        spend(n)
         if (!copy && dest >= range.line1 && dest < range.line2) throw Stop(VimNotice.EX_ERROR) // moving lines into themselves
         if (!copy && (dest == range.line2 || dest == range.line1 - 1)) { moved(range.line2 - 1); return }
+        if (copy) { // the copies add these lines: the size is known before one is made (":g/^/%t$" doubles the text at every line)
+            var chars = 0L
+            for (l in range.line1..range.line2) chars += lines[l - 1].s.length + 1
+            guardGrow(chars)
+        }
         val picked = ArrayList<Line>()
         for (l in range.line1..range.line2) picked.add(if (copy) Line(lines[l - 1].s) else lines[l - 1])
         if (copy) {
-            for ((k, ln) in picked.withIndex()) lines.add(dest + k, ln)
+            for ((k, ln) in picked.withIndex()) addLine(dest + k, ln)
             moved(dest + n - 1)
         } else {
-            repeat(n) { lines.removeAt(range.line1 - 1) }
+            removeLines(range.line1 - 1, n)
             val at = if (dest > range.line2) dest - n else dest
-            for ((k, ln) in picked.withIndex()) lines.add(at + k, ln)
+            for ((k, ln) in picked.withIndex()) addLine(at + k, ln)
             moved(at + n - 1)
         }
         changed = true
@@ -456,6 +532,7 @@ internal class VimEx(private val host: Host) {
 
     private fun joinLines(p: P, range: Range, bang: Boolean) {
         val count = countArg(p)
+        finish(p)
         var r = Range(maxOf(range.line1, 1), maxOf(range.line2, 1), range.count)
         if (count != null) r = Range(range.line2, range.line2 + count - 1, 2)
         else if (r.line1 == r.line2) {
@@ -468,9 +545,10 @@ internal class VimEx(private val host: Host) {
         r = checkRange(r)
         val parts = ArrayList<String>()
         for (l in r.line1..r.line2) parts.add(lines[l - 1].s)
+        spend(parts.size)
         val joined = VimOps.join(parts, insertSpace = !bang)
-        lines[r.line1 - 1].s = joined.line
-        repeat(r.line2 - r.line1) { lines.removeAt(r.line1) }
+        setLine(r.line1 - 1, joined.line)
+        removeLines(r.line1, r.line2 - r.line1)
         changed = true
         moved(r.line1 - 1)
     }
@@ -478,7 +556,7 @@ internal class VimEx(private val host: Host) {
     // ---- :s -----------------------------------------------------------------------------------------------------------------------
 
     private fun substitute(p: P, range: Range, ampersand: Boolean, bang: Boolean) {
-        val st = host.state
+        val before = host.memory.substitute // the last substitute, where the layer may keep one (null in a field that keeps nothing)
         var pattern: String
         var replacement: String
         var flags: String
@@ -497,56 +575,57 @@ internal class VimEx(private val host: Host) {
                 flags = afterRep ?: ""
                 p.i = p.s.length
             }
-            if (pattern.isEmpty()) pattern = host.searchPattern ?: throw Stop(VimNotice.NO_PATTERN)
+            if (pattern.isEmpty()) pattern = currentPattern() ?: throw Stop(VimNotice.NO_PATTERN)
         } else {
-            pattern = st.subPattern ?: throw Stop(VimNotice.NO_PATTERN)
-            replacement = st.subReplacement ?: ""
-            flags = if (ampersand) "" else ""
-            val rest = p.rest().trim()
-            if (rest.isNotEmpty()) flags = rest
+            pattern = before?.pattern ?: throw Stop(VimNotice.NO_PATTERN)
+            replacement = before.replacement
+            flags = p.rest().trim()
+            p.i = p.s.length
         }
-        // flags and a count
+        // flags and a count: g i I, the display flags (p # l: the keyboard shows no output, so they change nothing) and a count; every other flag,
+        // and anything after the count, is an error (e, r, c and n are not offered: ignoring them would give another result than Vim's)
         var fl = flags.trimStart()
         var global = false
         var ic = false
         var count: Int? = null
-        var keepFlags = false
         var i = 0
-        if (fl.startsWith("&")) { keepFlags = true; fl = fl.substring(1) }
-        if (keepFlags || (ampersand && fl.startsWith("&"))) fl = st.subFlags + fl
+        if (fl.startsWith("&")) fl = (before?.flags ?: "") + fl.substring(1) // a leading "&" keeps the flags of the last substitute
         while (i < fl.length) {
-            val ch = fl[i]
-            when (ch) {
+            when (fl[i]) {
                 'g' -> global = !global
                 'i' -> ic = true
                 'I' -> ic = false
-                'e', 'p', '#', 'l', 'r' -> {}
-                '&' -> {}
+                'p', '#', 'l' -> {}
                 ' ', '\t' -> {}
-                in '0'..'9' -> { count = parseCount(fl.substring(i)); i = fl.length }
-                else -> throw Stop(VimNotice.EX_ERROR) // c (confirm), n and the rest are not offered
+                in '0'..'9' -> {
+                    count = parseCount(fl.substring(i))
+                    var j = i
+                    while (j < fl.length && fl[j] in '0'..'9') j++
+                    if (fl.substring(j).isNotBlank()) throw Stop(VimNotice.EX_ERROR)
+                    i = fl.length
+                }
+                else -> throw Stop(VimNotice.EX_ERROR)
             }
             i++
         }
         val r = withCount(range, count)
         checkRange(r)
         val re = compile(pattern, ic)
-        st.subPattern = pattern
-        st.subReplacement = replacement
-        st.subFlags = (if (global) "g" else "") + (if (ic) "i" else "")
+        host.memory.setSubstitute(pattern, replacement, (if (global) "g" else "") + (if (ic) "i" else ""))
         newSearch = pattern
         var any = false
         var lastLine = -1
         var l = r.line1 - 1
         var end = r.line2 - 1
         while (l <= end) {
+            spend()
             val line = lines[l].s
-            val parts = substituteLine(line, re, replacement, global)
+            val parts = substituteLine(line, re, replacement, global, host.maxChars.toLong() - (size - 1) + line.length)
             if (host.budget.exhausted) throw Stop(VimNotice.SEARCH_LIMIT)
             if (parts != null) {
                 any = true
-                lines[l].s = parts[0]
-                for (k in 1 until parts.size) lines.add(l + k, Line(parts[k]))
+                setLine(l, parts[0])
+                for (k in 1 until parts.size) addLine(l + k, Line(parts[k]))
                 l += parts.size - 1
                 end += parts.size - 1
                 lastLine = l
@@ -587,7 +666,7 @@ internal class VimEx(private val host: Host) {
     }
 
     /** The new text of [line] after replacing the first (or every) match, as one line or several when the replacement has a "\r"; null: no match. */
-    private fun substituteLine(line: String, re: VimRegex, rep: String, global: Boolean): List<String>? {
+    private fun substituteLine(line: String, re: VimRegex, rep: String, global: Boolean, room: Long): List<String>? {
         var pos = 0
         var copied = 0
         val out = StringBuilder()
@@ -603,8 +682,11 @@ internal class VimEx(private val host: Host) {
                 continue
             }
             any = true
+            // [room] is the longest the new line may be: the text before this match, the replacement and what is left of the line are checked
+            // before they are appended (a replacement of "&" a thousand times on a long line would be made first otherwise)
+            if (out.length.toLong() + (m.start - copied) + (line.length - m.end) > room) throw Stop(VimNotice.PLAY_LIMIT)
             out.append(line, copied, m.start)
-            appendReplacement(out, rep, m, line)
+            appendReplacement(out, rep, m, line, room - (line.length - m.end))
             copied = m.end
             lastEnd = m.end
             if (!global) break
@@ -623,11 +705,12 @@ internal class VimEx(private val host: Host) {
         return out.toString().split('\n')
     }
 
-    private fun appendReplacement(out: StringBuilder, rep: String, m: VimRegex.Match, line: String) {
+    private fun appendReplacement(out: StringBuilder, rep: String, m: VimRegex.Match, line: String, limit: Long) {
         var i = 0
         var mode = ' ' // pending one-shot case change: 'u' or 'l'; ongoing: 'U' or 'L'
         var oneShot = ' '
         fun put(s: String) {
+            if (out.length.toLong() + s.length > limit) throw Stop(VimNotice.PLAY_LIMIT) // the new line would be too long: it is not built
             for (ch in s) {
                 var c = ch
                 if (oneShot == 'u') { c = c.uppercaseChar(); oneShot = ' ' }
@@ -677,6 +760,7 @@ internal class VimEx(private val host: Host) {
         checkRange(range)
         var ln = range.line1
         while (ln <= range.line2) {
+            spend()
             // as in Vim a line number that the buffer lost meanwhile is the last line
             val text = join()
             var start = 0
@@ -691,21 +775,23 @@ internal class VimEx(private val host: Host) {
     private fun replaceAll(newText: String, caret: Int) {
         val old = join()
         if (old == newText) {
-            val line = VimMarks.lineOf(newText, caret)
-            moved(line, caret - VimMarks.lineStartOf(newText, line))
+            val line = VimLines.lineOf(newText, caret)
+            moved(line, caret - VimLines.lineStartOf(newText, line))
             return
         }
         val newLines = newText.split('\n')
-        val map = VimMarks.lineMap(old.split('\n'), newLines)
+        val map = VimLines.lineMap(old.split('\n'), newLines)
         val updated = ArrayList<Line?>(newLines.size)
         for (k in newLines.indices) updated.add(null)
         for ((k, ln) in lines.withIndex()) if (k < map.size && map[k] >= 0) { ln.s = newLines[map[k]]; updated[map[k]] = ln }
         val result = ArrayList<Line>()
         for ((k, ln) in updated.withIndex()) result.add(ln ?: Line(newLines[k]))
         lines = result
+        size = newText.length + 1L // the text of a :normal run is as long as the copy it ran on may be (the copy refuses a longer text)
+        if (size - 1 > host.maxChars) throw Stop(VimNotice.PLAY_LIMIT)
         changed = true
-        val line = VimMarks.lineOf(newText, caret)
-        moved(line, caret - VimMarks.lineStartOf(newText, line))
+        val line = VimLines.lineOf(newText, caret)
+        moved(line, caret - VimLines.lineStartOf(newText, line))
     }
 
     private fun global(p: P, range: Range, invert: Boolean) {
@@ -715,7 +801,7 @@ internal class VimEx(private val host: Host) {
         p.i++
         val (pat, after) = splitAt(p.rest(), delim)
         p.i = p.s.length
-        val pattern = if (pat.isEmpty()) (host.searchPattern ?: throw Stop(VimNotice.NO_PATTERN)) else pat
+        val pattern = if (pat.isEmpty()) (currentPattern() ?: throw Stop(VimNotice.NO_PATTERN)) else pat
         val sub = (after ?: "").ifEmpty { "p" }
         val r = if (range.count == 0) Range(1, lines.size, 2) else range
         checkRange(r)
@@ -723,6 +809,7 @@ internal class VimEx(private val host: Host) {
         newSearch = pattern
         var tagged = 0
         for (l in r.line1..r.line2) {
+            spend()
             val hit = re.find(lines[l - 1].s, 0, host.budget) != null
             if (host.budget.exhausted) throw Stop(VimNotice.SEARCH_LIMIT)
             lines[l - 1].tag = hit != invert
@@ -730,12 +817,12 @@ internal class VimEx(private val host: Host) {
         }
         if (tagged == 0) throw Stop(VimNotice.NOT_FOUND)
         inGlobal = true
-        var guard = 0
         while (true) {
             var idx = -1
             for ((k, ln) in lines.withIndex()) if (ln.tag) { idx = k; break }
             if (idx < 0) break
-            if (++guard > 100_000 || host.budget.exhausted) throw Stop(VimNotice.SEARCH_LIMIT)
+            spend() // one step for every line that the command is run on (the command itself is a step too)
+            if (host.budget.exhausted) throw Stop(VimNotice.SEARCH_LIMIT)
             lines[idx].tag = false
             moved(idx, 0)
             stopAt(idx, col0 = true) // a command that fails leaves the cursor on this line

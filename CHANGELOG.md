@@ -18,7 +18,8 @@ Details of the Vim mode:
   i a I A o O and c commands (they give you the normal keyboard back; Esc returns), and in insert mode Ctrl-R (a register), Ctrl-W, Ctrl-U,
   Ctrl-H and Ctrl-O through the Ctrl key.
 - Also new: `.` repeats the last change (with a count); macros (q and a letter to record, q to stop, @ and a letter, @@, with counts; at most
-  2 000 keys, and a play stops at 20 000 keys); registers `"a` to `"z` (A to Z add), `"0` to `"9`, `"-`, `"_`, `".`, `"/`, `":`, and `"+` and `"*`
+  2 000 keys; a macro, a repeat or a command line has one budget of 20 000 keys, 100 000 steps and 2.5 seconds, and no command builds text
+  over 20 000 characters: at a limit nothing is changed); registers `"a` to `"z` (A to Z add), `"0` to `"9`, `"-`, `"_`, `".`, `"/`, `":`, and `"+` and `"*`
   for the system clipboard through the copy and paste keys' own code; marks (m, ', `, '' and the last selection and change); search (/ ? n N *
   # g* g#, with offsets, and the usual patterns: . * \+ \= ^ $ \< \> [ ] \( \) \| \c \C) that cannot hang the keyboard; and a command line
   on the strip with ranges and :s :d :y :pu :m :t :co :j :> :< :normal :g :v :reg :marks :undo :redo (:w and :q say that a keyboard cannot
@@ -26,8 +27,10 @@ Details of the Vim mode:
   A line above the keys shows the mode, what you typed so far, a recording and the command line. English and Bulgarian.
 - Vim mode is not available in password fields or while the device is locked. What it remembers (registers, macros, the repeat, marks,
   searches, the command line history) is in memory only and is kept only where clipboard history may keep a copy; it is forgotten when the
-  screen locks, at a wipe and whenever Vim mode is off (also after a restored backup). The command line text never goes into the field and
-  is never learned or suggested. If an app does not share its text, or changes it while a command runs, the command does nothing and says so;
+  screen locks, at a wipe and whenever Vim mode is off (also after a restored backup); where it may keep nothing it is asked again at every
+  write, so what you type after switching incognito on is not kept. The command line text never goes into the field and is never learned
+  or suggested; :reg and :marks show their list in the line above the keys, never in a pop-up message; a command line that Vim mode does
+  not understand is refused, not run in part. If an app does not share its text, or changes it while a command runs, the command does nothing and says so;
   only cursor motions then work, as cursor keys.
 - Not in this version: sentence text objects (is as), `\n` and `\v` in patterns, back references, the `c` flag of :s, Vim
   scripts, `ge`, and undo inside a macro.

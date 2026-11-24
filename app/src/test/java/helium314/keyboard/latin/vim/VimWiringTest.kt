@@ -779,6 +779,48 @@ class VimWiringTest {
         assertEquals("\tfoo", text)
     }
 
+    @Test fun aBlockAppendOnAShortLineCommitsNothingAheadAndItsOneChangeComesWhenTheInsertEnds() = withKeyboard { ime ->
+        field(ime, "a\nabcdef", 0)
+        press(ime, KeyCode.VIM_MODE)
+        ShadowInputMethodService.textChanges.clear()
+        press(ime, VimEngine.KEY_CTRL_V)
+        keys(ime, "j5lA")
+        assertEquals(emptyList(), ShadowInputMethodService.textChanges, "the padding is not committed ahead of the insert")
+        assertEquals("a\nabcdef", text)
+        keys(ime, "!") // typed on the ordinary keyboard: a separator is committed at once
+        ShadowInputMethodService.textChanges.clear()
+        // the placement of the caret after the change fails: the field holds the whole result, not a half of it, and Vim is reset
+        ShadowInputMethodService.beforeSetSelection = { _, _ -> if (ShadowInputMethodService.textChanges.isNotEmpty()) throw IllegalStateException("the placement fails: \"abcdef\"") }
+        press(ime, KeyCode.VIM_MODE)
+        ShadowInputMethodService.beforeSetSelection = null
+        assertEquals("a     !\nabcdef!", text)
+        assertEquals(listOf("commitText"), ShadowInputMethodService.textChanges, "padding and fill are one text change")
+        assertTrue(element!!.isAlphabet, "Vim is reset: the typing keyboard is back")
+        assertEquals(ime.getString(R.string.vim_failed), toastText())
+    }
+
+    @Test fun theRegisterAndMarkListingsShowInTheKeyboardAndNeverInAToast() = withKeyboard { ime ->
+        field(ime, "foo secret", 0)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "\"ayw")
+        keys(ime, "wma")
+        clearToast()
+        press(ime, ':'.code)
+        keys(ime, "reg")
+        press(ime, Constants.CODE_ENTER)
+        // every Toast (the system one up to API 32, the keyboard's own after it) goes through showToast: the listing is not given to it
+        assertNull(toastText(), "the register listing is not a toast")
+        assertTrue(vimStatus()!!.contains("\"a  foo "), "the listing is in the keyboard's own view: ${vimStatus()}")
+        press(ime, ':'.code)
+        keys(ime, "marks")
+        press(ime, Constants.CODE_ENTER)
+        assertNull(toastText(), "the mark listing is not a toast")
+        assertTrue(vimStatus()!!.contains("a  1:4"), "the listing is in the keyboard's own view: ${vimStatus()}")
+        // a notice (a fixed text of the keyboard) still is a toast: the control that the toast path works
+        keys(ime, "'z")
+        assertEquals(ime.getString(R.string.vim_mark_not_set), toastText())
+    }
+
     @Test fun aTextChangedBehindTheEnginesBackInvalidatesTheMarks() = withKeyboard { ime ->
         field(ime, "foo bar baz", 0)
         press(ime, KeyCode.VIM_MODE)

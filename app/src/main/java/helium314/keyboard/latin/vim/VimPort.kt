@@ -58,7 +58,7 @@ enum class VimNotice {
     NO_TEXT,
     /** The editor gave only a part of the field. */
     PARTIAL_TEXT,
-    /** The field is longer than the window the layer reads. */
+    /** The field is longer than the window the layer reads, or the command would make it longer: nothing was changed. */
     TOO_LONG,
     /** The field or the selection changed under the command; nothing was done. */
     CHANGED,
@@ -88,7 +88,7 @@ enum class VimNotice {
     PATTERN_UNSUPPORTED,
     /** The pattern is too big, or the search used up its steps or time: nothing was changed. */
     SEARCH_LIMIT,
-    /** A macro or a command line was stopped at its limit (keys, time): the text is as the keys before it left it. */
+    /** A macro, a repeat or a command line was stopped at its limit (keys, steps, time, or a text longer than the window): nothing was changed. */
     PLAY_LIMIT,
     /** Nothing to repeat with . */
     NOTHING_TO_REPEAT,
@@ -112,7 +112,8 @@ enum class VimNotice {
  * What the engine tells the keyboard after a key: [notice] is a short message for the user (null for the normal case and for a
  * command that fails silently, as a beep does in Vim); [handled] is false when the key is not for the Vim layer (typing mode).
  * [failed] is true when the command could not be done (Vim beeps; the tests stop a key sequence there, as Vim does).
- * [message] is text for the user made by the command itself (the listing of :reg and :marks), shown in place of a notice.
+ * [message] is text for the user made by the command itself (the listing of :reg and :marks). It can hold register text, so the keyboard shows
+ * it only in its own view and never gives it to a toast or anything outside the keyboard window.
  * The mode and the pending character argument are read from the engine.
  */
 class VimOutcome(val notice: VimNotice? = null, val handled: Boolean = true, val failed: Boolean = false, val message: String? = null)

@@ -61,12 +61,12 @@ class VimEngineV2Test {
         r.regs.store('a', Reg("x@a", RegType.CHAR)) // the same macro as a recording of "x@a" would make
         val out = r.send("@a")
         assertEquals(VimNotice.PLAY_LIMIT, out.notice)
-        // the keys are x, @ and a over and over: 20 000 keys of the play are 6 666 rounds and the x of the next one
-        assertEquals(6667, deleted(r, 8000))
-        assertEquals(1, r.field.editCalls.size) // one change for the whole play
+        // at the limit (20 000 keys) the whole play stops and nothing it did is written: the field is as it was (contract of the one budget)
+        assertEquals(0, deleted(r, 8000))
+        assertEquals(emptyList(), r.field.editCalls)
         // the engine goes on working: a normal command after the play
         r.keys("x")
-        assertEquals(8000 - 6668, text(r).length)
+        assertEquals(8000 - 1, text(r).length)
     }
 
     @Test fun nestedPlaysCountTowardsTheSameLimit() {
@@ -74,8 +74,9 @@ class VimEngineV2Test {
         r.regs.store('b', Reg("x".repeat(1000), RegType.CHAR))
         r.regs.store('a', Reg("@b".repeat(30), RegType.CHAR)) // 30 plays of 1 000 keys: 30 000, and two keys of each call
         assertEquals(VimNotice.PLAY_LIMIT, r.send("@a").notice)
-        // 19 whole plays with their calls are 19 038 keys; the 962 that are left are the call and 960 x
-        assertEquals(19 * 1000 + 960, deleted(r, 20_000))
+        // 30 plays of 1 000 keys are over the 20 000 of one play, nested plays counted: the play stops as a whole and writes nothing
+        assertEquals(0, deleted(r, 20_000))
+        assertEquals(emptyList(), r.field.editCalls)
         // the control: plays of exactly 19 000 keys are not stopped
         val c = Rig("x".repeat(20_000), 0)
         c.regs.store('b', Reg("x".repeat(1000), RegType.CHAR))
@@ -90,8 +91,8 @@ class VimEngineV2Test {
         r.regs.store('a', Reg("x".repeat(5000), RegType.CHAR))
         rules.tick = 100 // every look at the clock is 100 ms later; the limit is 2 500 ms, looked at every 64 keys
         assertEquals(VimNotice.PLAY_LIMIT, r.send("@a").notice)
-        val gone = deleted(r, 10_000)
-        assertTrue(gone in 1..1_700, "$gone characters taken: stopped long before the 5 000 keys")
+        assertEquals(0, deleted(r, 10_000)) // the clock ended the play long before its 5 000 keys: nothing it did is written
+        assertEquals(emptyList(), r.field.editCalls)
         // the control: the same macro with a clock that stands still runs to its end
         val still = Rig("x".repeat(10_000), 0)
         still.regs.store('a', Reg("x".repeat(5000), RegType.CHAR))
@@ -331,13 +332,20 @@ class VimEngineV2Test {
 
     @Test fun anOversizedClipboardIsRefusedAsARegisterValue() {
         val r = Rig("foo", 0)
-        r.field.clipboard = "x".repeat(VimRegisters.MAX_CHARS + 1)
+        r.field.clipboard = "x".repeat(VimMemory.MAX_CHARS + 1)
         r.press('"'); r.press('+')
         assertEquals(VimNotice.CLIPBOARD_EMPTY, r.press('p').notice)
         assertEquals("foo", text(r))
-        r.field.clipboard = "x".repeat(VimRegisters.MAX_CHARS)
-        r.keys("\"+p")
-        assertEquals(3 + VimRegisters.MAX_CHARS, text(r).length) // exactly the limit is put
+        // a text of exactly the window is put into an empty field; into a field that has 3 characters it would be over the window and is refused
+        val short = Rig("foo", 0)
+        short.field.clipboard = "x".repeat(VimMemory.MAX_CHARS)
+        short.press('"'); short.press('+')
+        assertEquals(VimNotice.TOO_LONG, short.press('p').notice)
+        assertEquals("foo", text(short))
+        val empty = Rig("", 0)
+        empty.field.clipboard = "x".repeat(VimMemory.MAX_CHARS)
+        empty.keys("\"+p")
+        assertEquals(VimMemory.MAX_CHARS, text(empty).length) // exactly the limit is put
     }
 
     @Test fun aRegisterHoldsAtMost20000CharactersWhenAppending() {
@@ -605,13 +613,13 @@ class VimEngineV2Test {
     }
 
     @Test fun aRegisterOfExactlyTheLimitIsKept() {
-        val r = Rig("a".repeat(VimRegisters.MAX_CHARS), 0)
+        val r = Rig("a".repeat(VimMemory.MAX_CHARS), 0)
         r.keys("\"ayy")
-        assertEquals(VimRegisters.MAX_CHARS, r.regs.get('a')!!.text.length)
+        assertEquals(VimMemory.MAX_CHARS, r.regs.get('a')!!.text.length)
         r.keys("\"byw")
-        assertEquals(VimRegisters.MAX_CHARS, r.regs.get('b')!!.text.length)
+        assertEquals(VimMemory.MAX_CHARS, r.regs.get('b')!!.text.length)
         assertEquals(VimNotice.REGISTER_FULL, r.send("\"Ayy").notice) // one more would be over
-        assertEquals(VimRegisters.MAX_CHARS, r.regs.get('a')!!.text.length)
+        assertEquals(VimMemory.MAX_CHARS, r.regs.get('a')!!.text.length)
     }
 
     @Test fun theHistoriesKeepTheNewestFiftyCommands() {

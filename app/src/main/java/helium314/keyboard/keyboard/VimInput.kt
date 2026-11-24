@@ -242,8 +242,10 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
     private fun isVimLayout(): Boolean = switcher.keyboard?.mId?.element.let { it == KeyboardElement.VIM_NORMAL || it == KeyboardElement.VIM_VISUAL }
 
     private fun after(outcome: VimOutcome) {
-        val shown = outcome.message ?: outcome.notice?.let { noticeText(it) }
-        shown?.let { switcher.showToast(it, true) }
+        // A notice is a fixed text of the keyboard: a toast. A listing (:reg, :marks) holds register and mark data and is never given to a toast
+        // (the system toast of API 32 and below is broadcast to accessibility services): it is shown in the keyboard's own mode line view.
+        outcome.notice?.let { switcher.showToast(noticeText(it), true) }
+        val listing = outcome.message?.takeIf { it.isNotEmpty() }
         inputLogic.setVimActive(engine.mode != VimMode.INSERT)
         val wanted = when {
             engine.mode == VimMode.INSERT || engine.wantsChar -> null // the typing keyboard (a character is typed for f, t, r; the command line is typed too)
@@ -259,6 +261,7 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
         }
         val line = engine.cmdline
         switcher.setVimStatus(when {
+            listing != null -> listing // until the next key
             line != null -> "$line▏" // the command line, with a cursor
             engine.mode == VimMode.INSERT && engine.recordingRegister == null -> null
             else -> statusText()

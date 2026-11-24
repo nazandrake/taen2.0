@@ -19,8 +19,13 @@ object VimBytecode {
      * The references of one class: classes (`java/io/File`) and members of classes with their descriptor (`java/io/File.delete:()Z`), every type
      * of a descriptor or signature included. [names] are the names that read as an internal class name (`java/io/File`) in a CONSTANT_Utf8 entry.
      * [unparsed] are the indexes of the entries that start as a type or signature and do not parse completely (see [references]).
+     * [superName], [interfaces] and [declared] (`name:descriptor` of every field and method the class declares) are what [check] needs to find the
+     * class that a member comes from: a call such as `VimEx$Stop.getMessage` names the package class, but the member is the one of its superclass.
      */
-    class ClassRefs(val name: String, val refs: Set<String>, val names: Set<String> = emptySet(), val unparsed: List<Int> = emptyList())
+    class ClassRefs(
+        val name: String, val refs: Set<String>, val names: Set<String> = emptySet(), val unparsed: List<Int> = emptyList(),
+        val superName: String? = null, val interfaces: List<String> = emptyList(), val declared: Set<String> = emptySet(),
+    )
 
     private const val CLASS = 7
     private const val FIELDREF = 9
@@ -225,15 +230,22 @@ object VimBytecode {
         val thisIndex = u2()
         entry(thisIndex, CLASS)
         val thisName = utf8(a[thisIndex])
-        u2() // super class: a Class entry like the others
-        repeat(u2()) { u2() } // interfaces: Class entries like the others
+        val superIndex = u2() // super class: a Class entry like the others (0 only for java/lang/Object)
+        val superName = if (superIndex == 0) null else { entry(superIndex, CLASS); utf8(a[superIndex]) }
+        val interfaces = mutableListOf<String>() // Class entries like the others
+        repeat(u2()) { val ifaceIndex = u2(); entry(ifaceIndex, CLASS); interfaces.add(utf8(a[ifaceIndex])) }
+        val declared = linkedSetOf<String>()
         repeat(2) { // fields, then methods: their own descriptors are types the class names even when no code uses them
             repeat(u2()) {
-                u2(); u2(); addDescriptor(utf8(u2()))
+                u2()
+                val memberName = utf8(u2())
+                val descriptor = utf8(u2())
+                addDescriptor(descriptor)
+                declared.add("$memberName:$descriptor")
                 repeat(u2()) { u2(); skip(u4()) }
             }
         }
-        return ClassRefs(thisName, refs, names, unparsed)
+        return ClassRefs(thisName, refs, names, unparsed, superName, interfaces, declared)
     }
 
     /** `deny`/`allow` lines as in privacy/dex-rules.txt, with names in slash form. Anything not matched is denied. */
@@ -297,13 +309,44 @@ object VimBytecode {
         return Collected(found, problems)
     }
 
+    /**
+     * The first member that [member] (`name:descriptor`) turns out to be when a call names the package class [owner] and the class does not declare it:
+     * the same member of its superclass or interface, followed up through the classes of the package until one that is outside it, whose reference
+     * (`java/lang/Exception.getMessage:()Ljava/lang/String;`) then has to be on the allow list. Null: declared in the package, or allowed where it comes from.
+     * Without this, a package class that extends Exception would reach every inherited member (getMessage, printStackTrace) under the entry that
+     * allows its own package.
+     */
+    private fun inheritedFrom(owner: String, member: String, classes: Map<String, ClassRefs>, entries: List<Pair<Boolean, String>>, seen: MutableSet<String>): String? {
+        val c = classes[owner]
+        if (c == null) {
+            val ref = "$owner.$member"
+            return if (allowed(ref, entries)) null else ref
+        }
+        if (member in c.declared || !seen.add(owner)) return null
+        for (parent in listOfNotNull(c.superName) + c.interfaces) inheritedFrom(parent, member, classes, entries, seen)?.let { return it }
+        return null
+    }
+
     /** Problems found in the classes ([name] to bytes): every reference that is not allowed, once per class and reference. */
     fun check(classes: Map<String, ByteArray>, entries: List<Pair<Boolean, String>>): List<String> {
         val problems = mutableListOf<String>()
         if (classes.isEmpty()) problems.add("no class of the vim package found, nothing was scanned")
+        val readable = linkedMapOf<String, ClassRefs>() // by class name, for the members a class inherits from another class of the package
+        val parsedFiles = mutableListOf<Pair<String, ClassRefs>>()
         for ((file, bytes) in classes) {
             val parsed = try { references(bytes) } catch (e: IllegalArgumentException) { problems.add("$file: unreadable class file (${e.message})"); continue }
-            for (ref in parsed.refs) if (!allowed(ref, entries)) problems.add("${parsed.name} refers to $ref, which is not on the vim allow list")
+            readable[parsed.name] = parsed
+            parsedFiles.add(file to parsed)
+        }
+        for ((_, parsed) in parsedFiles) {
+            for (ref in parsed.refs) {
+                if (!allowed(ref, entries)) { problems.add("${parsed.name} refers to $ref, which is not on the vim allow list"); continue }
+                val owner = ref.substringBefore('.', "")
+                val member = ref.substringAfter('.', "")
+                if (owner.isEmpty() || member.isEmpty() || member.startsWith("<") || owner !in readable) continue // a class name, a constructor, or a class outside the package
+                val source = inheritedFrom(owner, member, readable, entries, mutableSetOf())
+                if (source != null) problems.add("${parsed.name} refers to $ref, which is inherited from $source and not on the vim allow list")
+            }
             for (n in parsed.names) if (n !in parsed.refs && !allowed(n, entries)) problems.add("${parsed.name} has the constant $n, which reads as a class name that is not on the vim allow list")
             // the index, never the text of the entry, is in the message
             for (k in parsed.unparsed) problems.add("${parsed.name} has constant pool entry #$k, which starts as a type signature but does not parse completely")

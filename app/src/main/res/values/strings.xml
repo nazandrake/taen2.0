@@ -1459,7 +1459,7 @@ New dictionary:
     <string name="vim_not_found">Pattern not found</string>
     <string name="vim_pattern_unsupported">This pattern is not supported here</string>
     <string name="vim_search_limit">Too big or too slow: nothing was changed</string>
-    <string name="vim_play_limit">Stopped at the limit of keys or time</string>
+    <string name="vim_play_limit">Stopped at the limit (keys, steps, time or size): nothing was changed</string>
     <string name="vim_nothing_to_repeat">Nothing to repeat</string>
     <string name="vim_not_repeatable">The last change cannot be repeated</string>
     <string name="vim_recording_dropped">Recording dropped (too long, or not allowed here)</string>

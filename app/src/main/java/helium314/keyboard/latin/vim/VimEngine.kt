@@ -9,12 +9,17 @@ package helium314.keyboard.latin.vim
  * edit; if it cannot be read, is a part of the field, is longer than [MAX_CHARS], or changed in between (text or selection), the
  * command does nothing and returns a [VimNotice]. A range is never widened. Pure cursor motions may use cursor keys when the text
  * cannot be read. One command is one text change: a macro, a repeat with ".", a command line with :g or :normal run on a copy of the text
- * ([MemPort]) and only the difference to the field is written, once.
+ * ([MemPort]) and only the difference to the field is written, once. A Visual block insert that must pad a short line computes the padding
+ * and the insert together and writes them once, when the insert ends.
  *
- * Memory: registers, macros, the "." record, marks, the search pattern and the command and search histories are kept in memory only, and
- * only while [VimRules.registerAllowed] says so (the clipboard capture rule, one owner); [clearMemory] forgets all of it (screen lock, wipe,
- * the setting turned off). The system clipboard (the + and * registers) is reached only through [VimPort.clipboardRead] and
- * [VimPort.clipboardWrite], the keyboard's own paste and copy owners.
+ * Bounds: one budget ([Run]) covers every command that runs several steps (a macro, a repeat, a command line with :g or :normal): keys, ex
+ * steps, time. No text that a command computes may be longer than [MAX_CHARS], and the size is checked before a larger string is built. At
+ * a limit the command stops with a [VimNotice] and the field is as it was (a play or an ex line is computed on a copy and not written).
+ *
+ * Memory: everything the layer keeps between commands is in [VimMemory] (registers, macros, the "." record, marks, the search and the
+ * substitute state, the histories), which asks [VimRules.registerAllowed] again at every write; [clearMemory] forgets all of it (screen
+ * lock, wipe, the setting turned off). No other class of the package keeps field text or typed text across commands. The system clipboard
+ * (the + and * registers) is reached only through [VimPort.clipboardRead] and [VimPort.clipboardWrite], the keyboard's own paste and copy owners.
  */
 class VimEngine(private val port: VimPort, private val rules: VimRules) {
     var mode: VimMode = VimMode.INSERT
@@ -46,42 +51,30 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     private var returnAtEol = false
     private var exVisualLines: Pair<Int, Int>? = null
     private val cmdKeys = ArrayList<Int>()
+    private var cmdDropped = false
     private var cmdChanged = false
     private var visualDot: VisualInfo? = null
-    private var dotInsertOwner: Dot? = null
 
-    // ---- memory (dropped by clearMemory) ---------------------------------------------------------------------------------------
-    private var lastFind: Pair<Char, Int>? = null
-    private val regs = VimRegisters()
-    private val marks = VimMarks()
+    // ---- memory: everything that is kept between commands is in [memory], which asks the capture rule at every write ------------
+    private val memory = VimMemory(rules)
+    /** The marks were forgotten because the text changed behind the engine's back (the notice then says "invalid", not "not set"). */
     private var marksLost = false
     /** The text became empty because its last line was deleted (Vim then has an empty buffer, where "dd" has nothing to delete). */
     private var bufferEmptied = false
-    private var dot: Dot? = null
-    private var recording: Char? = null
-    private val recBuf = StringBuilder()
-    private var recKeys = 0
-    private var recBroken = false
-    private var lastMacro: Char? = null
-    private val exState = ExState()
-    private var searchForward = true
-    private var searchOffset: VimSearch.Offset = VimSearch.Offset.NONE
-    private val cmdHistory = ArrayList<String>()
-    private val searchHistory = ArrayList<String>()
 
     // ---- plays ---------------------------------------------------------------------------------------------------------------------
     private var replaying = false
     private var inTx = false
     private val playQueue = ArrayDeque<Int>()
-    private var playKeys = 0
-    private var playDeadline = 0L
-    private var playStopped: VimNotice? = null
+    /** The budget of the command that is running (a play or an ex line), null for a plain command. */
+    private var run: Run? = null
+    private var playStopped: VimNotice? = null // an undo inside a play: the play stops and what it did so far is written
     private var playFailure: VimNotice? = null // the notice of the command that stopped a play
 
     /** The unnamed register (memory only), for the tests. */
-    internal val register: String? get() = regs.unnamed?.let { if (it.type == RegType.LINE) it.text + "\n" else it.text }
-    internal val registerIsLinewise: Boolean get() = regs.unnamed?.type == RegType.LINE
-    internal val registers: VimRegisters get() = regs
+    internal val register: String? get() = memory.unnamed?.let { if (it.type == RegType.LINE) it.text + "\n" else it.text }
+    internal val registerIsLinewise: Boolean get() = memory.unnamed?.type == RegType.LINE
+    internal val registers: VimMemory get() = memory
 
     /** True while the next key is a character argument (f F t T r, a register or mark name, q, @), a register after Ctrl-R, or a command line is typed. */
     val wantsChar: Boolean
@@ -101,27 +94,15 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     val cmdline: String? get() = cmd?.let { it.kind + it.text.toString() }
 
     /** The register a macro is being recorded into, or null. */
-    val recordingRegister: Char? get() = recording
+    val recordingRegister: Char? get() = memory.recording
 
-    /** Forgets everything the layer remembers: registers, macros, the "." record, marks, the search pattern and the histories. */
+    /** Forgets everything the layer remembers: registers, macros, the "." record, marks, the search and substitute state and the histories. */
     fun clearMemory() {
-        regs.clear()
-        marks.clear()
+        memory.clear()
         marksLost = false
-        dot = null
-        dotInsertOwner = null
-        recording = null
-        recBuf.setLength(0)
-        recKeys = 0
-        recBroken = false
-        lastMacro = null
-        lastFind = null
-        exState.subPattern = null
-        exState.subReplacement = null
-        exState.subFlags = ""
-        searchOffset = VimSearch.Offset.NONE
-        cmdHistory.clear()
-        searchHistory.clear()
+        lastVisualMode = VimMode.VISUAL
+        lastVisualCursorAtStart = false
+        lastVisualDollar = false
     }
 
     /** The field ended or changed: the typing keyboard is back and nothing is pending. Marks belong to a field and go with it. */
@@ -129,26 +110,46 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         io = port // a play that was cut short (an exception went to the guard) leaves nothing behind
         inTx = false
         replaying = false
+        run = null
         playQueue.clear()
         playStopped = null
         mode = VimMode.INSERT
         resetParser()
         wantCol = null
         expectedCaret = -1
-        marks.clear()
+        memory.marksClear()
         marksLost = false
         bufferEmptied = false
     }
 
-    private fun captureOk() = rules.registerAllowed()
+    private fun captureOk() = memory.mayKeep()
 
     // ---- entry points --------------------------------------------------------------------------------------------------------------
 
     /** The Esc key of the typing keyboard (and the Esc key of the Vim layouts). */
     fun escape(): VimOutcome {
-        val was = recording
+        syncMemory()
+        val was = memory.recording
         val out = escapeInner()
-        if (was != null && recording != null && !replaying) return record(ESC) ?: out
+        return finishKey(was, ESC, out)
+    }
+
+    /**
+     * Before every key: where the capture rule now says no, a recording stops and the keys typed so far for the command that is being built
+     * (they could hold typed text) are dropped.
+     */
+    private fun syncMemory() {
+        memory.sync()
+        if (!captureOk()) {
+            if (cmdKeys.isNotEmpty()) cmdDropped = true // the rest of this command is no record, even if the decision turns back
+            cmdKeys.clear()
+        }
+    }
+
+    /** After a key: it joins the macro that is being recorded, or the recording is dropped (the user is told once). */
+    private fun finishKey(was: Char?, code: Int, out: VimOutcome): VimOutcome {
+        if (was != null && memory.recording != null && !replaying && !memory.recordKey(code)) return VimOutcome(VimNotice.RECORDING_DROPPED)
+        if (memory.takeDropped()) return VimOutcome(VimNotice.RECORDING_DROPPED)
         return out
     }
 
@@ -159,15 +160,15 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     fun key(rawCode: Int): VimOutcome {
         // the Ctrl keys that sit in popups of the layouts have codes of their own (a popup key has no control code)
         val code = when (rawCode) { KEY_CTRL_A -> CTRL_A; KEY_CTRL_X -> CTRL_X; KEY_CTRL_V -> CTRL_V; else -> rawCode }
+        syncMemory()
         if (mode == VimMode.INSERT) return insertKey(code)
         if (!rules.available()) {
             reset()
             return VimOutcome(VimNotice.UNAVAILABLE)
         }
-        val was = recording
+        val was = memory.recording
         val out = dispatch(code)
-        if (was != null && recording != null && !replaying) return record(code) ?: out
-        return out
+        return finishKey(was, code, out)
     }
 
     private fun dispatch(code: Int): VimOutcome {
@@ -186,12 +187,9 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     /** Called after every key: the command is complete when nothing is pending; then a change becomes the "." record. */
     private fun afterCommand() {
         if (!idle()) return
-        if (cmdChanged && !replaying && captureOk()) {
-            val d = Dot(cmdReg, cmdCount, ArrayList(cmdKeys), visualDot)
-            dot = d
-            dotInsertOwner = if (mode == VimMode.INSERT) d else null
-        }
+        if (cmdChanged && !replaying && !cmdDropped) memory.dotSet(cmdReg, cmdCount, cmdKeys, visualDot, openForInsert = mode == VimMode.INSERT)
         cmdKeys.clear()
+        cmdDropped = false
         cmdChanged = false
         visualDot = null
         if (returnToInsert && mode == VimMode.NORMAL) { // Ctrl-O: one command, then typing goes on
@@ -215,42 +213,15 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
 
     // ---- recording --------------------------------------------------------------------------------------------------------------------
 
-    /** Appends a key of the Normal-mode keys being typed to the macro. Null when it went in; an outcome when the recording was dropped. */
-    private fun record(code: Int): VimOutcome? {
-        if (!captureOk() || recBroken || recKeys + 1 > MAX_MACRO_KEYS) {
-            val broken = recBroken
-            dropRecording()
-            return VimOutcome(if (broken || !captureOk()) VimNotice.RECORDING_DROPPED else VimNotice.RECORDING_DROPPED)
-        }
-        recBuf.appendCodePoint(if (code == ENTER) 13 else code) // Vim keeps Enter as a carriage return
-        recKeys++
-        return null
-    }
-
-    private fun dropRecording() {
-        recording = null
-        recBuf.setLength(0)
-        recKeys = 0
-        recBroken = false
-    }
-
     private fun startRecording(name: Char): VimOutcome {
-        if (!captureOk()) return VimOutcome(VimNotice.REGISTER_OFF)
-        recording = name
-        recBuf.setLength(0)
-        recKeys = 0
-        recBroken = false
+        if (!memory.recordStart(name)) return VimOutcome(VimNotice.REGISTER_OFF)
         return VimOutcome()
     }
 
-    private fun stopRecording(): VimOutcome {
-        val name = recording ?: return VimOutcome()
-        val text = recBuf.toString()
-        val broken = recBroken
-        dropRecording()
-        if (broken || !captureOk()) return VimOutcome(VimNotice.RECORDING_DROPPED)
-        if (!regs.store(name, Reg(text, RegType.CHAR))) return VimOutcome(VimNotice.REGISTER_FULL)
-        return VimOutcome()
+    private fun stopRecording(): VimOutcome = when (memory.recordStop()) {
+        Recorded.DROPPED -> VimOutcome(VimNotice.RECORDING_DROPPED)
+        Recorded.FULL -> VimOutcome(VimNotice.REGISTER_FULL)
+        else -> VimOutcome()
     }
 
     // ---- Esc and the way out of insert mode ----------------------------------------------------------------------------------------
@@ -287,8 +258,12 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     /** One typing session after an insert command: where it started and what the text was then, so that what was typed can be told afterwards. */
     private class InsertSession(val baseText: String, val start: Int, val count: Int, val kind: Char, val block: BlockInsert?)
 
-    /** A block insert (I, A, c in Visual block): the text typed on the first line goes to the other lines at the same column. */
-    private class BlockInsert(val firstLine: Int, val lastLine: Int, val col: Int, val append: Boolean, val dollar: Boolean, val left: Int = col)
+    /**
+     * A block insert (I, A, c in Visual block): the text typed on the first line goes to the other lines at the same column. [pad] is the number of
+     * blanks that a first line shorter than the column gets in front of what is typed: it is written together with the other lines when the insert
+     * ends, never before (a padding committed ahead would leave a text that is neither the old one nor the result).
+     */
+    private class BlockInsert(val firstLine: Int, val lastLine: Int, val col: Int, val append: Boolean, val dollar: Boolean, val left: Int = col, val pad: Int = 0)
 
     private fun beginInsert(text: String, start: Int, count: Int, kind: Char, block: BlockInsert? = null) {
         ins = InsertSession(text, start, count, kind, block)
@@ -311,10 +286,9 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         mode = VimMode.NORMAL
         clearPending()
         wantCol = null
-        val owner = dotInsertOwner
-        dotInsertOwner = null
         val r = io.read()
         if (r !is VimRead.Text) {
+            memory.dotCloseInsert()
             expectedCaret = -1
             return VimOutcome()
         }
@@ -323,39 +297,43 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         var failedNotice: VimNotice? = null
         if (session != null) {
             val typed = typedSince(session, text, caret)
-            if (marks.base == session.baseText) {
-                if (typed != null) marks.remapEdit(session.baseText, session.start, session.start, typed) else marks.remap(session.baseText, text)
+            if (memory.marksBase == session.baseText) {
+                if (typed != null) memory.marksRemapEdit(session.baseText, session.start, session.start, typed) else memory.marksRemap(session.baseText, text)
             }
             if (typed == null) {
-                owner?.broken = true
-                if (recording != null && !replaying) recBroken = true
+                if (!replaying) { memory.dotBroken(); memory.recordBroken() } else memory.dotCloseInsert()
             } else {
-                if (captureOk() && typed.length <= VimRegisters.MAX_CHARS) regs.lastInsert = typed
-                if (owner != null && !replaying) { for (ch in typed) owner.keys.add(ch.code); owner.keys.add(ESC) }
-                if (recording != null && !replaying) {
-                    if (recKeys + typed.length + 1 > MAX_MACRO_KEYS) recBroken = true else { recBuf.append(typed.replace('\n', '\r')); recKeys += typed.length }
-                }
-                if (captureOk()) {
-                    marks.set('[', text, session.start)
-                    marks.set(']', text, caret)
-                    marks.set('^', text, caret)
-                }
+                memory.setLastInsert(typed)
+                if (!replaying) { memory.dotTyped(typed); memory.recordTyped(typed) } else memory.dotCloseInsert()
+                memory.markSet('[', text, session.start)
+                memory.markSet(']', text, caret)
+                memory.markSet('^', text, caret)
+                followRefused = false
                 val follow = followUp(session, typed, text, caret)
+                if (followRefused) { // the count's repeats were too long: they are not written, and a play that did this stops
+                    followRefused = false
+                    failedNotice = if (inTx) VimNotice.PLAY_LIMIT else VimNotice.TOO_LONG
+                    if (inTx) abortRun(VimNotice.PLAY_LIMIT)
+                }
                 if (follow != null) {
-                    val newText = text.substring(0, follow.start) + follow.replacement + text.substring(follow.end)
-                    if (follow.replacement.isNotEmpty() && !rules.accepts(follow.replacement)) failedNotice = VimNotice.NOT_ACCEPTED
-                    else {
+                    if (text.length.toLong() - (follow.end - follow.start) + follow.replacement.length > MAX_CHARS) {
+                        failedNotice = if (inTx) VimNotice.PLAY_LIMIT else VimNotice.TOO_LONG
+                        if (inTx) abortRun(VimNotice.PLAY_LIMIT)
+                    } else if (follow.replacement.isNotEmpty() && !rules.accepts(follow.replacement)) {
+                        failedNotice = VimNotice.NOT_ACCEPTED
+                    } else {
                         val again = io.read()
                         if (again is VimRead.Text && again.text == text) {
+                            val newText = text.substring(0, follow.start) + follow.replacement + text.substring(follow.end)
                             io.replace(follow.start, follow.end, follow.replacement, follow.caret)
-                            if (marks.base == text) marks.remapEdit(text, follow.start, follow.end, follow.replacement)
+                            if (memory.marksBase == text) memory.marksRemapEdit(text, follow.start, follow.end, follow.replacement)
                             text = newText
                             caret = follow.caret
                         } else failedNotice = VimNotice.CHANGED
                     }
                 }
             }
-        }
+        } else memory.dotCloseInsert()
         // Vim leaves insert mode one character to the left, unless at the start of the line; after a block insert the cursor is at the top left of the block
         val b = VimBuf(text)
         val blockCols = session?.block?.takeIf { session.kind != 'c' }
@@ -372,7 +350,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         if (typed.isEmpty() && session.block == null) return null
         val b = VimBuf(text)
         val block = session.block
-        if (block != null) return blockFollow(block, typed, text)
+        if (block != null) return blockFollow(session, block, typed, text)
         if (session.kind == 'R') {
             // replace mode: the characters the typing pushed on are taken away, as many as were typed (and the repeats), to the end of the line
             val n = clusters(typed.replace("\n", "")) * session.count // a line break replaces nothing
@@ -380,18 +358,23 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
             var k = 0
             val limit = b.lineEnd(caret)
             while (k < n && end < limit) { end = b.next(end); k++ }
+            if (typed.length.toLong() * (session.count - 1) + text.length > MAX_CHARS) { followRefused = true; return null } // before the repeats are built
             val extra = typed.repeat(session.count - 1)
             if (end == caret && extra.isEmpty()) return null
             return Follow(caret, end, extra, caret + extra.length)
         }
         if (session.count > 1) {
             val one = if (session.kind == 'o' || session.kind == 'O') "\n$typed" else typed
+            // the size is checked before the repeats are built: a count of 999 times a long text must not be made first
+            if (one.length.toLong() * (session.count - 1) + text.length > MAX_CHARS) { followRefused = true; return null }
             val extra = one.repeat(session.count - 1)
-            if (extra.length + text.length > MAX_CHARS) return null
             return Follow(caret, caret, extra, caret + extra.length)
         }
         return null
     }
+
+    /** The repeats of an insert would make the text longer than the window: they were not built. */
+    private var followRefused = false
 
     private fun clusters(s: String): Int {
         val b = VimBuf(s)
@@ -424,7 +407,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     private fun insertRegister(code: Int): VimOutcome {
         if (code <= 0 || code > 0xFFFF) return VimOutcome()
         val name = code.toChar()
-        val reg: Reg? = if (name == '+' || name == '*') io.clipboardRead()?.let { clipboardReg(it) } else regs.get(name)
+        val reg: Reg? = if (name == '+' || name == '*') io.clipboardRead()?.let { clipboardReg(it) } else memory.get(name)
         if (reg == null) return VimOutcome(if (name == '+' || name == '*') VimNotice.CLIPBOARD_EMPTY else VimNotice.REGISTER_EMPTY)
         val s = snapshot() ?: return VimOutcome(failure)
         val caret = s.selStart
@@ -436,6 +419,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     /** Inserts [text] in place of [start, end) while typing goes on (one change; the caret goes after the text). */
     private fun insertText(s: Snap, start: Int, end: Int, text: String): VimOutcome {
         if (text.isNotEmpty() && !rules.accepts(text)) return VimOutcome(VimNotice.NOT_ACCEPTED)
+        if (s.text.length.toLong() - (end - start) + text.length > MAX_CHARS) return tooBig()
         val again = io.read()
         if (again !is VimRead.Text || again.text != s.text || again.selStart != s.selStart || again.selEnd != s.selEnd) return VimOutcome(VimNotice.CHANGED)
         io.replace(start, end, text, start + text.length)
@@ -484,8 +468,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     private fun finishInsertForOneCommand(s: Snap) {
         val session = ins
         ins = null
-        if (session != null && marks.base == session.baseText) marks.remap(session.baseText, s.text)
-        dotInsertOwner = null
+        if (session != null && memory.marksBase == session.baseText) memory.marksRemap(session.baseText, s.text)
+        memory.dotCloseInsert()
         mode = VimMode.NORMAL
         clearPending()
         val b = s.b
@@ -588,7 +572,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
             'J'.code -> if (op != null) cancel() else if (visual) visualJoin(true) else joinKey(true)
             CTRL_A, CTRL_X -> if (op != null) cancel() else if (visual) visualIncrement(key == CTRL_A, false) else increment(key == CTRL_A)
             '.'.code -> if (visual || op != null) cancel() else repeatDot()
-            'q'.code -> if (visual || op != null) cancel() else if (recording != null) { clearPending(); stopRecording() } else { prefix = 'q'; VimOutcome() }
+            'q'.code -> if (visual || op != null) cancel() else if (memory.recording != null) { clearPending(); stopRecording() } else { prefix = 'q'; VimOutcome() }
             '@'.code -> if (visual || op != null) cancel() else { prefix = '@'; VimOutcome() }
             'm'.code -> if (visual || op != null) cancel() else { prefix = 'm'; VimOutcome() }
             'n'.code, 'N'.code -> searchRepeat(key == 'N'.code)
@@ -604,7 +588,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         'g' -> afterG(key)
         'z' -> { clearPending(); VimOutcome(VimNotice.SCREEN_COMMAND) }
         'f', 'F', 't', 'T' ->
-            if (key <= 0 || key == ESC || key == '\n'.code) cancel() else { lastFind = pre to key; findMotion(pre, key, isRepeat = false) }
+            if (key <= 0 || key == ESC || key == '\n'.code) cancel() else { memory.setLastFind(pre, key); findMotion(pre, key, isRepeat = false) }
         'r' -> if (key <= 0 || key == ESC || key == '\n'.code) cancel() else if (mode != VimMode.NORMAL) visualReplace(key) else replaceChars(key)
         'i', 'a' -> textObject(pre, key)
         '"' -> if (key > 0 && key <= 0xFFFF && registerNameOk(key.toChar())) { regName = key.toChar(); VimOutcome() } else cancel()
@@ -686,7 +670,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         failure = null
         return when (val r = io.read()) {
             is VimRead.Text -> {
-                if (marks.forgetIfChanged(r.text)) marksLost = true
+                if (memory.marksForgetIfChanged(r.text)) marksLost = true
                 Snap(VimBuf(r.text), r.selStart, r.selEnd)
             }
             VimRead.Unreadable -> { failure = VimNotice.NO_TEXT; null }
@@ -778,7 +762,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     }
 
     private fun repeatFind(reverse: Boolean): VimOutcome {
-        val last = lastFind ?: return cancel()
+        val last = memory.lastFind ?: return cancel()
         val type = if (reverse) last.first.let { if (it.isLowerCase()) it.uppercaseChar() else it.lowercaseChar() } else last.first
         return findMotion(type, last.second, isRepeat = true)
     }
@@ -804,7 +788,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
             else -> null
         }
         // the context mark is set by a jump, but only if it went somewhere (Vim's checkpcmark: a jump that ends where it began leaves the old mark)
-        if (mv.jump && !mv.cancels && captureOk() && s.b.normal(mv.pos) != c) marks.set('\'', s.text, c)
+        if (mv.jump && !mv.cancels && s.b.normal(mv.pos) != c) memory.markSet('\'', s.text, c)
         if (pending != null) {
             val o = pending
             clearPending()
@@ -876,6 +860,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         wantCol = null
         val b = s.b
         val rn = cmdReg
+        if ((o == 'y' || o == 'd' || o == 'c') && unwritable(rn)) return fail() // ". : / are read-only: Vim beeps and does nothing
         when (o) {
             'y' -> return yankRange(s, rng, if (startPos != null) b.normal(startPos) else if (rng.linewise) b.normal(minOf(cursor, mv?.pos ?: cursor)) else b.normal(rng.start), rn)
             '~', 'u', 'U' -> return caseRange(s, o, rng, cursor, mv, startPos, target)
@@ -920,33 +905,35 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         }
     }
 
+    /** A register name that a yank or delete cannot write (the read-only ones and anything that is no register). */
+    private fun unwritable(name: Char?) = name != null && name != '+' && name != '*' && name != '_' && !memory.writable(name)
+
     /** Puts the deleted text into the registers the command names (or clears them where nothing may be kept). */
     private fun deleteInto(name: Char?, reg: Reg, multi: Boolean, useRegOne: Boolean): VimNotice? {
         if (name == '+' || name == '*') {
             if (!io.clipboardWrite(if (reg.type == RegType.LINE) reg.text + "\n" else reg.text)) return VimNotice.CLIPBOARD_REFUSED
-            if (captureOk()) regs.delete(null, reg, multi, useRegOne) else regs.invalidateDelete(null, multi)
+            memory.delete(null, reg, multi, useRegOne)
             return null
         }
-        if (name == '_') return null
-        if (!captureOk()) { regs.invalidateDelete(name, multi); return null }
-        if (!regs.delete(name, reg, multi, useRegOne)) return VimNotice.REGISTER_FULL
-        return null
+        return if (memory.delete(name, reg, multi, useRegOne) == Kept.FULL) VimNotice.REGISTER_FULL else null
     }
 
     private fun yankRange(s: Snap, rng: Rng, caretAfter: Int, rn: Char?): VimOutcome {
         val b = s.b
         val reg = regOf(b, rng)
+        if (unwritable(rn)) return fail()
         if (rn == '+' || rn == '*') {
             if (!io.clipboardWrite(if (reg.type == RegType.LINE) reg.text + "\n" else reg.text)) return VimOutcome(VimNotice.CLIPBOARD_REFUSED)
-            if (captureOk()) regs.point(reg)
-        } else if (rn != '_') {
-            if (!captureOk()) return VimOutcome(VimNotice.REGISTER_OFF)
-            if (!regs.yank(rn, reg)) return VimOutcome(VimNotice.REGISTER_FULL)
+            memory.point(reg)
+        } else {
+            when (memory.yank(rn, reg)) {
+                Kept.OFF -> return VimOutcome(VimNotice.REGISTER_OFF)
+                Kept.FULL -> return VimOutcome(VimNotice.REGISTER_FULL)
+                Kept.OK -> {}
+            }
         }
-        if (captureOk()) {
-            marks.set('[', s.text, rng.start)
-            marks.set(']', s.text, if (rng.linewise) b.lastChar(rng.end) else b.prev(rng.end))
-        }
+        memory.markSet('[', s.text, rng.start)
+        memory.markSet(']', s.text, if (rng.linewise) b.lastChar(rng.end) else b.prev(rng.end))
         io.select(caretAfter, caretAfter)
         expectedCaret = caretAfter
         return VimOutcome()
@@ -971,6 +958,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     private fun apply(s: Snap, p: Plan, markStart: Int = p.start, markLine: Boolean = false, onDone: ((String) -> VimNotice?)? = null): VimOutcome {
         if (p.replacement.isNotEmpty() && !rules.accepts(p.replacement)) return VimOutcome(VimNotice.NOT_ACCEPTED)
         if (p.start < 0 || p.end > s.b.length || p.start > p.end) return VimOutcome(VimNotice.CHANGED)
+        // no text longer than the window is ever written (the size is known before the new text is built)
+        if (s.text.length.toLong() - (p.end - p.start) + p.replacement.length > MAX_CHARS) return tooBig()
         val again = io.read()
         if (again !is VimRead.Text || again.text != s.text || again.selStart != s.selStart || again.selEnd != s.selEnd)
             return VimOutcome(VimNotice.CHANGED)
@@ -982,13 +971,13 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
             cmdChanged = true
         } else io.select(p.caret, p.caret)
         if (p.selection != null) io.select(p.selection.first, p.selection.second)
-        if (marks.base == s.text) marks.remapEdit(s.text, p.start, p.end, p.replacement)
-        if (captureOk() && (p.start != p.end || p.replacement.isNotEmpty())) {
+        if (memory.marksBase == s.text) memory.marksRemapEdit(s.text, p.start, p.end, p.replacement)
+        if (captureOk() && (p.start != p.end || p.replacement.isNotEmpty())) { // (the build of the line table is skipped where the marks would refuse)
             val cut = newText.length
             val nb = VimBuf(newText)
             fun at(x: Int) = if (markLine) nb.lineStart(minOf(x, cut)) else minOf(x, cut) // whole lines deleted: the marks are at the start of the line that took their place
-            marks.set('[', newText, at(markStart))
-            marks.set(']', newText, at(maxOf(markStart, if (p.replacement.isNotEmpty()) p.start + p.replacement.length - 1 else markStart)))
+            memory.markSet('[', newText, at(markStart))
+            memory.markSet(']', newText, at(maxOf(markStart, if (p.replacement.isNotEmpty()) p.start + p.replacement.length - 1 else markStart)))
         }
         val notice = onDone?.let { done -> done(newText) }
         mode = if (p.insert) VimMode.INSERT else VimMode.NORMAL
@@ -1038,6 +1027,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         val tabs = rules.indentWithTab()
         val first = b.text.substring(rng.start, rng.end)
         val lines = first.split('\n')
+        // each shifted line gets at most this much longer: checked before the new lines are built
+        if (!left && lines.size.toLong() * times * (if (tabs) 1 else VimOps.SHIFT_WIDTH) + b.length > MAX_CHARS) return tooBig()
         val out = lines.joinToString("\n") { VimOps.shiftLine(it, left, times, tabs) }
         val newText = b.text.substring(0, rng.start) + out + b.text.substring(rng.end)
         val landing = VimBuf(newText).firstNonBlank(rng.start)
@@ -1095,7 +1086,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         clearPending()
         val s = snapshot() ?: return VimOutcome(failure)
         val c = cursorOf(s) ?: return VimOutcome(VimNotice.SELECTED)
-        val at = marks.get('^', s.text).let { if (it >= 0) it else c }
+        val at = memory.markGet('^', s.text).let { if (it >= 0) it else c }
         return insertAt(s, at, 1, 'i')
     }
 
@@ -1111,7 +1102,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
             end = b.next(end)
         }
         val text = String(Character.toChars(ch)).repeat(n)
-        if (captureOk()) regs.lastInsert = String(Character.toChars(ch)) // Vim keeps the replacing character as the last inserted text
+        memory.setLastInsert(String(Character.toChars(ch))) // Vim keeps the replacing character as the last inserted text
         return apply(s, Plan(c, end, text, c + text.length - Character.charCount(ch), insert = false))
     }
 
@@ -1136,7 +1127,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     }
 
     private fun clipboardReg(text: String): Reg? {
-        if (text.isEmpty() || text.length > VimRegisters.MAX_CHARS) return null
+        if (text.isEmpty() || text.length > VimMemory.MAX_CHARS) return null
         return if (text.endsWith("\n")) Reg(text.removeSuffix("\n"), RegType.LINE) else Reg(text, RegType.CHAR)
     }
 
@@ -1148,7 +1139,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
             return (clipboardReg(text) ?: return null to VimNotice.CLIPBOARD_EMPTY) to null
         }
         if (n == '_') return null to VimNotice.REGISTER_EMPTY
-        return regs.get(n) to null
+        return memory.get(n) to null
     }
 
     private fun paste(before: Boolean): VimOutcome {
@@ -1162,9 +1153,22 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         val s = snapshot() ?: return VimOutcome(failure)
         val c = cursorOf(s) ?: return VimOutcome(VimNotice.SELECTED)
         wantCol = null
+        if (s.b.length + putGrowth(s.b, c, reg, n) > MAX_CHARS) return tooBig() // before the repeats are built
         val plan = putPlan(s, c, reg, n, before) ?: return fail()
         // the lines put after the last line start after the line break that joins them
         return apply(s, plan, markStart = if (reg.type == RegType.LINE && plan.replacement.startsWith("\n")) plan.start + 1 else plan.start)
+    }
+
+    /** An upper bound of how many characters putting [reg] [n] times adds to [b] at [c], computed from sizes only (nothing is built). */
+    private fun putGrowth(b: VimBuf, c: Int, reg: Reg, n: Int): Long = when (reg.type) {
+        RegType.LINE -> (reg.text.length + 1L) * n
+        RegType.CHAR -> reg.text.length.toLong() * n
+        RegType.BLOCK -> {
+            val rows = reg.text.split('\n')
+            var width = reg.width
+            for (row in rows) width = maxOf(width, row.length)
+            rows.size.toLong() * (width.toLong() * n + b.column(c) + 2) // each row: its copies, the padding up to the column, a line break
+        }
     }
 
     /** The change that puts [reg] [n] times after (or [before]) the cursor [c]. Null when it cannot be done (a block into a single-line field...). */
@@ -1317,8 +1321,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     private fun rememberVisual(text: String, was: VimMode) {
         val lo = minOf(anchor, visualCursor).coerceIn(0, text.length)
         val hi = maxOf(anchor, visualCursor).coerceIn(0, text.length)
-        marks.set('<', text, lo)
-        marks.set('>', text, hi)
+        memory.markSet('<', text, lo)
+        memory.markSet('>', text, hi)
         lastVisualMode = was
         lastVisualCursorAtStart = visualCursor < anchor
         lastVisualDollar = blockDollar
@@ -1328,8 +1332,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         clearPending()
         val s = snapshot() ?: return VimOutcome(failure)
         val c = cursorOf(s) ?: return VimOutcome(VimNotice.SELECTED)
-        val lo = marks.get('<', s.text)
-        val hi = marks.get('>', s.text)
+        val lo = memory.markGet('<', s.text)
+        val hi = memory.markGet('>', s.text)
         if (lo < 0 || hi < 0) return VimOutcome(if (marksLost) VimNotice.MARK_INVALID else VimNotice.MARK_NOT_SET)
         val b = s.b
         anchor = if (lastVisualCursorAtStart) b.snap(hi) else b.snap(lo)
@@ -1529,6 +1533,9 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
             return operate(s, 'd', sel, null, lo.coerceAtMost(before))
         }
         val reg = found
+        // the size of the put text is known before it is built: [n] copies of the register, with a line break between the lines of a line register
+        val bodyLength = if (reg.type == RegType.CHAR) reg.text.length.toLong() * n else (reg.text.length + 1L) * n
+        if (b.length - (sel.end - sel.start) + bodyLength > MAX_CHARS) return tooBig()
         val body = when (reg.type) { RegType.CHAR -> reg.text.repeat(n); else -> (1..n).joinToString("\n") { reg.text } }
         val replacement: String
         val landing: Int
@@ -1549,8 +1556,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         return apply(s, Plan(start, end, replacement, caret, insert = false)) { text ->
             // the put text is the last Visual area (gv selects it)
             if (captureOk()) {
-                marks.set('<', text, start)
-                marks.set('>', text, maxOf(start, start + replacement.length - 1))
+                memory.markSet('<', text, start)
+                memory.markSet('>', text, maxOf(start, start + replacement.length - 1))
                 lastVisualMode = if (linewise || reg.type == RegType.LINE) VimMode.VISUAL_LINE else VimMode.VISUAL
                 lastVisualCursorAtStart = false
                 lastVisualDollar = false
@@ -1606,16 +1613,19 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         val reg = Reg(segs.joinToString("\n") { it.text }, RegType.BLOCK, width)
         when (o) {
             'y' -> {
-                if (rn == '+' || rn == '*') { if (!io.clipboardWrite(reg.text)) return VimOutcome(VimNotice.CLIPBOARD_REFUSED); if (captureOk()) regs.point(reg) }
-                else if (rn != '_') {
-                    if (!captureOk()) return VimOutcome(VimNotice.REGISTER_OFF)
-                    if (!regs.yank(rn, reg)) return VimOutcome(VimNotice.REGISTER_FULL)
+                if (unwritable(rn)) return fail()
+                if (rn == '+' || rn == '*') { if (!io.clipboardWrite(reg.text)) return VimOutcome(VimNotice.CLIPBOARD_REFUSED); memory.point(reg) }
+                else when (memory.yank(rn, reg)) {
+                    Kept.OFF -> return VimOutcome(VimNotice.REGISTER_OFF)
+                    Kept.FULL -> return VimOutcome(VimNotice.REGISTER_FULL)
+                    Kept.OK -> {}
                 }
                 io.select(topLeft, topLeft)
                 expectedCaret = topLeft
                 return VimOutcome()
             }
             'd', 'c' -> {
+                if (unwritable(rn)) return fail()
                 if (segs.isEmpty()) return fail()
                 val insert = o == 'c'
                 val plan = VimBlock.removePlan(b, segs, blk.loLine, blk.left)
@@ -1637,6 +1647,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
                 cmdChanged = true
                 val tabs = rules.indentWithTab()
                 val unit = if (tabs) "\t" else " ".repeat(VimOps.SHIFT_WIDTH)
+                if (o == '>' && (blk.hiLine - blk.loLine + 1L) * unit.length + b.length > MAX_CHARS) return tooBig()
                 val first = b.startOfLine(blk.loLine)
                 val end = b.lineEnd(b.startOfLine(blk.hiLine))
                 val lines = b.text.substring(first, end).split('\n')
@@ -1677,38 +1688,50 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         val firstStart = b.startOfLine(blk.loLine)
         val firstLen = clusters(b.text.substring(firstStart, b.lineEnd(firstStart)))
         val col = if (append) (if (dollar) firstLen else blk.right + 1) else blk.left
-        var at: Int
-        var pad = ""
+        val at: Int
+        var pad = 0
         if (col <= firstLen) at = b.atColumn(firstStart, col)
-        else { // A on a short first line: it is padded with blanks up to the column
+        else { // A on a short first line: it gets blanks up to the column, written with the insert when it ends (not now: one text change)
             at = b.lineEnd(firstStart)
-            pad = " ".repeat(col - firstLen)
+            pad = col - firstLen
         }
-        val newText = b.text.substring(0, at) + pad + b.text.substring(at)
-        val session = BlockInsert(blk.loLine, blk.hiLine, col, append, dollar, left = blk.left)
-        if (pad.isNotEmpty()) {
-            val out = apply(s, Plan(at, at, pad, at + pad.length, insert = true, insertKind = 'i', block = session))
-            return out
-        }
+        val session = BlockInsert(blk.loLine, blk.hiLine, col, append, dollar, left = blk.left, pad = pad)
         io.select(at, at)
-        beginInsert(newText, at, 1, 'i', session)
+        beginInsert(s.text, at, 1, 'i', session)
         mode = VimMode.INSERT
         return VimOutcome()
     }
 
+    /**
+     * The one change that ends a block insert: the first line's padding (when it was shorter than the column) in front of what was typed there,
+     * and [typed] on the other lines at the same column. The padding and the other lines are computed together and written once.
+     */
+    private fun blockFollow(session: InsertSession, block: BlockInsert, typed: String, text: String): Follow? {
+        val fill = if (typed.isEmpty() || '\n' in typed) null else blockFill(block, typed, text)
+        if (block.pad == 0) return fill
+        val pad = " ".repeat(block.pad)
+        val start = session.start // the typed text starts here, at the end of the first line, and the first line ends where it ends
+        if (fill == null) return Follow(start, start, pad, start + pad.length + typed.length)
+        if (fill.start != start + typed.length + 1) return null // the text between is not what was typed: nothing is written
+        return Follow(start, fill.end, pad + typed + "\n" + fill.replacement, start + pad.length + typed.length)
+    }
+
     /** The other lines of a block insert get [typed] at the same column, in one change (lines too short for it are left, except by A). */
-    private fun blockFollow(block: BlockInsert, typed: String, text: String): Follow? {
-        if (typed.isEmpty() || '\n' in typed) return null
+    private fun blockFill(block: BlockInsert, typed: String, text: String): Follow? {
         val b = VimBuf(text)
         val firstStart = b.startOfLine(block.firstLine)
         val from = b.lineEnd(firstStart) + 1
         if (block.lastLine <= block.firstLine || from > text.length) return null
+        val endOff = b.lineEnd(b.startOfLine(block.lastLine))
+        val kept = text.length.toLong() - (endOff - from) // what stays outside the lines that are rebuilt
         val sb = StringBuilder()
         var ls = from
         for (line in block.firstLine + 1..block.lastLine) {
             val le = b.lineEnd(ls)
             val len = clusters(text.substring(ls, le))
             val seg = text.substring(ls, le)
+            // every line gets the typed text and perhaps blanks up to the column: a line that would take the text over the window is not built
+            if (kept + sb.length + seg.length + typed.length + (if (block.append && len < block.col) block.col - len else 0) > MAX_CHARS) { followRefused = true; return null }
             if (block.dollar) sb.append(seg).append(typed)
             else if (len >= block.col) {
                 val at = VimBuf(seg).atColumn(0, block.col)
@@ -1719,7 +1742,6 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
             if (le >= text.length) break
             ls = le + 1
         }
-        val endOff = b.lineEnd(b.startOfLine(block.lastLine))
         val caretAt = b.startOfLine(block.firstLine).let { b.atColumn(it, block.col) }
         return Follow(from, endOff, sb.toString(), minOf(caretAt + typed.length, from))
     }
@@ -1799,7 +1821,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         if (!captureOk()) return VimOutcome(VimNotice.REGISTER_OFF)
         val s = snapshot() ?: return VimOutcome(failure)
         val c = cursorOf(s) ?: return VimOutcome(VimNotice.SELECTED)
-        marks.set(if (name == '`') '\'' else name, s.text, c)
+        memory.markSet(if (name == '`') '\'' else name, s.text, c)
         marksLost = false
         return VimOutcome()
     }
@@ -1811,9 +1833,9 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         if (name !in 'a'..'z' && name != '\'' && name != '<' && name != '>' && name != '[' && name != ']' && name != '^') { clearPending(); return VimOutcome() }
         return runMotion(null, null) { b, c, _ ->
             // before any jump the context mark is the start of the text, as in a new Vim buffer
-            val at = if (name == '\'' && !marks.isSet('\'')) 0 else marks.get(name, b.text)
+            val at = if (name == '\'' && !memory.markIsSet('\'')) 0 else memory.markGet(name, b.text)
             if (at < 0) {
-                Mv(c, MType.EXCL, cancels = true, notice = if (marksLost && !marks.isSet(name)) VimNotice.MARK_INVALID else VimNotice.MARK_NOT_SET)
+                Mv(c, MType.EXCL, cancels = true, notice = if (marksLost && !memory.markIsSet(name)) VimNotice.MARK_INVALID else VimNotice.MARK_NOT_SET)
             } else if (lineWise) Mv(b.firstNonBlank(at), MType.LINE, jump = noJump.not())
             else Mv(b.normalOrEnd(at), MType.EXCL, jump = noJump.not(), big = true) // a backtick motion always fills register 1
         }
@@ -1821,9 +1843,43 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
 
     // ---- search -------------------------------------------------------------------------------------------------------------------------
 
+    /** The step and time budget of one search or pattern; inside a play or an ex line it also ends at the deadline of that command. */
     private fun newBudget(): VimRegex.Budget {
         val now = rules.nowMillis()
-        return VimRegex.Budget(SEARCH_STEPS, now + SEARCH_MILLIS) { rules.nowMillis() }
+        val own = now + SEARCH_MILLIS
+        val limit = run?.let { minOf(own, it.deadline) } ?: own
+        return VimRegex.Budget(SEARCH_STEPS, limit) { rules.nowMillis() }
+    }
+
+    // ---- the budget of a command that runs several steps ---------------------------------------------------------------------------
+
+    /** What one play or ex line may spend: keys (a macro, a repeat, :normal), ex steps and time are counted in this one object, and the first limit stops all of it. */
+    private class Run(val deadline: Long) {
+        var keys = 0
+        var steps = 0L
+        var abort: VimNotice? = null
+    }
+
+    /** The command that runs stops at its limit: nothing it computed is written (the field stays as it was) and the notice says why. */
+    private fun abortRun(notice: VimNotice) {
+        val r = run ?: Run(0L).also { run = it }
+        if (r.abort == null) r.abort = notice
+        playQueue.clear()
+    }
+
+    /** Counts [n] ex steps (a line, an iteration, a command) against the budget; false when it is spent (the run is then aborted). */
+    private fun chargeSteps(n: Int): Boolean {
+        val r = run ?: return true
+        if (r.abort != null) return false
+        r.steps += n
+        if (r.steps > MAX_EX_STEPS || (r.steps / 64 != (r.steps - n) / 64 && rules.nowMillis() > r.deadline)) { abortRun(VimNotice.PLAY_LIMIT); return false }
+        return true
+    }
+
+    /** A command would compute a text longer than the window: in a play the whole play stops (nothing is written), else the command only says so. */
+    private fun tooBig(): VimOutcome {
+        if (inTx) { abortRun(VimNotice.PLAY_LIMIT); return fail(VimNotice.PLAY_LIMIT) }
+        return fail(VimNotice.TOO_LONG)
     }
 
     private fun regexOf(pattern: String): VimRegex? = (VimRegex.compile(pattern, false) as? VimRegex.Compiled.Ok)?.regex
@@ -1876,8 +1932,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     }
 
     private fun searchRepeat(reverse: Boolean): VimOutcome {
-        val pattern = regs.lastSearch ?: run { clearPending(); return VimOutcome(VimNotice.NO_PATTERN) }
-        return searchMotion(pattern, searchForward != reverse, searchOffset, countGiven() ?: 1)
+        val pattern = memory.lastSearch ?: run { clearPending(); return VimOutcome(VimNotice.NO_PATTERN) }
+        return searchMotion(pattern, memory.searchForward != reverse, memory.searchOffset, countGiven() ?: 1)
     }
 
     private fun searchWord(forward: Boolean, whole: Boolean): VimOutcome {
@@ -1886,9 +1942,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         if (s == null) { clearPending(); return VimOutcome(failure) }
         val c = cursorOf(s) ?: return VimOutcome(VimNotice.SELECTED)
         val found = VimSearch.wordPattern(s.b, c, whole) ?: run { clearPending(); return fail(VimNotice.NOT_FOUND) }
-        if (captureOk()) { regs.lastSearch = found.first; addHistory(searchHistory, found.first) }
-        searchForward = forward
-        searchOffset = VimSearch.Offset.NONE
+        memory.setSearch(found.first, forward, VimSearch.Offset.NONE)
+        memory.addHistory(commandLine = false, found.first)
         val re = regexOf(found.first) ?: run { clearPending(); return fail(searchNotice(found.first)) }
         return runMotion(null, n) { b, cur, _ ->
             val budget = newBudget()
@@ -1899,13 +1954,6 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
                 is VimSearch.Found.At -> Mv(b.normalOrEnd(r.start), MType.EXCL, jump = true, big = true)
             }
         }
-    }
-
-    private fun addHistory(list: ArrayList<String>, line: String) {
-        if (!captureOk() || line.isEmpty()) return
-        list.remove(line)
-        list.add(line)
-        while (list.size > MAX_HISTORY) list.removeAt(0)
     }
 
     // ---- the command line ----------------------------------------------------------------------------------------------------------
@@ -1968,7 +2016,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     }
 
     private fun history(line: CmdLine, previous: Boolean) {
-        val list = if (line.kind == ':') cmdHistory else searchHistory
+        val list = memory.history(commandLine = line.kind == ':')
         if (list.isEmpty()) return
         if (line.hist == -1) { if (!previous) return; line.typed = line.text.toString(); line.hist = list.size }
         val next = if (previous) line.hist - 1 else line.hist + 1
@@ -1988,62 +2036,64 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         val (rawPat, rest) = VimSearch.splitPattern(text, kind)
         val pat = VimSearch.unescapeDelimiter(rawPat, kind)
         val offset = if (rest == null) VimSearch.Offset.NONE else (VimSearch.parseOffset(rest) ?: run { clearPending(); return fail(VimNotice.PATTERN_UNSUPPORTED) })
-        val pattern = if (pat.isEmpty()) (regs.lastSearch ?: run { clearPending(); return VimOutcome(VimNotice.NO_PATTERN) }) else pat
-        if (captureOk()) {
-            regs.lastSearch = pattern
-            addHistory(searchHistory, text)
-        }
-        searchForward = kind == '/'
-        if (!(pat.isEmpty() && rest == null)) searchOffset = offset
-        return searchMotion(pattern, searchForward, searchOffset, countGiven() ?: 1)
+        val pattern = if (pat.isEmpty()) (memory.lastSearch ?: run { clearPending(); return VimOutcome(VimNotice.NO_PATTERN) }) else pat
+        val forward = kind == '/'
+        val usedOffset = if (pat.isEmpty() && rest == null) memory.searchOffset else offset // a bare "/" keeps the offset of the search before
+        memory.setSearch(pattern, forward, usedOffset) // kept only where the capture rule allows it; this search uses its own values either way
+        memory.addHistory(commandLine = false, text)
+        return searchMotion(pattern, forward, usedOffset, countGiven() ?: 1)
     }
 
     // ---- ex commands ------------------------------------------------------------------------------------------------------------------
 
     private inner class ExHostImpl(val text: String) : VimEx.Host {
-        override val regs: VimRegisters get() = this@VimEngine.regs
-        override val captureOk: Boolean get() = this@VimEngine.captureOk()
-        override val state: ExState get() = exState
+        override val memory: VimMemory get() = this@VimEngine.memory
         override val budget: VimRegex.Budget = newBudget()
-        override val searchPattern: String? get() = this@VimEngine.regs.lastSearch
         override val indentWithTab: Boolean get() = rules.indentWithTab()
+        override val maxChars: Int get() = MAX_CHARS
+
+        override fun charge(steps: Int): Boolean = chargeSteps(steps)
 
         override fun markLine(name: Char): Int? {
             val v = exVisualLines
             if (v != null && name == '<') return v.first
             if (v != null && name == '>') return v.second
-            val at = marks.get(name, text)
-            return if (at < 0) null else VimMarks.lineOf(text, at)
+            val at = this@VimEngine.memory.markGet(name, text)
+            return if (at < 0) null else VimLines.lineOf(text, at)
         }
 
         override fun setMark(name: Char, line: Int) {
-            if (captureOk) marks.set(name, text, VimMarks.lineStartOf(text, line))
+            this@VimEngine.memory.markSet(name, text, VimLines.lineStartOf(text, line))
         }
 
         override fun normal(text: String, caret: Int, keys: String): Pair<String, Int>? = runNormal(text, caret, keys)
 
         override fun register(name: Char): Reg? = readRegister(name).first
 
+        /** What :reg shows: the register names and a short start of each text. It goes to the keyboard's own view, never to a Toast or the field. */
         override fun registerListing(): String {
             val out = ArrayList<String>()
-            for (n in regs.names()) {
-                val r = regs.get(n) ?: continue
+            val m = this@VimEngine.memory
+            for (n in m.names()) {
+                val r = m.get(n) ?: continue
                 out.add("\"$n  " + shorten(r.text))
                 if (out.size >= LISTING_LINES) break
             }
-            regs.lastInsert?.let { if (out.size < LISTING_LINES) out.add("\".  " + shorten(it)) }
-            regs.lastCommand?.let { if (out.size < LISTING_LINES) out.add("\":  " + shorten(it)) }
-            regs.lastSearch?.let { if (out.size < LISTING_LINES) out.add("\"/  " + shorten(it)) }
+            m.lastInsert?.let { if (out.size < LISTING_LINES) out.add("\".  " + shorten(it)) }
+            m.lastCommand?.let { if (out.size < LISTING_LINES) out.add("\":  " + shorten(it)) }
+            m.lastSearch?.let { if (out.size < LISTING_LINES) out.add("\"/  " + shorten(it)) }
             return out.joinToString("\n")
         }
 
+        /** What :marks shows: the mark names and their line and column (no text). */
         override fun markListing(): String {
             val out = ArrayList<String>()
-            for (n in marks.names()) {
-                val at = marks.get(n, text)
+            val m = this@VimEngine.memory
+            for (n in m.markNames()) {
+                val at = m.markGet(n, text)
                 if (at < 0) continue
-                val line = VimMarks.lineOf(text, at)
-                out.add("$n  ${line + 1}:${at - VimMarks.lineStartOf(text, line)}")
+                val line = VimLines.lineOf(text, at)
+                out.add("$n  ${line + 1}:${at - VimLines.lineStartOf(text, line)}")
                 if (out.size >= LISTING_LINES) break
             }
             return out.joinToString("\n")
@@ -2059,19 +2109,16 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         if (text.isBlank()) { clearPending(); return VimOutcome() }
         val s = snapshot() ?: run { clearPending(); return VimOutcome(failure) }
         val c = cursorOf(s) ?: return VimOutcome(VimNotice.SELECTED)
-        if (captureOk()) {
-            addHistory(cmdHistory, text)
-            regs.lastCommand = text
-        }
-        if (!inTx) { playKeys = 0; playDeadline = rules.nowMillis() + PLAY_MILLIS }
+        memory.addHistory(commandLine = true, text)
+        memory.setLastCommand(text)
+        val topLevel = !inTx // a command line inside a play spends the budget of the play
+        if (topLevel) run = Run(rules.nowMillis() + PLAY_MILLIS)
         val result = VimEx(ExHostImpl(s.text)).run(s.text, c, text)
+        if (inTx && (result.notice == VimNotice.PLAY_LIMIT || result.notice == VimNotice.SEARCH_LIMIT)) abortRun(result.notice) // a play stops there, as a whole
+        if (topLevel) run = null
         clearPending()
         exVisualLines = null
-        val pattern = result.newSearch
-        if (pattern != null && captureOk()) {
-            regs.lastSearch = pattern
-            searchOffset = VimSearch.Offset.NONE
-        }
+        result.newSearch?.let { memory.setSearchPattern(it) }
         if (result.notice != null) {
             if (result.cursor != c) { // a command that moved the cursor before it failed
                 val at = VimBuf(s.text).normal(result.cursor.coerceIn(0, s.text.length))
@@ -2117,9 +2164,12 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     /** The text of a play, in memory: what the keys of the play read and write, until the difference is written to the field once. */
     private class MemPort(var text: String, var selStart: Int, var selEnd: Int, val real: VimPort) : VimPort {
         var blocked = false
+        /** A change would have made the text longer than the window: it was not made (the engine stops the play). */
+        var overflow = false
         override fun read(): VimRead = VimRead.Text(text, selStart, selEnd)
         override fun select(start: Int, end: Int) { selStart = start; selEnd = end }
         override fun replace(start: Int, end: Int, text: String, caret: Int) {
+            if (this.text.length.toLong() - (end - start) + text.length > MAX_CHARS) { overflow = true; return } // the new text is not built
             this.text = this.text.substring(0, start) + text + this.text.substring(end)
             selStart = caret
             selEnd = caret
@@ -2136,8 +2186,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         while (i < keys.length) { val cp = keys.codePointAt(i); one.add(cp); i += Character.charCount(cp) }
         if (one.isEmpty()) return VimOutcome()
         if (playQueue.size.toLong() + one.size.toLong() * times > MAX_PLAY_KEYS) {
-            playStopped = VimNotice.PLAY_LIMIT
-            playQueue.clear()
+            abortRun(VimNotice.PLAY_LIMIT) // more keys than a play may run: none are queued and nothing is written
             return fail(VimNotice.PLAY_LIMIT)
         }
         // what a nested play adds goes in front of what the outer one still has to run
@@ -2176,24 +2225,33 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         inTx = true
         replaying = true
         playQueue.clear()
-        playKeys = 0
         playStopped = null
         playFailure = null
-        playDeadline = rules.nowMillis() + PLAY_MILLIS
+        val budget = Run(rules.nowMillis() + PLAY_MILLIS)
+        run = budget
         expectedCaret = c
         var notice: VimNotice? = null
-        // no try/finally: whatever the play throws goes to the guard, whose reset puts io, inTx and replaying back
+        // no try/finally: whatever the play throws goes to the guard, whose reset puts io, inTx, run and replaying back
         if (visual != null) setupVisual(visual, s.b, c)
         val first = enqueue(keys, times)
         if (first.failed) notice = first.notice
         drain(mem)
         playQueue.clear()
-        if (playStopped == null) finishPlay() else { cmd = null; ins = null; insertPrefix = null; if (mode == VimMode.INSERT) mode = VimMode.NORMAL; clearPending() }
-        notice = playStopped ?: playFailure ?: notice
+        if (playStopped == null && budget.abort == null) finishPlay() else { cmd = null; ins = null; insertPrefix = null; if (mode == VimMode.INSERT) mode = VimMode.NORMAL; clearPending() }
+        notice = budget.abort ?: playStopped ?: playFailure ?: notice
         io = port
         inTx = false
         replaying = false
+        run = null
         playQueue.clear()
+        if (budget.abort != null) { // a limit (keys, steps, time, size): nothing the play computed is written, and the field is as it was
+            mode = VimMode.NORMAL
+            resetParser()
+            wantCol = null
+            bufferEmptied = false
+            expectedCaret = c
+            return fail(budget.abort)
+        }
         return writePlay(s, mem, notice)
     }
 
@@ -2210,7 +2268,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
             val repl = after.substring(d.first, after.length - (s.text.length - d.second))
             if (repl.isNotEmpty() && !rules.accepts(repl)) { reset(); return VimOutcome(VimNotice.NOT_ACCEPTED) }
             port.replace(d.first, d.second, repl, mem.selStart)
-            if (marks.base == s.text) marks.remapEdit(s.text, d.first, d.second, repl)
+            if (memory.marksBase == s.text) memory.marksRemapEdit(s.text, d.first, d.second, repl)
         }
         if (mem.selStart != mem.selEnd || after == s.text) port.select(mem.selStart, mem.selEnd)
         expectedCaret = if (mem.selStart == mem.selEnd) mem.selStart else -1
@@ -2255,11 +2313,20 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
 
     /** Runs the queued keys until the queue is empty or a command fails; true when a limit (keys, time, undo) stopped it. */
     private fun drain(mem: MemPort): Boolean {
+        val budget = run ?: Run(rules.nowMillis() + PLAY_MILLIS).also { run = it } // a play always has its budget; this only closes the case where it has none
         while (playQueue.isNotEmpty()) {
-            if (++playKeys > MAX_PLAY_KEYS || ((playKeys and 63) == 0 && rules.nowMillis() > playDeadline)) { playQueue.clear(); playStopped = VimNotice.PLAY_LIMIT; return true }
+            budget.keys++
+            if (budget.keys > MAX_PLAY_KEYS || ((budget.keys and 63) == 0 && rules.nowMillis() > budget.deadline)) { abortRun(VimNotice.PLAY_LIMIT); return true }
             val out = feedOne(playQueue.removeFirst(), mem)
+            if (mem.overflow) { abortRun(VimNotice.PLAY_LIMIT); return true } // a change would make the text longer than the window
+            if (budget.abort != null) { playQueue.clear(); return true }
             if (mem.blocked) { playQueue.clear(); playStopped = VimNotice.UNDO_IN_PLAY; return true }
-            if (out.failed) { playQueue.clear(); playFailure = out.notice; return false }
+            if (out.failed) {
+                playQueue.clear()
+                playFailure = out.notice
+                if (out.notice == VimNotice.SEARCH_LIMIT) { abortRun(VimNotice.SEARCH_LIMIT); return true } // a search that ran out of steps or time: the play is spent too
+                return false
+            }
         }
         return false
     }
@@ -2270,13 +2337,13 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         if (key <= 0 || key > 0xFFFF) return VimOutcome()
         var name = key.toChar()
         if (name == ':') {
-            val last = regs.lastCommand ?: return VimOutcome(VimNotice.REGISTER_EMPTY)
+            val last = memory.lastCommand ?: return VimOutcome(VimNotice.REGISTER_EMPTY)
             return play(":" + last + "\n", n)
         }
-        if (name == '@') name = lastMacro ?: return VimOutcome(VimNotice.REGISTER_EMPTY)
+        if (name == '@') name = memory.lastMacro ?: return VimOutcome(VimNotice.REGISTER_EMPTY)
         if (!(name in 'a'..'z' || name in 'A'..'Z' || name in '0'..'9' || name == '"' || name == '-' || name == '.' || name == '/')) return VimOutcome()
-        val reg = regs.get(name) ?: return VimOutcome(VimNotice.REGISTER_EMPTY)
-        lastMacro = name
+        val reg = memory.get(name) ?: return VimOutcome(VimNotice.REGISTER_EMPTY)
+        memory.setLastMacro(name)
         val text = if (reg.type == RegType.LINE) reg.text + "\n" else reg.text
         return play(text, n)
     }
@@ -2284,16 +2351,13 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     private fun repeatDot(): VimOutcome {
         val newCount = countGiven()
         clearPending()
-        val d = dot ?: return VimOutcome(VimNotice.NOTHING_TO_REPEAT)
-        if (d.broken) return VimOutcome(VimNotice.NOT_REPEATABLE)
-        if (newCount != null) d.count = newCount
-        val sb = StringBuilder()
-        val r = d.reg
-        if (r != null) {
-            val use = if (r in '1'..'8') r + 1 else r // "1p . puts "2p, and so on
-            if (r in '1'..'8') d.reg = use
-            sb.append('"').append(use)
+        val d = when (val r = memory.dotRepeat(newCount)) {
+            DotRepeat.None -> return VimOutcome(VimNotice.NOTHING_TO_REPEAT)
+            DotRepeat.Broken -> return VimOutcome(VimNotice.NOT_REPEATABLE)
+            is DotRepeat.Ready -> r.play
         }
+        val sb = StringBuilder()
+        d.reg?.let { sb.append('"').append(it) }
         d.count?.let { sb.append(it) }
         for (k in d.keys) sb.appendCodePoint(k)
         return play(sb.toString(), 1, d.visual)
@@ -2327,16 +2391,6 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         showVisual(b)
     }
 
-    // ---- the "." record -----------------------------------------------------------------------------------------------------------------
-
-    /** What a Visual command was made with, to repeat it on the same amount of text. */
-    private class VisualInfo(val mode: VimMode, val lines: Int, val width: Int)
-
-    /** The last change: its keys (without the count and the register), the count and register it was given, and what was typed after it. */
-    private class Dot(var reg: Char?, var count: Int?, val keys: ArrayList<Int>, val visual: VisualInfo?) {
-        var broken = false
-    }
-
     private fun resetParser() {
         clearPending()
         cmd = null
@@ -2350,9 +2404,10 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         shownSelection = null
         exVisualLines = null
         cmdKeys.clear()
+        cmdDropped = false
         cmdChanged = false
         visualDot = null
-        dotInsertOwner = null
+        memory.dotCloseInsert()
     }
 
     companion object {
@@ -2383,13 +2438,15 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         /** Keys of the command line: the history up and down. */
         const val HISTORY_PREVIOUS = -101
         const val HISTORY_NEXT = -102
-        /** A macro holds at most this many keys; one play runs at most [MAX_PLAY_KEYS] keys, nested plays included. */
-        const val MAX_MACRO_KEYS = 2_000
+        /** A macro holds at most this many keys (the memory owns the number); one play runs at most [MAX_PLAY_KEYS] keys, nested plays included. */
+        const val MAX_MACRO_KEYS = VimMemory.MAX_MACRO_KEYS
         const val MAX_PLAY_KEYS = 20_000
+        /** The steps of the ex commands of one command line (a line, an iteration of :g, a :normal run, a command), counted in the same budget as the keys. */
+        const val MAX_EX_STEPS = 100_000
         const val PLAY_MILLIS = 2_500L
         const val SEARCH_STEPS = 3_000_000
         const val SEARCH_MILLIS = 400L
-        const val MAX_HISTORY = 50
+        const val MAX_HISTORY = VimMemory.MAX_HISTORY
         const val MAX_CMDLINE = 1_000
         private const val LISTING_LINES = 12
         private const val GG = -2

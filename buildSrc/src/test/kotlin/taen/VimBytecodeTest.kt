@@ -18,6 +18,8 @@ class VimBytecodeTest {
         private val fields = mutableListOf<Pair<String, String>>()
         private val methods = mutableListOf<Pair<String, String>>()
         private var rawTag: Int? = null
+        var superName = "java/lang/Object"
+        val interfaces = mutableListOf<String>()
 
         fun utf(s: String): Int { out.writeByte(1); out.writeUTF(s); return count++ }
         fun cls(n: String): Int { val u = utf(n); out.writeByte(7); out.writeShort(u); return count++ }
@@ -36,7 +38,8 @@ class VimBytecodeTest {
 
         fun bytes(): ByteArray {
             val thisIndex = cls(name)
-            val superIndex = cls("java/lang/Object")
+            val superIndex = cls(superName)
+            val interfaceIndexes = interfaces.map { cls(it) }
             val declared = (fields + methods).map { utf(it.first) to utf(it.second) }
             val pending = rawTag
             val body = ByteArrayOutputStream()
@@ -45,7 +48,7 @@ class VimBytecodeTest {
             o.writeShort(count + (if (pending != null) 1 else 0))
             o.write(pool.toByteArray())
             if (pending != null) o.writeByte(pending)
-            o.writeShort(0x21); o.writeShort(thisIndex); o.writeShort(superIndex); o.writeShort(0)
+            o.writeShort(0x21); o.writeShort(thisIndex); o.writeShort(superIndex); o.writeShort(interfaceIndexes.size); interfaceIndexes.forEach { o.writeShort(it) }
             o.writeShort(fields.size)
             for (i in fields.indices) { o.writeShort(1); o.writeShort(declared[i].first); o.writeShort(declared[i].second); o.writeShort(1); o.writeShort(declared[i].first); o.writeInt(2); o.writeShort(0) }
             o.writeShort(methods.size)
@@ -472,6 +475,53 @@ class VimBytecodeTest {
 
     @Test fun anEmptyCollectionOfScannedOutputsIsAProblemForTheCheck() {
         assertEquals(1, VimBytecode.check(VimBytecode.collect(emptyList(), emptyList()).classes, committed).size)
+    }
+
+    // ---- members that a class of the package inherits from outside it
+
+    @Test fun aMemberThatAPackageClassInheritsIsCheckedAgainstTheClassItComesFrom() {
+        // VimEx.Stop: a class of the package that extends Exception and declares no getMessage: the call names the package class as its owner
+        val stop = ClassFile("${pkg}S").also { it.superName = "java/lang/Exception"; it.declareMethod("<init>", "()V") }
+        val plain = ClassFile("${pkg}T")
+        fun problems(build: ClassFile.() -> Unit) = VimBytecode.check(mapOf("${pkg}S.class" to stop.bytes(), "${pkg}T.class" to plain.bytes(), "${pkg}P.class" to ClassFile("${pkg}P").also { it.build() }.bytes()), committed)
+        val inherited = problems { method("${pkg}S", "getMessage", "()Ljava/lang/String;") }
+        assertEquals(listOf("${pkg}P refers to ${pkg}S.getMessage:()Ljava/lang/String;, which is inherited from java/lang/Exception.getMessage:()Ljava/lang/String; and not on the vim allow list"), inherited)
+        assertTrue(problems { method("${pkg}S", "printStackTrace", "()V") }.isNotEmpty())
+        // controls: a member the class declares itself, the constructor the allow list names, and a member of Object that the list allows
+        assertEquals(emptyList<String>(), problems { method("${pkg}S", "<init>", "()V") })
+        assertEquals(emptyList<String>(), problems { method("${pkg}T", "hashCode", "()I") })
+        assertEquals(emptyList<String>(), problems { method("${pkg}T", "toString", "()Ljava/lang/String;") })
+        // and the inherited member of Object that the list denies
+        assertTrue(problems { method("${pkg}T", "getClass", "()Ljava/lang/Class;") }.isNotEmpty())
+    }
+
+    @Test fun anInheritedMemberIsFollowedThroughSeveralPackageClasses() {
+        val base = ClassFile("${pkg}Base").also { it.superName = "java/lang/Exception"; it.declareMethod("own", "()V") }
+        val mid = ClassFile("${pkg}Mid").also { it.superName = "${pkg}Base" }
+        val classes = { build: ClassFile.() -> Unit -> mapOf("${pkg}Base.class" to base.bytes(), "${pkg}Mid.class" to mid.bytes(), "${pkg}P.class" to ClassFile("${pkg}P").also { it.build() }.bytes()) }
+        assertTrue(VimBytecode.check(classes { method("${pkg}Mid", "getMessage", "()Ljava/lang/String;") }, committed).isNotEmpty())
+        assertEquals(emptyList<String>(), VimBytecode.check(classes { method("${pkg}Mid", "own", "()V") }, committed)) // declared in the class above: inside the package
+    }
+
+    @Test fun aMemberThatAPackageClassInheritsFromAnInterfaceIsCheckedToo() {
+        val only = rules("allow ${pkg}", "allow java/lang/Object", "allow java/lang/Runnable", "deny java/lang/Runnable.run")
+        val inheriting = ClassFile("${pkg}A").also { it.interfaces.add("java/lang/Runnable") }
+        fun problems(a: ClassFile) = VimBytecode.check(mapOf("${pkg}A.class" to a.bytes(), "${pkg}P.class" to ClassFile("${pkg}P").also { it.method("${pkg}A", "run", "()V") }.bytes()), only)
+        assertEquals(listOf("${pkg}P refers to ${pkg}A.run:()V, which is inherited from java/lang/Runnable.run:()V and not on the vim allow list"), problems(inheriting))
+        // the control: the class declares the member itself
+        assertEquals(emptyList<String>(), problems(ClassFile("${pkg}A").also { it.interfaces.add("java/lang/Runnable"); it.declareMethod("run", "()V") }))
+        // and the interfaces are read in the class file (the parser keeps them)
+        assertEquals(listOf("java/lang/Runnable"), VimBytecode.references(inheriting.bytes()).interfaces)
+        assertEquals("java/lang/Object", VimBytecode.references(inheriting.bytes()).superName)
+    }
+
+    @Test fun javaLangLongIsAllowedAsATypeAndNoMemberOfItIsCalled() {
+        // Long.getLong reads a system property, Long.parseLong and decode put their input in an exception message: the entry for the type allows none of them
+        for ((name, desc) in listOf("getLong" to "(Ljava/lang/String;)Ljava/lang/Long;", "getLong" to "(Ljava/lang/String;J)Ljava/lang/Long;", "parseLong" to "(Ljava/lang/String;)J",
+            "decode" to "(Ljava/lang/String;)Ljava/lang/Long;", "valueOf" to "(Ljava/lang/String;)Ljava/lang/Long;"))
+            assertTrue("Long.$name$desc must be refused", verdict { method("java/lang/Long", name, desc) }.isNotEmpty())
+        // the positive control: the type named in a signature and a descriptor is accepted
+        assertEquals(emptyList<String>(), verdict { utf("Ljava/util/List<Ljava/lang/Long;>;"); method("kotlin/collections/CollectionsKt", "x", "(Ljava/lang/Long;)V") })
     }
 
     @Test fun anIntrinsicsCallWithAMessageIsRefused() {

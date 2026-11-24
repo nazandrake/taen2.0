@@ -943,7 +943,7 @@
     <string name="vim_not_found">Шаблонът не е намерен</string>
     <string name="vim_pattern_unsupported">Този шаблон не се поддържа тук</string>
     <string name="vim_search_limit">Твърде голямо или бавно: нищо не е променено</string>
-    <string name="vim_play_limit">Спряно на границата от клавиши или време</string>
+    <string name="vim_play_limit">Спряно на границата (клавиши, стъпки, време или размер): нищо не е променено</string>
     <string name="vim_nothing_to_repeat">Няма какво да се повтори</string>
     <string name="vim_not_repeatable">Последната промяна не може да се повтори</string>
     <string name="vim_recording_dropped">Записът е отхвърлен (твърде дълъг или не е позволен тук)</string>
