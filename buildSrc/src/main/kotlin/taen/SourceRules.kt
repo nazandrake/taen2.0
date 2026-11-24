@@ -244,8 +244,11 @@ object SourceRules {
         return vimPureJava.any { n == it || n.startsWith("$it.") }
     }
 
-    private fun vimPackageProblems(relativePath: String, text: String): List<String> {
+    // An early lint only (it fails a plain mistake before a build): the guard that counts is VimBytecode on the compiled classes, which does
+    // not depend on how a name is spelled. Backticks are stripped first, since `java`.io.File is the same name.
+    private fun vimPackageProblems(relativePath: String, source: String): List<String> {
         if (!relativePath.startsWith(VIM_PACKAGE)) return emptyList()
+        val text = source.replace("`", "")
         val found = vimForbidden.find(text)?.value
             ?: vimImport.findAll(text).map { it.groupValues[1] }.firstOrNull { !vimNameAllowed(it) }
             ?: vimQualified.findAll(text).map { it.groupValues[1] }.firstOrNull { !vimNameAllowed(it) }

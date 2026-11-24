@@ -3,6 +3,7 @@ import com.android.build.api.variant.ApplicationVariant
 import com.android.build.api.variant.HostTestBuilder
 import taen.ApkScan
 import taen.PrivacyCheck
+import taen.VimBytecodeCheck
 
 plugins {
     id("com.android.application")
@@ -191,6 +192,15 @@ androidComponents.onVariants { variant ->
         variantName.set(variant.name)
     }
     if (variant.buildType == "release") { // the shipped build; the unminified variants still contain whole libraries
+        // the Vim package is checked on the class files of the Kotlin compiler (before R8), by every reference it makes
+        tasks.register<VimBytecodeCheck>("vimBytecode$capitalized") {
+            group = "verification"
+            description = "Checks that the compiled Vim package refers only to classes and members on privacy/vim-bytecode.allow"
+            classes.from(tasks.named("compile${capitalized}Kotlin").map { it.outputs.files })
+            allowList.set(rootProject.layout.projectDirectory.file("privacy/vim-bytecode.allow"))
+            report.set(layout.buildDirectory.file("reports/vim-bytecode-${variant.name}.txt"))
+            variantName.set(variant.name)
+        }
         tasks.register<ApkScan>("apkScan$capitalized") {
             group = "verification"
             description = "Scans the ${variant.name} APK for network, tracker and class-loader references and unlisted native libraries"
@@ -207,7 +217,8 @@ tasks.register("privacyCheck") {
     description = "Runs the privacy gate for every variant, then scans the release APK"
     dependsOn(provider { tasks.names.filter { it.startsWith("privacyCheck") && it != "privacyCheck" } })
     dependsOn("apkScanRelease")
+    dependsOn("vimBytecodeRelease")
 }
 
 // a release APK is never assembled without passing the gate
-tasks.matching { it.name == "assembleRelease" }.configureEach { dependsOn("privacyCheckRelease") }
+tasks.matching { it.name == "assembleRelease" }.configureEach { dependsOn("privacyCheckRelease", "vimBytecodeRelease") }

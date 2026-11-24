@@ -154,9 +154,10 @@ The one register (what `d`, `c`, `x`, `y` took, for `p` and `P`) is kept in memo
 system clipboard and never logged. It is filled only where clipboard history may keep a copy (not in a password field, a field that
 asks for no personalized learning, an app on your incognito list or while incognito is on), and it is forgotten when the screen locks,
 at a wipe, and whenever Vim mode is off (also after a restored backup or an applied profile). `p` and `P` insert like the clipboard paste key (no learning). Checks: `VimGoldenTest` (3 600
-cases whose results come from the real vim), `VimEngineTest`, `VimWiringTest`, `PrivacyPolicyTest`, SourceRules (the vim package
-may use only plain Kotlin, its own package and two pure text classes of Java: no Android, file, network, clipboard, log, process, preference or
-storage class) and the release APK scan (no process is started by anything shipped).
+cases whose results come from the real vim), `VimEngineTest`, `VimWindowTest`, `VimWiringTest`, `PrivacyPolicyTest`, a check of the
+compiled classes of the vim package against an allow list (it may refer only to plain Kotlin, its own package, a few value types and
+collections of Java and two pure text classes: no Android, file, network, clipboard, log, process, thread, reflection, preference or
+storage class, however the name is written) and the release APK scan (no process is started by anything shipped).
 
 ## What a keyboard cannot protect against
 

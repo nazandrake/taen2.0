@@ -114,8 +114,9 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   layouts never reach the typing path (`KeyboardActionListenerImpl.onCodeInput` gives them to `VimInput.consumes` first: no learning,
   suggestions, auto-correct, recents or trigger word check; `InputLogic.setVimActive` stops word resume and suggestions). Every edit
   is computed from the whole field text read for that command (at most 20 000 characters, from offset 0; the editor's size hint and
-  `startOffset` prove nothing, the text counts as whole only when the text before and after the selection that the editor gives with
-  explicit bounds matches the extracted text, `VimInput.read`) and the field is read again
+  `startOffset` prove nothing: `VimWindow.read` is the one owner of the rule, the text counts as whole when the selected text and the two bounded reads of
+  20 001 characters before and after the selection are exactly the text there in the extracted text, under either editor convention for a
+  reversed selection; read lengths are never added, and "too long" means an extracted text or one read over 20 000, `VimWindowTest`) and the field is read again
   just before the edit: text or selection changed, text unreadable, partial or too long, text selected in Normal mode, a field that does
   not take the inserted text: nothing is done and a notice is shown; a range is never widened. Only pure cursor motions fall back to
   cursor keys when the text cannot be read. `PrivacyPolicy.Decision.vimMode` (no password field, not while the device is locked: the Esc key is
@@ -123,14 +124,18 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   only while `Decision.storeClipboard` holds (the clipboard capture rule), never put on the system clipboard, never stored or logged,
   cleared at `Privacy.lock` and wipe and whenever the value of the setting is off (a change of any key, `clear()`, a restored backup, an
   applied profile); `p` and `P` insert through the connection's `commitText` (the history paste path) and, as that path, also work in a
-  no-learning or incognito field. The selection is ordered once in `VimInput.read` (it may run backwards). The vim package is an allow
-  list (SourceRules): it imports only `kotlin.*` (not `kotlin.io`, `system`, `concurrent`, `reflect`), its own package and, for the character
-  boundaries, `java.text.BreakIterator` and `java.util.Locale`; it names no other class by its full name and none of the `java.lang` or
-  Kotlin names that print, run a process or thread, or reach a class by name (`System`, `Runtime`, `ProcessBuilder`, `Thread`,
-  `Class.forName`, `javaClass`, `::class.java`, `.invoke(`, `print`, `println`, `readLine`). The release dex denies `java.lang.ProcessBuilder`
+  no-learning or incognito field. The selection is ordered once in `VimWindow.read` (it may run backwards). The vim package is checked
+  on its COMPILED classes (`VimBytecode`, task `vimBytecodeRelease`, part of `privacyCheck` and `assembleRelease`; it reads the Kotlin
+  compiler's output, before R8): every class and member a class of the package refers to, including every type in a descriptor, must be
+  on `privacy/vim-bytecode.allow`, the rest is denied: its own package, a few `java.lang` value types, `java.util` collections,
+  `Locale`, `java.text.BreakIterator` and the Kotlin runtime except `kotlin.io`, `system`, `concurrent`, `reflect`; no `java.io`, `nio`,
+  `net`, `android`, `System`, `Runtime`, `Process`, `Thread`, `ClassLoader`, `Class` member or reflection. Backticks, a typealias, an
+  import alias, a full name or an inlined library call compile to the same references, so the spelling cannot hide one. The source
+  rule in SourceRules (backticks stripped) is only an early lint of the same package. The package puts no field or register text in an
+  exception message (it throws none; the compiler's parameter checks name parameters). The release dex denies `java.lang.ProcessBuilder`
   and `java.lang.Process` (what `Runtime.exec` returns, `privacy/dex-rules.txt`). Expected values of the engine tests are Vim's own
   (`tools/gen-vim-golden.py` runs `vim -u NONE -N -es` and writes `app/src/test/resources/vim/golden.jsonl`). Tests: `VimBasicTest`,
-  `VimGoldenTest`, `VimEngineTest`, `VimWiringTest`, `PrivacyPolicyTest`, `SourceRulesTest`.
+  `VimGoldenTest`, `VimEngineTest`, `VimWindowTest`, `VimWiringTest`, `PrivacyPolicyTest`, `SourceRulesTest`, `VimBytecodeTest`.
 
 ## App lock and self-destruct
 

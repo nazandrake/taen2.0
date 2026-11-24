@@ -246,7 +246,8 @@ class VimWiringTest {
         clearToast()
         keys(ime, "d$")
         assertEquals(max + 1, text.length, "d$ is refused: no character is left behind")
-        assertEquals(ime.getString(R.string.vim_too_long), toastText())
+        // the extracted text is cut to the window and the read after the cursor (20000) is not longer than it: no single answer is over the window, so this is a partial text, not a too long one
+        assertEquals(ime.getString(R.string.vim_partial_text), toastText())
         keys(ime, "x")
         assertEquals(max + 1, text.length)
         keys(ime, "dd")
@@ -328,6 +329,19 @@ class VimWiringTest {
         assertEquals(4 to 1, selection) // refused: the caret was not moved
         keys(ime, "x")
         assertEquals("foo bar", text)
+    }
+
+    /** A field of exactly the window, reversed selection (1, 0), the editor answering as reported: through the real adapter it is read and edited (VimWindowTest has the table). */
+    @Test fun aFieldOfExactlyTheWindowWithAReversedSelectionIsEditedThroughTheRealAdapter() = withKeyboard { ime ->
+        ShadowInputMethodService.cursorReadsOrdered = false
+        field(ime, "x".repeat(VimEngine.MAX_CHARS), 1)
+        press(ime, KeyCode.VIM_MODE)
+        ShadowInputMethodService.selectionStart = 1
+        ShadowInputMethodService.selectionEnd = 0
+        press(ime, KeyCode.VIM_MODE) // Esc: the caret goes to the lower end
+        assertEquals(0 to 0, selection)
+        keys(ime, "x")
+        assertEquals(VimEngine.MAX_CHARS - 1, text.length)
     }
 
     @Test fun aLineBreakIsNotInsertedInASingleLineField() = withKeyboard { ime ->

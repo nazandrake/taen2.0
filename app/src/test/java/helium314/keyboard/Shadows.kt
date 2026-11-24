@@ -255,7 +255,7 @@ class ShadowInputMethodService {
         // pretty clear
         override fun getSelectedText(p0: Int): CharSequence? {
             textReads++
-            return if (selectionStart == selectionEnd) null else text.substring(selectionStart, selectionEnd)
+            return if (selectionStart == selectionEnd) null else text.substring(minOf(selectionStart, selectionEnd), maxOf(selectionStart, selectionEnd)) // as the platform editors: a reversed selection too
         }
         // inserts text at cursor (right?), and sets it as composing text
         // this REPLACES currently composing text (even if at a different position)

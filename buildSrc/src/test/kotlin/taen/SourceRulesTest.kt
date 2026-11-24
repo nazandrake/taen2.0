@@ -448,7 +448,10 @@ class SourceRulesTest {
             "val s = javax.crypto.Cipher.getInstance(a)", "val s = dalvik.system.DexClassLoader(a, b, c, d)", "val s = androidx.core.util.Pair(a, b)",
             "val s = jdk.internal.misc.Unsafe.getUnsafe()", "import java.util.concurrent.Executors", "val d = java.util.Date()", "import java.text.Normalizer",
             "val r = foo.java", "package helium314.keyboard.latin.vim; import okhttp3.OkHttpClient", "kotlin.system.exitProcess(1)", "val f = kotlin.io.path.Path(x)",
-            "val s = org.example.Sink()", "helium314.keyboard.latin.utils.Sink.send(t)", "val p = Process.myPid()", "val k: KClass<*> = x"
+            "val s = org.example.Sink()", "helium314.keyboard.latin.utils.Sink.send(t)", "val p = Process.myPid()", "val k: KClass<*> = x",
+            // backticked segments are the same names (the lint strips them; the bytecode guard does not care about spelling at all)
+            "`java`.io.RandomAccessFile(\"/data/data/x/files/r\", \"rw\").write(registerText.toByteArray())", "import `java`.io.File", "`kotlin`.io.println(x)",
+            "val s = `android`.util.Log.d(a, b)", "`java`.lang.`ProcessBuilder`(\"log\", t).start()", "val c = `Class`.forName(n)",
         )) {
             val found = problems(vimEngine, text).filter { it.startsWith("vim:") }
             assertEquals("$text: $found", 1, found.size)
@@ -460,6 +463,7 @@ class SourceRulesTest {
             "val i = java.text.BreakIterator.getCharacterInstance(java.util.Locale.ROOT)", "import java.util.Locale as L",
             "val systematic = processed + threshold + runtimeOf(x)", "val readLineCount = 1 // threads are not needed; the system stays out", "class VimBuf(val text: String) { fun next(p: Int) = p + 1 }",
             "val n = person.org.name + node.com.size", // members that only look like a package
+            "val m = `kotlin`.math.abs(x)", "fun `a test name`() = 1", "val `is` = 1",
         )) assertEquals(text, emptyList<String>(), problems(vimEngine, text))
         // the rule is for the vim package only
         for (text in listOf("ProcessBuilder(\"log\", t).start()", "import org.example.Sink", "val k = x.javaClass")) assertTrue(text, problems("helium314/keyboard/keyboard/VimInput.kt", text).none { it.startsWith("vim:") })

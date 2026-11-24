@@ -1,0 +1,65 @@
+# Allow list of the compiled Vim package (VimBytecode, task vimBytecodeRelease, part of privacyCheck and of assembleRelease).
+# Every class and member that a class of helium314/keyboard/latin/vim refers to (class constants, field and method references, the types
+# in every descriptor) must be matched here; what is not matched is denied. An entry matches the name, its members (Name.member), its inner
+# classes (Name$Inner) and, when it ends with / or ., everything below it. The longest entry decides, deny wins a tie.
+# Read from the class files of the Kotlin compiler (before R8), so no spelling of the source (backticks, typealias, import alias, full
+# name, an inlined library call) changes the result. The package works on the text it is handed and has no file, network, log, process,
+# thread, clock, reflection, preference or Android class (P1, P11); a new need is added here on purpose, in review.
+# No exception class of java.lang is listed: error(x), check, require and throw with a message (which inline to IllegalStateException and
+# IllegalArgumentException) are refused, so field or register text cannot reach a crash message and logcat through the package.
+
+# the package itself
+allow helium314/keyboard/latin/vim/
+
+# java.lang: value types, enums and what the Kotlin compiler's string concatenation and lambdas need
+allow java/lang/Object
+deny java/lang/Object.getClass
+deny java/lang/Object.wait
+deny java/lang/Object.notify
+deny java/lang/Object.notifyAll
+allow java/lang/Boolean
+allow java/lang/CharSequence
+allow java/lang/Character
+allow java/lang/Enum
+allow java/lang/Integer
+allow java/lang/Iterable
+allow java/lang/Math
+allow java/lang/NoSuchFieldError
+allow java/lang/Number
+allow java/lang/String
+allow java/lang/StringBuilder
+# Class is named by the compiler's enum code (Enum.valueOf(Class, String)); no member of it may be called (forName, getClassLoader, ...)
+allow java/lang/Class
+deny java/lang/Class.
+# the bootstrap methods of invokedynamic (lambdas and string templates) and the types of their signatures, nothing else of java.lang.invoke
+allow java/lang/invoke/CallSite
+deny java/lang/invoke/CallSite.
+allow java/lang/invoke/MethodHandle
+deny java/lang/invoke/MethodHandle.
+allow java/lang/invoke/MethodHandles$Lookup
+deny java/lang/invoke/MethodHandles$Lookup.
+allow java/lang/invoke/MethodType
+deny java/lang/invoke/MethodType.
+allow java/lang/invoke/LambdaMetafactory
+deny java/lang/invoke/LambdaMetafactory.
+allow java/lang/invoke/LambdaMetafactory.metafactory
+allow java/lang/invoke/StringConcatFactory
+deny java/lang/invoke/StringConcatFactory.
+allow java/lang/invoke/StringConcatFactory.makeConcatWithConstants
+
+# collections, locale and character boundaries: computation on values only
+allow java/util/ArrayList
+allow java/util/Collection
+allow java/util/Iterator
+allow java/util/List
+allow java/util/Locale
+allow java/util/Map
+allow java/util/Set
+allow java/text/BreakIterator
+
+# the Kotlin runtime, except what does I/O, reads the system, runs threads or reflects
+allow kotlin/
+deny kotlin/io/
+deny kotlin/system/
+deny kotlin/concurrent/
+deny kotlin/reflect/
