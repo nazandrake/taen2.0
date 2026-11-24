@@ -6,6 +6,7 @@ import com.android.build.api.variant.ScopedArtifacts
 import taen.ApkScan
 import taen.PrivacyCheck
 import taen.VimBytecodeCheck
+import taen.WhatsNewTask
 
 plugins {
     id("com.android.application")
@@ -180,6 +181,20 @@ dependencies {
 // upstream (network access, open HeliBoard bugs), so it is the one that has to be green.
 androidComponents.beforeVariants { builder ->
     if (builder.buildType == "runTests") builder.hostTests[HostTestBuilder.UNIT_TEST_TYPE]?.enable = true
+}
+
+// The "What's new" box: its text is the CHANGELOG.md entry of versionName, built into an asset (taen.WhatsNew, BUILDING.md). The shipped builds (release and
+// the audit copy of it) fail without an entry; the others write an empty asset, which the app reads as no box.
+androidComponents.onVariants { variant ->
+    val capitalized = variant.name.replaceFirstChar { it.uppercase() }
+    val whatsNew = tasks.register<WhatsNewTask>("generateWhatsNew$capitalized") {
+        description = "Writes the notes of the What's new box of ${variant.name} from CHANGELOG.md"
+        changelog.set(rootProject.layout.projectDirectory.file("CHANGELOG.md"))
+        versionName.set(android.defaultConfig.versionName ?: error("versionName is not set"))
+        required.set(variant.buildType == "release" || variant.buildType == "audit")
+        outputDir.set(layout.buildDirectory.dir("generated/whatsNew/${variant.name}"))
+    }
+    variant.sources.assets?.addGeneratedSourceDirectory(whatsNew, WhatsNewTask::outputDir)
 }
 
 androidComponents.onVariants { variant ->

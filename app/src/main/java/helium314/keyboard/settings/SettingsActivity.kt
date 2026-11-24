@@ -31,6 +31,7 @@ import helium314.keyboard.compat.locale
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.internal.KeyboardIconsSet
 import helium314.keyboard.latin.InputAttributes
+import helium314.keyboard.latin.BuildConfig
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.privacy.Privacy
 import helium314.keyboard.latin.privacy.SecureWindow
@@ -58,6 +59,15 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
     // App lock: the content is composed only while the lock is open (a PIN screen is started otherwise)
     private var unlocked by mutableStateOf(false)
     private var awaitingUnlock = false
+
+    // The "What's new" box: the notes of an update, set when the screen opens (WhatsNew.check) and cleared by the dismissal, which stores the version
+    var whatsNewNotes: String? by mutableStateOf(null)
+        private set
+
+    fun dismissWhatsNew() {
+        WhatsNew.markShown(prefs, BuildConfig.VERSION_CODE)
+        whatsNewNotes = null
+    }
 
     // A .dict link from another app (the exported SettingsActivity2) is copied only after the unlock, and never above the size cap
     private var pendingDictUri: Uri? = null
@@ -114,6 +124,7 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
         val spellchecker = intent?.getBooleanExtra("spellchecker", false) ?: false
         val openVoice = intent?.getBooleanExtra(EXTRA_VOICE_SETTINGS, false) ?: false // the voice key without a model opens the Voice typing page
         val openProfiles = intent?.getBooleanExtra(EXTRA_PROFILES_SETTINGS, false) ?: false // opens Profiles and templates (still behind the app lock)
+        whatsNewNotes = if (spellchecker) null else WhatsNew.check(this) // the small spell checker screen is not "the settings"
 
         val cv = ComposeView(context = this)
         setContentView(cv)
@@ -147,6 +158,8 @@ open class SettingsActivity : ComponentActivity(), SharedPreferences.OnSharedPre
                             WelcomeWizard(close = { showWelcomeWizard = false }, finish = this::finish)
                         } else if (showGuide) {
                             SetupGuideDialog(close = { showGuide = false }) // first start after an install or a wipe, once
+                        } else {
+                            whatsNewNotes?.let { WhatsNewDialog(notes = it, onDismiss = { dismissWhatsNew() }) } // the first opening after an update, once
                         }
                     }
                     if (jobs.running != null) ImportProgressDialog(onCancel = jobs::cancel)

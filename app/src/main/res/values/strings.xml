@@ -1259,6 +1259,9 @@ New dictionary:
     <string name="guide_check_banking">Some banking apps start only with a system keyboard. Add the Switch keyboard tile to Quick Settings to change keyboard.</string>
     <string name="guide_skip">Skip</string>
     <string name="guide_done">Done</string>
+    <!-- The "What's new" box after an update (the text is the CHANGELOG.md entry, built into an asset) -->
+    <string name="whats_new_title">What\'s new in Taen %s</string>
+    <string name="whats_new_ok">OK</string>
     <string name="profiles_default_value">default</string>
     <string name="quick_emoji_key">Emoji key</string>
     <!-- Optional downloads (P22) -->

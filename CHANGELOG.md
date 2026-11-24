@@ -2,6 +2,13 @@
 
 ## 2.0.3
 
+- New: Vim mode (Settings > Preferences, off by default). An Esc key on the suggestion strip opens Normal mode, with motions, operators, text
+  objects, counts, registers, macros, marks, search and a command line. Esc brings the normal keyboard back.
+- Vim mode is not available in password fields or while the device is locked, and what it remembers stays in memory only.
+- New: the first time you open Taen's settings after an update, a box like this one shows what is new in that version, once.
+
+Details of the Vim mode:
+
 - New: Vim mode (Settings > Preferences, off by default). With it on, an Esc key appears on the suggestion strip. One tap opens
   Normal mode with its own keys (the Normal layout has more on long press): move with h l w b e W B E 0 ^ $ gg G f F t T ; , % { } ( ),
   type a count first (3w), and use d, c, y with a motion, a text object (iw aw, quotes, brackets over several lines, with counts) or twice

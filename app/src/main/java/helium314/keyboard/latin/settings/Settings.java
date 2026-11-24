@@ -223,7 +223,8 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
 
     public static final String PREF_VERSION_CODE = "version_code";
     public static final String PREF_SETUP_GUIDE_DONE = "setup_guide_done"; // 1.1.0: the first-run guide was shown (skipped or finished); a wipe of the settings brings it back
-    public static final String PREF_SAVE_SUBTYPE_PER_APP = "save_subtype_per_app";
+    public static final String PREF_WHATS_NEW_SHOWN = "whats_new_shown"; // 2.0.3: the version code of the "What's new" box that was shown last (one int; a wipe of the settings shows it again after an update)
+    public static final String PREF_SAVE_SUBTYPE_PER_APP ="save_subtype_per_app";
     public static final String PREF_SAVED_APP_SUBTYPE_PREFIX = "saved_app_subtype_";
 
     private Context mContext;

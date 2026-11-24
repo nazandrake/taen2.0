@@ -747,6 +747,8 @@
     <string name="guide_check_banking">"Някои банкови приложения работят само със системна клавиатура. Добавете плочката „Смяна на клавиатурата“ в бързите настройки, за да сменяте клавиатурата."</string>
     <string name="guide_skip">"Пропусни"</string>
     <string name="guide_done">"Готово"</string>
+    <string name="whats_new_title">"Какво е новото в Taen %s"</string>
+    <string name="whats_new_ok">"Добре"</string>
     <string name="profiles_default_value">"по подразбиране"</string>
     <string name="quick_emoji_key">"Клавиш за емотикони"</string>
     <string name="settings_screen_downloads">"Изтегляния"</string>

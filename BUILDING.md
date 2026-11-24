@@ -161,6 +161,10 @@ make leak-audit           # static leak checks and the planted-failure proofs (s
 make sign                 # dist/taen-2.0.3-signed.apk; no prompt: the password comes from the keyring or the file of make keystore-pass
 ```
 
+Before a release, `CHANGELOG.md` needs an entry `## <versionName>` whose first lines (up to the first blank line, 3 to 6 lines) say what is new in plain
+words: the app shows exactly those lines once in a "What's new" box (the build writes them into an asset, `taen.WhatsNew`; Markdown markers are removed).
+The release build fails without such an entry; put the details after a blank line.
+
 `make sign` reads the keystore password from the first of: the file named by `TAEN_KS_PASS_FILE`, `~/.config/taen/release.pass`, the desktop keyring
 (`secret-tool`, entry `service taen-release-keystore`). A password file must be a regular file of yours with mode 600, outside the repository, and
 is refused otherwise. The password is passed to `apksigner` as a file, never on a command line, and is never printed; a keyring answer is written to a
