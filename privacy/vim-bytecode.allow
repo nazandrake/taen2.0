@@ -14,10 +14,11 @@
 # OUT OF SCOPE. Reflection cannot be reached: java/lang/Class members, java/lang/reflect, kotlin/reflect and ClassLoader are denied, so a name
 # cannot be turned into a class. Code outside the package is reachable only through the classes allowed below, none of which opens a file,
 # a socket, a process or a log.
-# MESSAGES. No exception class of java.lang is listed: error(x), check, require and throw with a message (which inline to IllegalStateException
-# and IllegalArgumentException) are refused, so field or register text cannot reach a crash message and logcat through the package. The same
-# holds for the Kotlin members that throw with a caller-supplied message (listed by name below) and every kotlin/jvm/internal/Intrinsics member
-# but the three the compiler emits.
+# MESSAGES. No exception class of java.lang is listed, except the message-less constructor of java.lang.Exception for one class of the package
+# (VimEx.Stop, which carries a notice, an enum, and is always caught inside the ex command line that threw it): error(x), check, require and throw
+# with a message (which inline to IllegalStateException and IllegalArgumentException) are refused, so field or register text cannot reach a crash
+# message and logcat through the package. The same holds for the Kotlin members that throw with a caller-supplied message (listed by name below)
+# and every kotlin/jvm/internal/Intrinsics member but the three the compiler emits.
 # BOUNDARY CATCH. The lists below cannot name every library member that puts its input in an exception message (Integer.parseInt, Enum.valueOf,
 # a cast, ...), so they are defence in depth. The one boundary is the adapter outside the package: GuardedVimEngine (keyboard package) runs every
 # call into the engine, and so everything the engine calls or runs, inside one catch of Throwable (an Error from a failing object initializer
@@ -49,6 +50,8 @@ allow java/lang/CharSequence
 allow java/lang/Character
 allow java/lang/Enum
 allow java/lang/Integer
+# Long: the clock of the search and play limits (milliseconds) and the arithmetic of increments are values; nothing of it reads a system property
+allow java/lang/Long
 allow java/lang/Iterable
 allow java/lang/Math
 allow java/lang/NoSuchFieldError
@@ -74,8 +77,17 @@ allow java/lang/invoke/StringConcatFactory
 deny java/lang/invoke/StringConcatFactory.
 allow java/lang/invoke/StringConcatFactory.makeConcatWithConstants
 
+# the one exception class of the package: VimEx.Stop extends it through the constructor without a message, so that no text can be in it; every other member
+# (getMessage, printStackTrace, initCause, the constructors with a message or a cause...) stays denied
+allow java/lang/Exception
+deny java/lang/Exception.
+allow java/lang/Exception.<init>:()V
+
 # collections, locale and character boundaries: computation on values only
 allow java/util/ArrayList
+# the maps of registers and marks (keys are register and mark names, values are text held in memory) and copyOf of the arrays of the pattern matcher
+allow java/util/HashMap
+allow java/util/Arrays
 allow java/util/Collection
 allow java/util/Iterator
 allow java/util/List

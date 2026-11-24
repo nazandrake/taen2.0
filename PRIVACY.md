@@ -151,11 +151,24 @@ again just before the change; if it cannot be read, changed meanwhile or
 is selected, nothing happens and a short message says so. An edit is one text change: a failed cursor move after it leaves the edited
 text (Vim mode stops and says so), and a failed change leaves the field as it was. Vim mode is not available in password fields or while the device is locked.
 
-The one register (what `d`, `c`, `x`, `y` took, for `p` and `P`) is kept in memory only. It is never written to disk, never put on the
-system clipboard and never logged. It is filled only where clipboard history may keep a copy (not in a password field, a field that
-asks for no personalized learning, an app on your incognito list or while incognito is on), and it is forgotten when the screen locks,
-at a wipe, and whenever Vim mode is off (also after a restored backup or an applied profile). `p` and `P` insert like the clipboard paste key (no learning). Checks: `VimGoldenTest` (3 600
-cases whose results come from the real vim), `VimEngineTest`, `VimWindowTest`, `VimWiringTest`, `PrivacyPolicyTest`, a check of the
+Vim mode keeps some things so that its commands can use them again: the registers (`"a` to `"z`, `"0` to `"9`, `"-`, the last inserted
+text `".`, the last search `"/` and the last command line `":`), the macros (they are registers), the record of the last change that `.`
+repeats, the marks of the field, the search pattern and the histories of the command line and of searches. All of it is kept in memory
+only. It is never written to disk, never logged and never put on the system clipboard, except through the `"+` and `"*` registers,
+which are the system clipboard: `"+y` copies and `"+p` pastes through the same code as the copy key and the paste key (a copy keeps the
+sensitive flag of a password field, a paste of a number field takes only what the field accepts). Everything else is filled only where
+clipboard history may keep a copy (not in a password field, a field that asks for no personalized learning, an app on your incognito list
+or while incognito is on): there a command still does its work, but nothing is remembered and a recording stops. All of it is forgotten
+when the screen locks, at a wipe, and whenever Vim mode is off (also after a restored backup or an applied profile); marks also go with
+the field, and are dropped when the text was changed by anything but Vim mode. A register, a macro and the command line each hold at most
+20 000 characters, a macro at most 2 000 keys, a play of keys (a macro, a repeat, `:normal`, `:global`) at most 20 000 keys and 2.5
+seconds, and every search, pattern and `:substitute` at most 3 million steps and 0.4 seconds, so that nothing a user types or a pattern
+copied from elsewhere can hang the keyboard; at a limit the command stops, says so and, for a search or an ex command, changes nothing.
+The command line (`:`, `/`, `?`) is typed on the keyboard's own layout, into the engine only: its text is never put into the field, never
+learned or suggested, and a swipe or a tapped suggestion is dropped while it is open. A macro, a repeat or an ex command that changes
+the text is run on a copy of the text and written to the field as one text change. `p` and `P` insert like the clipboard paste key (no
+learning). Checks: `VimGoldenTest` (21 000 cases whose results come from the real vim), `VimEngineTest`, `VimEngineV2Test` (bounds,
+privacy, one change per command), `VimRegexTest`, `VimWindowTest`, `VimWiringTest`, `PrivacyPolicyTest`, a check of the
 compiled classes of the vim package against an allow list (every class of the package, whatever produced it, Kotlin or Java; it may refer
 only to plain Kotlin, its own package, a few value types and collections of Java and two pure text classes: no Android, file, network,
 clipboard, log, process, thread, reflection, preference or storage class, however the name is written, and no exception message; a type signature that does not parse completely fails the check), a catch at the

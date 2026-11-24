@@ -29,8 +29,10 @@ import helium314.keyboard.latin.vim.VimWindow
  * The adapter of the Vim layer (helium314.keyboard.latin.vim) to the keyboard: it reads and edits the field through the input
  * connection (no typing path, so nothing is learned), shows the Normal and Visual layouts and the mode line, and shows the
  * notices. [sendCode] presses a key code of the keyboard (cursor keys, undo, redo). Settings and the privacy decision are asked
- * for at every key, nothing is cached; the engine's register lives in memory only and is cleared at the screen lock and wipe
- * ([Privacy.onLock]) and when the setting is turned off.
+ * for at every key, nothing is cached; everything the engine remembers (registers, macros, marks, search and command history) lives in memory
+ * only and is cleared at the screen lock and wipe ([Privacy.onLock]) and when the setting is turned off. The system clipboard (the + and *
+ * registers) is reached only through the keyboard's own paste and copy owners ([ClipboardHistoryManager.getPrimaryClipIfText] and
+ * [RichInputConnection.copyToClipboard]); the command line (:, / and ?) is typed on the keyboard's own layout and goes to the engine, never to the field.
  */
 class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogic, private val sendCode: (Int) -> Unit) {
     private val connection = inputLogic.mConnection
@@ -87,6 +89,15 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
         }
 
         override fun history(redo: Boolean) = sendCode(if (redo) KeyCode.REDO else KeyCode.UNDO)
+
+        // the + and * registers: the paste owner (what the paste key commits: text only, filtered for number fields) and the copy owner
+        override fun clipboardRead(): String? {
+            val attributes = settings.current.mInputAttributes
+            val text = latinIME.clipboardHistoryManager.getPrimaryClipIfText() ?: return null
+            return FieldText.forField(text, attributes.mInputType, attributes.mDecimalSeparator).takeIf { it.isNotEmpty() }
+        }
+
+        override fun clipboardWrite(text: String): Boolean = connection.copyToClipboard(text)
     }
 
     private val rules = object : VimRules {
@@ -100,6 +111,10 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
             val multiLine = inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_TEXT && inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
             return (multiLine || '\n' !in text) && FieldText.forField(text, inputType, attributes.mDecimalSeparator) == text
         }
+
+        override fun nowMillis(): Long = android.os.SystemClock.elapsedRealtime()
+
+        override fun indentWithTab() = settings.current.mVimIndentTab
     }
 
     // every call into the engine goes through the guard: an exception of the engine is dropped unread, never reaches the crash handler and its log (the field text can be in the message)
@@ -114,8 +129,8 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
     private var listener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
     init {
-        Privacy.onLock("vim") { // the register is forgotten at the screen lock and at a wipe (Privacy.beginWipe runs these hooks too)
-            engine.clearRegister()
+        Privacy.onLock("vim") { // everything the layer remembers is forgotten at the screen lock and at a wipe (Privacy.beginWipe runs these hooks too)
+            engine.clearMemory()
             leave() // Vim is not available while the device is locked (PrivacyPolicy): no Vim layout is left on the screen
         }
     }
@@ -132,12 +147,40 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
     }
 
     /**
-     * Gives [code] to the Vim layer when it is a key of the Normal or Visual layout, or the character that f, F, t, T or r wait for.
-     * Returns true when the key is used up: a key of a Vim layout is never typed.
+     * True while the keyboard is asked for a character or a command line: what is typed, swiped or tapped as a suggestion then belongs to the Vim
+     * layer (or is dropped), never to the field.
      */
-    fun consumes(code: Int): Boolean {
+    fun capturesTyping(): Boolean = engine.wantsChar
+
+    private fun available() = rules.available()
+
+    /**
+     * Gives [code] to the Vim layer when it is a key of the Normal or Visual layout, the character that f, t, r, a register name, a mark or q ask for,
+     * a key of the command line, or a Ctrl key of insert mode ([ctrl]: Ctrl is held; r, w, u, h and o). Returns true when the key is used up: a key of
+     * a Vim layout is never typed, and a command line is never typed into the field.
+     */
+    fun consumes(code: Int, ctrl: Boolean = false): Boolean {
         val onVimLayout = isVimLayout()
+        if (engine.cmdline != null) return commandLineKey(code)
         if (engine.mode == VimMode.INSERT) {
+            if (engine.wantsChar && code > 0) { // the register after Ctrl-R
+                after(engine.key(code))
+                return true
+            }
+            if (ctrl && available() && code > 0) {
+                val control = when (code.toChar().lowercaseChar()) {
+                    'r' -> VimEngine.CTRL_R
+                    'w' -> VimEngine.CTRL_W
+                    'u' -> VimEngine.CTRL_U
+                    'h' -> VimEngine.CTRL_H
+                    'o' -> VimEngine.CTRL_O
+                    else -> 0
+                }
+                if (control != 0) {
+                    after(engine.key(control))
+                    return true
+                }
+            }
             if (!onVimLayout) return false
             after(VimOutcome()) // a Vim layout that the engine does not know (restored after a rotation): back to typing, the key is dropped
             return true
@@ -152,6 +195,32 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
         }
         if (code <= 0) return false // toolbar and function keys work as always
         after(engine.key(code))
+        return true
+    }
+
+    /** A key typed while the command line is open: letters and symbols join the line, Enter runs it, Backspace edits it, up and down walk its history. */
+    private fun commandLineKey(code: Int): Boolean {
+        val key = when {
+            code == KeyCode.DELETE -> VimEngine.BACKSPACE
+            code == Constants.CODE_ENTER -> VimEngine.ENTER
+            code == KeyCode.ARROW_UP -> VimEngine.HISTORY_PREVIOUS
+            code == KeyCode.ARROW_DOWN -> VimEngine.HISTORY_NEXT
+            code > 0 -> code
+            else -> return false // layout and function keys (the symbols page, shift) work as always
+        }
+        after(engine.key(key))
+        return true
+    }
+
+    /** Text from a key that types several characters, an emoji or a swipe word: while a character or a command line is asked for, it goes to the engine. */
+    fun consumesText(text: String?): Boolean {
+        if (text == null || !capturesTyping()) return false
+        var i = 0
+        while (i < text.length && engine.wantsChar) {
+            val cp = text.codePointAt(i)
+            i += Character.charCount(cp)
+            after(engine.key(cp))
+        }
         return true
     }
 
@@ -173,10 +242,11 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
     private fun isVimLayout(): Boolean = switcher.keyboard?.mId?.element.let { it == KeyboardElement.VIM_NORMAL || it == KeyboardElement.VIM_VISUAL }
 
     private fun after(outcome: VimOutcome) {
-        outcome.notice?.let { switcher.showToast(noticeText(it), true) }
+        val shown = outcome.message ?: outcome.notice?.let { noticeText(it) }
+        shown?.let { switcher.showToast(it, true) }
         inputLogic.setVimActive(engine.mode != VimMode.INSERT)
         val wanted = when {
-            engine.mode == VimMode.INSERT || engine.wantsChar -> null // the typing keyboard (a character is typed for f, t, r)
+            engine.mode == VimMode.INSERT || engine.wantsChar -> null // the typing keyboard (a character is typed for f, t, r; the command line is typed too)
             engine.mode == VimMode.NORMAL -> KeyboardElement.VIM_NORMAL
             else -> KeyboardElement.VIM_VISUAL
         }
@@ -187,17 +257,25 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
         } else if (current != wanted) {
             switcher.showVimLayout(wanted)
         }
-        switcher.setVimStatus(if (engine.mode == VimMode.INSERT) null else statusText())
+        val line = engine.cmdline
+        switcher.setVimStatus(when {
+            line != null -> "$line▏" // the command line, with a cursor
+            engine.mode == VimMode.INSERT && engine.recordingRegister == null -> null
+            else -> statusText()
+        })
     }
 
     private fun statusText(): String {
         val mode = latinIME.getString(when (engine.mode) {
             VimMode.VISUAL -> R.string.vim_visual
             VimMode.VISUAL_LINE -> R.string.vim_visual_line
+            VimMode.VISUAL_BLOCK -> R.string.vim_visual_block
+            VimMode.INSERT -> R.string.vim_insert
             else -> R.string.vim_normal
         })
         val pending = engine.pending
-        return if (pending.isEmpty()) mode else "$mode  $pending"
+        val recording = engine.recordingRegister?.let { latinIME.getString(R.string.vim_recording, it.toString()) }
+        return listOfNotNull(mode, pending.takeIf { it.isNotEmpty() }, recording).joinToString("  ")
     }
 
     private fun noticeText(n: VimNotice): String = latinIME.getString(when (n) {
@@ -210,18 +288,36 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
         VimNotice.NOT_ACCEPTED -> R.string.vim_not_accepted
         VimNotice.REGISTER_OFF -> R.string.vim_register_off
         VimNotice.REGISTER_EMPTY -> R.string.vim_register_empty
+        VimNotice.REGISTER_FULL -> R.string.vim_register_full
+        VimNotice.CLIPBOARD_EMPTY -> R.string.vim_clipboard_empty
+        VimNotice.CLIPBOARD_REFUSED -> R.string.vim_clipboard_refused
+        VimNotice.MARK_NOT_SET -> R.string.vim_mark_not_set
+        VimNotice.MARK_INVALID -> R.string.vim_mark_invalid
+        VimNotice.NO_PATTERN -> R.string.vim_no_pattern
+        VimNotice.NOT_FOUND -> R.string.vim_not_found
+        VimNotice.PATTERN_UNSUPPORTED -> R.string.vim_pattern_unsupported
+        VimNotice.SEARCH_LIMIT -> R.string.vim_search_limit
+        VimNotice.PLAY_LIMIT -> R.string.vim_play_limit
+        VimNotice.NOTHING_TO_REPEAT -> R.string.vim_nothing_to_repeat
+        VimNotice.NOT_REPEATABLE -> R.string.vim_not_repeatable
+        VimNotice.RECORDING_DROPPED -> R.string.vim_recording_dropped
+        VimNotice.CANNOT_SAVE -> R.string.vim_cannot_save
+        VimNotice.NO_HIGHLIGHT -> R.string.vim_no_highlight
+        VimNotice.EX_ERROR -> R.string.vim_ex_error
+        VimNotice.SCREEN_COMMAND -> R.string.vim_screen_command
+        VimNotice.UNDO_IN_PLAY -> R.string.vim_undo_in_play
     })
 
     /**
-     * The register and the Vim layouts follow the value of the setting, not one key name: a change of any key, clear() (key == null), a restored
-     * backup and an applied profile all call this, and while the value is off the register is empty and the layouts are left.
+     * The memory of the layer and the Vim layouts follow the value of the setting, not one key name: a change of any key, clear() (key == null), a restored
+     * backup and an applied profile all call this, and while the value is off everything is forgotten and the layouts are left.
      */
     private fun watchSetting() {
         if (listener != null) return
         val prefs = latinIME.prefs()
         val l = SharedPreferences.OnSharedPreferenceChangeListener { p, _ ->
             if (!p.getBoolean(Settings.PREF_VIM_MODE, Defaults.PREF_VIM_MODE)) {
-                engine.clearRegister()
+                engine.clearMemory()
                 leave()
             }
         }

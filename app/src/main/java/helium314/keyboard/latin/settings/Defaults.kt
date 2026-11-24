@@ -80,6 +80,7 @@ object Defaults {
     const val PREF_KEY_USE_DOUBLE_SPACE_PERIOD = true
     const val PREF_SMART_QUOTES = true
     const val PREF_VIM_MODE = false
+    const val PREF_VIM_INDENT_TAB = false
     const val PREF_VOICE_TYPING = true
     const val PREF_NEXTWORD_MODEL = true
     const val PREF_MEDIA_STARTER_PACK = false

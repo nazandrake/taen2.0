@@ -7,9 +7,10 @@ internal enum class MType { EXCL, INCL, LINE }
 /**
  * The result of a motion from a cursor: the new cursor [pos], how an operator reads the range, and [cancels] when an operator
  * pending with this motion does nothing at all (Vim beeps). A pure cursor motion that [cancels] still moves to [pos] (Vim moves
- * as far as it can, "5w" with two words left goes to the last one).
+ * as far as it can, "5w" with two words left goes to the last one). [jump] marks a motion that sets the context mark (the position
+ * before the jump, for `` and ''), [big] a motion whose delete goes to register 1 even inside one line (Vim's use_reg_one).
  */
-internal class Mv(val pos: Int, val type: MType, val cancels: Boolean = false)
+internal class Mv(val pos: Int, val type: MType, val cancels: Boolean = false, val jump: Boolean = false, val big: Boolean = false, val notice: VimNotice? = null)
 
 /**
  * The motions of the Vim layer, ported from Vim's own motion code (cursor_up/down, nv_left/right, fwd_word, bck_word, end_word,
@@ -17,7 +18,7 @@ internal class Mv(val pos: Int, val type: MType, val cancels: Boolean = false)
  */
 internal object VimMotions {
     /** A cursor that steps like Vim's inc/dec: it can stand on the end of a line and it crosses line breaks. */
-    private class Cur(val b: VimBuf, var pos: Int, val big: Boolean) {
+    internal class Cur(val b: VimBuf, var pos: Int, val big: Boolean) {
         /** 0 moved within the line, 2 moved onto the end of the line, 1 moved to the next line, -1 at the end of the text. */
         fun inc(): Int {
             val end = b.lineEnd(pos)
@@ -46,6 +47,35 @@ internal object VimMotions {
             return -1
         }
 
+        /** inc() that does not stand on the end of a line: -1 at the end of the text. */
+        fun incl(): Int {
+            var r = inc()
+            if (r >= 1 && pos != b.lineStart(pos)) r = inc()
+            return r
+        }
+
+        /** dec() that does not stand on the end of a line (an empty line is a place). */
+        fun decl(): Int {
+            var r = dec()
+            if (r == 1 && pos != b.lineStart(pos)) r = dec()
+            return r
+        }
+
+        fun oneLeft(): Boolean {
+            if (pos <= b.lineStart(pos)) return false
+            pos = b.prev(pos)
+            return true
+        }
+
+        /** Back to the start of the word or of the white space the cursor is in, within the line. */
+        fun backInLine() {
+            val sclass = cls()
+            while (pos > b.lineStart(pos)) {
+                pos = b.prev(pos)
+                if (cls() != sclass) { pos = b.next(pos); break }
+            }
+        }
+
         fun cls(): Int = if (pos >= b.lineEnd(pos)) 0 else VimBuf.classOf(b.codePointAt(pos), big)
 
         fun onEmptyLine() = pos == b.lineStart(pos) && b.lineEnd(pos) == pos
@@ -57,7 +87,7 @@ internal object VimMotions {
         }
     }
 
-    private fun fwdWord(c: Cur, count: Int, eol: Boolean): Boolean {
+    internal fun fwdWord(c: Cur, count: Int, eol: Boolean): Boolean {
         var left = count
         while (--left >= 0) {
             val sclass = c.cls()
@@ -100,7 +130,7 @@ internal object VimMotions {
         return true
     }
 
-    private fun endWord(c: Cur, count: Int, stopFirst: Boolean, empty: Boolean): Boolean {
+    internal fun endWord(c: Cur, count: Int, stopFirst: Boolean, empty: Boolean): Boolean {
         var left = count
         var stop = stopFirst
         while (--left >= 0) {
@@ -236,5 +266,142 @@ internal object VimMotions {
         }
         if (till) pos = if (forward) b.prev(pos) else b.next(pos)
         return Mv(pos, if (forward) MType.INCL else MType.EXCL)
+    }
+
+    // ---- jumps: %, paragraphs, sentences -------------------------------------------------------------------------------------
+
+    private const val BRACKETS = "(){}[]"
+
+    private fun escaped(b: VimBuf, i: Int): Boolean {
+        var n = 0
+        var k = i - 1
+        while (k >= 0 && b.text[k] == '\\') { n++; k-- }
+        return n % 2 == 1
+    }
+
+    /**
+     * The bracket that matches the one at [open] ([fwd]: it is an opening one), by nesting; a bracket with a backslash before it only matches
+     * another that has one (the start bracket decides), as Vim does without "M" in 'cpoptions'. Quotes are not looked at. -1: none.
+     */
+    fun findMatching(b: VimBuf, start: Int, open: Char, close: Char, fwd: Boolean, wantEscaped: Boolean): Int {
+        var depth = 0
+        var i = start
+        while (true) {
+            i = if (fwd) i + 1 else i - 1
+            if (i < 0 || i >= b.length) return -1
+            val ch = b.text[i]
+            if (ch != open && ch != close) continue
+            if (escaped(b, i) != wantEscaped) continue
+            if (ch == (if (fwd) open else close)) depth++
+            else if (depth == 0) return i
+            else depth--
+        }
+    }
+
+    /** `%`: the first of ( ) { } [ ] at or after the cursor in its line, and its match. */
+    fun matchPair(b: VimBuf, from: Int): Mv {
+        val end = b.lineEnd(from)
+        var i = from
+        while (i < end && BRACKETS.indexOf(b.text[i]) < 0) i++
+        if (i >= end) return Mv(from, MType.INCL, cancels = true, jump = true, big = true)
+        val ch = b.text[i]
+        val k = BRACKETS.indexOf(ch)
+        val opening = k % 2 == 0
+        val other = BRACKETS[if (opening) k + 1 else k - 1]
+        val at = findMatching(b, i, if (opening) ch else other, if (opening) other else ch, opening, escaped(b, i))
+        return if (at < 0) Mv(from, MType.INCL, cancels = true, jump = true, big = true) else Mv(at, MType.INCL, jump = true, big = true)
+    }
+
+    private fun startsParagraph(b: VimBuf, ls: Int): Boolean = b.lineEnd(ls) == ls || b.text[ls] == '\u000c'
+
+    /** `{` and `}`: to the next (or previous) empty line, or the end of the text. */
+    fun paragraph(b: VimBuf, from: Int, count: Int, forward: Boolean): Mv {
+        var ls = b.lineStart(from)
+        var left = count
+        while (left > 0) {
+            left--
+            var didSkip = false
+            var first = true
+            while (true) {
+                if (b.lineEnd(ls) > ls) didSkip = true
+                if (!first && didSkip && startsParagraph(b, ls)) break
+                val nl = if (forward) (if (b.lineEnd(ls) >= b.length) -1 else b.lineEnd(ls) + 1) else (if (ls == 0) -1 else b.lineStart(ls - 1))
+                if (nl < 0) {
+                    if (left > 0) return Mv(from, MType.EXCL, cancels = true, jump = true, big = true)
+                    break
+                }
+                ls = nl
+                first = false
+            }
+        }
+        if (forward && b.lineEnd(ls) >= b.length) {
+            val end = b.lineEnd(ls)
+            if (end != ls) return Mv(b.prev(end), MType.INCL, jump = true, big = true)
+        }
+        return Mv(ls, MType.EXCL, jump = true, big = true)
+    }
+
+    /** `(` and `)`: Vim's findsent. */
+    fun sentence(b: VimBuf, from: Int, count: Int, forward: Boolean): Mv {
+        val c = Cur(b, from, false)
+        fun ch(p: Int): Char = if (p >= b.length || p >= b.lineEnd(p)) '\u0000' else b.text[p]
+        fun step(): Int = if (forward) c.incl() else c.decl()
+        fun white(x: Char) = x == ' ' || x == '\t'
+        var left = count
+        while (left > 0) {
+            left--
+            var noskip = false
+            var found = false
+            if (ch(c.pos) == '\u0000') {
+                do { if (step() == -1) break } while (ch(c.pos) == '\u0000')
+                if (forward) found = true
+            } else if (forward && c.pos == b.lineStart(c.pos) && startsParagraph(b, c.pos)) {
+                if (b.isLastLine(c.pos)) return Mv(from, MType.EXCL, cancels = true, jump = true, big = true)
+                c.pos = b.lineEnd(c.pos) + 1
+                found = true
+            } else if (!forward) c.decl()
+            if (!found) {
+                var foundDot = false
+                while (true) {
+                    val x = ch(c.pos)
+                    if (!(white(x) || ".!?)]\"'".indexOf(x) >= 0 && x != '\u0000')) break
+                    val t = Cur(b, c.pos, false)
+                    if (t.decl() == -1 || (b.isEmptyLine(t.pos) && forward)) break
+                    if (foundDot) break
+                    if (".!?".indexOf(x) >= 0) foundDot = true
+                    if (")]\"'".indexOf(x) >= 0 && ".!?)]\"'".indexOf(ch(t.pos)).let { it < 0 || ch(t.pos) == '\u0000' }) break
+                    c.decl()
+                }
+                val startLine = b.lineStart(c.pos)
+                while (true) {
+                    val x = ch(c.pos)
+                    if (x == '\u0000' || (c.pos == b.lineStart(c.pos) && startsParagraph(b, c.pos))) {
+                        if (!forward && b.lineStart(c.pos) != startLine) c.pos = b.lineEnd(c.pos) + 1
+                        break
+                    }
+                    if (x == '.' || x == '!' || x == '?') {
+                        val t = Cur(b, c.pos, false)
+                        var y: Char
+                        var r: Int
+                        do {
+                            r = t.inc()
+                            y = ch(t.pos)
+                        } while (r != -1 && ")]\"'".indexOf(y) >= 0 && y != '\u0000')
+                        if (r == -1 || white(y) || y == '\u0000') {
+                            c.pos = t.pos
+                            if (ch(c.pos) == '\u0000') c.inc()
+                            break
+                        }
+                    }
+                    if (step() == -1) {
+                        if (left > 0) return Mv(from, MType.EXCL, cancels = true, jump = true, big = true)
+                        noskip = true
+                        break
+                    }
+                }
+            }
+            while (!noskip && white(ch(c.pos))) if (c.incl() == -1) break
+        }
+        return Mv(c.pos, MType.EXCL, jump = true, big = true)
     }
 }

@@ -190,7 +190,10 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         }
         if (Settings.getValues().mIsLocked && KeyCode.isIsBlockedWhenLocked(primaryCode))
             return
-        if (vim.consumes(primaryCode)) return // after the lock block: no Vim key is used while the device is locked
+        if (vim.consumes(primaryCode, metaState and KeyEvent.META_CTRL_ON != 0)) { // after the lock block: no Vim key is used while the device is locked
+            if (metaState != 0) metaAfterCodeInput(primaryCode) // a Ctrl that was held for a Vim insert key is used up
+            return
+        }
         if (multiCursor.isActive && typeIntoCursors(primaryCode)) return
         val mkv = keyboardSwitcher.mainKeyboardView
 
@@ -205,15 +208,17 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onTextInput(text: String?) {
+        if (vim.consumesText(text)) return // a character or a command line is being typed for the Vim layer: not into the field
         if (text != null && multiCursor.isActive) return showNavigationResult(multiCursor.type(text))
         latinIME.onTextInput(text)
     }
 
-    override fun onStartBatchInput() = latinIME.onStartBatchInput()
+    // a swipe while the Vim layer asks for a character or a command line would type a word into the field: it is dropped
+    override fun onStartBatchInput() { if (!vim.capturesTyping()) latinIME.onStartBatchInput() }
 
-    override fun onUpdateBatchInput(batchPointers: InputPointers?) = latinIME.onUpdateBatchInput(batchPointers)
+    override fun onUpdateBatchInput(batchPointers: InputPointers?) { if (!vim.capturesTyping()) latinIME.onUpdateBatchInput(batchPointers) }
 
-    override fun onEndBatchInput(batchPointers: InputPointers?) = latinIME.onEndBatchInput(batchPointers)
+    override fun onEndBatchInput(batchPointers: InputPointers?) { if (!vim.capturesTyping()) latinIME.onEndBatchInput(batchPointers) }
 
     override fun onCancelBatchInput() = latinIME.onCancelBatchInput()
 

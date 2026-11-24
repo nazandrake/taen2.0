@@ -1371,7 +1371,7 @@ New dictionary:
     <!-- Vim mode: Normal and Visual mode on the keyboard -->
     <string name="vim" tools:keep="@string/vim">Vim Esc (Normal mode)</string>
     <string name="vim_mode">Vim mode</string>
-    <string name="vim_mode_summary">The Esc key on the strip opens Normal mode with its own keys: h l w b e 0 $ f t, d c y x p, v, counts and more. Not in password fields.</string>
+    <string name="vim_mode_summary">The Esc key on the strip opens Normal mode with its own keys: motions, operators, counts, registers, marks, macros, search, ex commands and Visual block. Not in password fields.</string>
     <string name="vim_normal">NORMAL</string>
     <string name="vim_visual">VISUAL</string>
     <string name="vim_visual_line">V-LINE</string>
@@ -1386,5 +1386,28 @@ New dictionary:
     <string name="vim_not_accepted">This field does not take that text</string>
     <string name="vim_register_off">Nothing is kept for pasting in this field</string>
     <string name="vim_register_empty">Nothing to paste</string>
+    <string name="vim_visual_block">V-BLOCK (the field shows its span)</string>
+    <string name="vim_insert">INSERT</string>
+    <string name="vim_recording">recording @%1$s</string>
+    <string name="vim_register_full">A register holds at most 20 000 characters</string>
+    <string name="vim_clipboard_empty">No text on the clipboard</string>
+    <string name="vim_clipboard_refused">The clipboard did not take the text</string>
+    <string name="vim_mark_not_set">Mark not set</string>
+    <string name="vim_mark_invalid">The text changed: the marks are gone</string>
+    <string name="vim_no_pattern">No earlier search</string>
+    <string name="vim_not_found">Pattern not found</string>
+    <string name="vim_pattern_unsupported">This pattern is not supported here</string>
+    <string name="vim_search_limit">Too big or too slow: nothing was changed</string>
+    <string name="vim_play_limit">Stopped at the limit of keys or time</string>
+    <string name="vim_nothing_to_repeat">Nothing to repeat</string>
+    <string name="vim_not_repeatable">The last change cannot be repeated</string>
+    <string name="vim_recording_dropped">Recording dropped (too long, or not allowed here)</string>
+    <string name="vim_cannot_save">A keyboard cannot save or quit</string>
+    <string name="vim_no_highlight">Nothing is highlighted in a field</string>
+    <string name="vim_ex_error">Not a valid command or range</string>
+    <string name="vim_screen_command">Screen commands are not offered</string>
+    <string name="vim_undo_in_play">Undo cannot run inside a macro or a command</string>
+    <string name="vim_indent_tab">Vim indent with a tab</string>
+    <string name="vim_indent_tab_summary">The Vim commands &gt; and &lt; indent with a tab instead of four spaces.</string>
     <string name="vim_failed">Vim mode stopped because of an error: back to typing</string>
 </resources>

@@ -38,7 +38,11 @@ internal class GuardedVimEngine(private val engine: VimEngine, private val onFai
 
     val pending: String get() = guarded("") { engine.pending }
 
-    fun clearRegister() = guarded(Unit) { engine.clearRegister() }
+    val cmdline: String? get() = guarded(null) { engine.cmdline }
+
+    val recordingRegister: Char? get() = guarded(null) { engine.recordingRegister }
+
+    fun clearMemory() = guarded(Unit) { engine.clearMemory() }
 
     fun reset() = guarded(Unit) { engine.reset() }
 

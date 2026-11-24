@@ -821,7 +821,15 @@ public final class RichInputConnection implements PrivateCommandPerformer {
             if (et == null) return;
             text = et.text;
         }
-        if (text == null || text.length() == 0) return;
+        copyToClipboard(text);
+    }
+
+    /**
+     * The one place where a copy puts text on the clipboard: the copy keys and the Vim "+ and "* registers use it, so that the same rules hold
+     * (a copy made in a password field is flagged sensitive: the system hides it and the history never takes it). False when there is nothing to copy.
+     */
+    public boolean copyToClipboard(@Nullable final CharSequence text) {
+        if (text == null || text.length() == 0) return false;
         final ClipboardManager cm = (ClipboardManager) mParent.getSystemService(Context.CLIPBOARD_SERVICE);
         final ClipData clip = ClipData.newPlainText("copied text", text);
         if (Settings.getValues().mPrivacy.getSensitiveCopy()) { // a copy made in a password field (PrivacyPolicy): the system hides it, the history never takes it
@@ -833,6 +841,7 @@ public final class RichInputConnection implements PrivateCommandPerformer {
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
             KeyboardSwitcher.getInstance().showToast(mParent.getString(R.string.toast_msg_clipboard_copy), true);
         }
+        return true;
     }
 
     public void commitCorrection(final CorrectionInfo correctionInfo) {

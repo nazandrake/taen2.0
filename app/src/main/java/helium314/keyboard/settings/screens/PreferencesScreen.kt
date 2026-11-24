@@ -83,6 +83,7 @@ fun PreferencesScreen(
         Settings.PREF_EMOJI_HOLD,
         Settings.PREF_SHOW_DPAD_KEY,
         Settings.PREF_VIM_MODE,
+        Settings.PREF_VIM_INDENT_TAB,
         Settings.PREF_REMOVE_REDUNDANT_POPUPS,
         R.string.settings_category_clipboard_history,
         Settings.PREF_ENABLE_CLIPBOARD_HISTORY,
@@ -191,6 +192,9 @@ fun createPreferencesSettings(context: Context) = listOf(
     },
     Setting(context, Settings.PREF_VIM_MODE, R.string.vim_mode, R.string.vim_mode_summary) {
         SwitchPreference(it, Defaults.PREF_VIM_MODE) { KeyboardSwitcher.getInstance().reloadKeyboard() }
+    },
+    Setting(context, Settings.PREF_VIM_INDENT_TAB, R.string.vim_indent_tab, R.string.vim_indent_tab_summary) {
+        SwitchPreference(it, Defaults.PREF_VIM_INDENT_TAB)
     },
     Setting(context, Settings.PREF_REMOVE_REDUNDANT_POPUPS,
         R.string.remove_redundant_popups, R.string.remove_redundant_popups_summary)

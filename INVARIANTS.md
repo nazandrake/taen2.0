@@ -109,7 +109,7 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   no file, network, clipboard, log or preference class (SourceRules). Tests: `SpaceSwipe2DTest`, `SpaceSelectionTest`,
   `MultiCursorTest`, `NavigationWiringTest`.
 
-- **Vim mode.** The `helium314.keyboard.latin.vim` package (`VimEngine`, `VimMotions`, `VimObjects`, `VimBuf`) is pure Kotlin behind
+- **Vim mode.** The `helium314.keyboard.latin.vim` package (`VimEngine`, `VimMotions`, `VimObjects`, `VimBuf`, `VimRegex`, `VimEx`, `VimOps`, `VimBlock`, `VimMarks`, `VimRegisters`, `VimSearch`) is pure Kotlin behind
   the narrow `VimPort` and `VimRules` interfaces; `VimInput` (keyboard package) is its one adapter. The keys of the Normal and Visual
   layouts never reach the typing path (`KeyboardActionListenerImpl.onCodeInput` gives them to `VimInput.consumes` first: no learning,
   suggestions, auto-correct, recents or trigger word check; `InputLogic.setVimActive` stops word resume and suggestions). Every edit
@@ -120,10 +120,22 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   just before the edit: text or selection changed, text unreadable, partial or too long, text selected in Normal mode, a field that does
   not take the inserted text: nothing is done and a notice is shown; a range is never widened. Only pure cursor motions fall back to
   cursor keys when the text cannot be read. `PrivacyPolicy.Decision.vimMode` (no password field, not while the device is locked: the Esc key is
-  hidden and no Vim key is used then) is the only place that decides availability. The one unnamed register is a String in memory, filled
-  only while `Decision.storeClipboard` holds (the clipboard capture rule), never put on the system clipboard, never stored or logged,
-  cleared at `Privacy.lock` and wipe and whenever the value of the setting is off (a change of any key, `clear()`, a restored backup, an
-  applied profile); `p` and `P` insert through the connection's `commitText` (the history paste path) and, as that path, also work in a
+  hidden and no Vim key is used then) is the only place that decides availability. What the layer remembers (registers `a-z`, `0-9`, `-`, `.`,
+  `/`, `:`, macros, the `.` record, marks, the search pattern, the command and search histories) is in memory only (`VimRegisters`,
+  `VimMarks`, fields of `VimEngine`), filled only while `Decision.storeClipboard` holds (the clipboard capture rule, `VimEngine.captureOk`
+  is its one use; recording is dropped at the next key where it does not hold), never stored or logged, cleared by `VimEngine.clearMemory`
+  at `Privacy.lock` and wipe and whenever the value of the setting is off (a change of any key, `clear()`, a restored backup, an applied
+  profile); marks also by `reset()` (a field ends) and when the text is not the text they were set in. `"+` and `"*` are the system
+  clipboard only through `VimPort.clipboardRead` (the paste owner `ClipboardHistoryManager.getPrimaryClipIfText` with `FieldText.forField`) and
+  `clipboardWrite` (`RichInputConnection.copyToClipboard`, the one copy owner of the copy keys), never kept unless the capture rule holds.
+  Bounds: a register 20 000 characters, a macro 2 000 keys, one play 20 000 keys and 2.5 s (nested plays go through one queue, no recursion), a
+  command line 1 000 characters, 50 history entries, a search or substitute 3 000 000 steps and 0.4 s, a pattern program 6 000 instructions
+  and repeats of 1 000 (`VimRegex`: a thread-list matcher without backtracking, so a pattern cannot take exponential time or overflow the stack).
+  A command is one text change: a macro, `.`, `:normal`, `:global` and every ex command line run on a copy of the text (`MemPort`) and the
+  difference is written once, after the field was read again and found as it was. The command line is typed into the engine only (`VimInput.consumes`
+  gives every key to it while it is open; `consumesText` and the batch-input callbacks of `KeyboardActionListenerImpl` keep swipes and multi-character
+  keys out of the field); Ctrl-R, Ctrl-W, Ctrl-U, Ctrl-H and Ctrl-O of insert mode come from the Ctrl key (`consumes(code, ctrl)`) and act through the
+  same connection. `p` and `P` insert through the connection's `commitText` (the history paste path) and, as that path, also work in a
   no-learning or incognito field. The selection is ordered once in `VimWindow.read` (it may run backwards). The vim package is checked
   on its COMPILED classes (`VimBytecode`, task `vimBytecodeRelease`, part of `privacyCheck` and `assembleRelease`; it reads the output of
   the Kotlin compiler and of javac, before R8, and fails when a class of the package is in any other compiled output of the program, a
@@ -136,10 +148,10 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   `net`, `android`, `System`, `Runtime`, `Process`, `Thread`, `ClassLoader`, `Class` member or reflection. Backticks, a typealias, an
   import alias, a full name or an inlined library call compile to the same references, so the spelling cannot hide one. The source
   rule in SourceRules (backticks stripped) is only an early lint of the same package. The package puts no field or register text in an
-  exception message (it throws none; the compiler's parameter checks name parameters). The release dex denies `java.lang.ProcessBuilder`
+  exception message (its one exception class, `VimEx.Stop`, is thrown without a message and caught inside the ex command that threw it; the compiler's parameter checks name parameters). The release dex denies `java.lang.ProcessBuilder`
   and `java.lang.Process` (what `Runtime.exec` returns, `privacy/dex-rules.txt`). Expected values of the engine tests are Vim's own
   (`tools/gen-vim-golden.py` runs `vim -u NONE -N -es` and writes `app/src/test/resources/vim/golden.jsonl`). Tests: `VimBasicTest`,
-  `VimGoldenTest`, `VimEngineTest`, `VimWindowTest`, `VimWiringTest`, `PrivacyPolicyTest`, `SourceRulesTest`, `VimBytecodeTest`.
+  `VimGoldenTest`, `VimEngineTest`, `VimEngineV2Test`, `VimRegexTest`, `VimWindowTest`, `VimWiringTest`, `PrivacyPolicyTest`, `SourceRulesTest`, `VimBytecodeTest`.
 
 ## App lock and self-destruct
 

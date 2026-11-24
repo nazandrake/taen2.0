@@ -856,7 +856,7 @@
     <!-- Vim mode: Normal and Visual mode on the keyboard -->
     <string name="vim" tools:keep="@string/vim">Vim Esc (нормален режим)</string>
     <string name="vim_mode">Vim режим</string>
-    <string name="vim_mode_summary">"Клавишът Esc в лентата отваря нормален режим със собствени клавиши: h l w b e 0 $ f t, d c y x p, v, броячи и други. Не работи в полета за парола."</string>
+    <string name="vim_mode_summary">"Клавишът Esc в лентата отваря нормален режим със собствени клавиши: движения, оператори, броячи, регистри, маркери, макроси, търсене, ex команди и визуален блок. Не работи в полета за парола."</string>
     <string name="vim_normal">НОРМАЛЕН</string>
     <string name="vim_visual">ВИЗУАЛЕН</string>
     <string name="vim_visual_line">ВИЗУАЛЕН РЕД</string>
@@ -871,5 +871,28 @@
     <string name="vim_not_accepted">Полето не приема този текст</string>
     <string name="vim_register_off">В това поле нищо не се пази за поставяне</string>
     <string name="vim_register_empty">Няма какво да се постави</string>
+    <string name="vim_visual_block">ВИЗУАЛЕН БЛОК (полето показва обхвата му)</string>
+    <string name="vim_insert">ВЪВЕЖДАНЕ</string>
+    <string name="vim_recording">запис @%1$s</string>
+    <string name="vim_register_full">Регистърът побира най-много 20 000 знака</string>
+    <string name="vim_clipboard_empty">Няма текст в клипборда</string>
+    <string name="vim_clipboard_refused">Клипбордът не прие текста</string>
+    <string name="vim_mark_not_set">Няма такъв маркер</string>
+    <string name="vim_mark_invalid">Текстът се промени: маркерите са изчезнали</string>
+    <string name="vim_no_pattern">Няма предишно търсене</string>
+    <string name="vim_not_found">Шаблонът не е намерен</string>
+    <string name="vim_pattern_unsupported">Този шаблон не се поддържа тук</string>
+    <string name="vim_search_limit">Твърде голямо или бавно: нищо не е променено</string>
+    <string name="vim_play_limit">Спряно на границата от клавиши или време</string>
+    <string name="vim_nothing_to_repeat">Няма какво да се повтори</string>
+    <string name="vim_not_repeatable">Последната промяна не може да се повтори</string>
+    <string name="vim_recording_dropped">Записът е отхвърлен (твърде дълъг или не е позволен тук)</string>
+    <string name="vim_cannot_save">Клавиатурата не може да запазва или да излиза</string>
+    <string name="vim_no_highlight">В поле нищо не се осветява</string>
+    <string name="vim_ex_error">Невалидна команда или обхват</string>
+    <string name="vim_screen_command">Командите за екрана не се предлагат</string>
+    <string name="vim_undo_in_play">Отмяната не може да работи в макрос или команда</string>
+    <string name="vim_indent_tab">Vim отстъп с табулация</string>
+    <string name="vim_indent_tab_summary">Командите на Vim &gt; и &lt; правят отстъп с табулация вместо четири интервала.</string>
     <string name="vim_failed">Режимът Vim спря поради грешка: обратно към писане</string>
 </resources>

@@ -71,6 +71,27 @@ internal class VimBuf(val text: String) {
         return if (at >= end) lastChar(at) else at
     }
 
+    /** A place a jump can land on in Normal mode (a character, or an empty line). */
+    fun normalOrEnd(p: Int): Int = normal(p)
+
+    /** The next character, going on over a line break (the position after the last character of a line is the next line's start). */
+    fun nextAny(p: Int): Int = if (p < lineEnd(p)) next(p) else if (p < length) p + 1 else p
+
+    /** Like [nextAny], but a position on the end of a line that is not empty is skipped (a place the cursor cannot stand on): Vim's incl(). */
+    fun nextSkipEol(p: Int): Int {
+        val q = nextAny(p)
+        return if (q < length && q == lineEnd(q) && q > lineStart(q)) q + 1 else q
+    }
+
+    /** Like [prevAny], landing on the last character of a line that is not empty and not on its end: Vim's decl(). */
+    fun prevSkipEol(p: Int): Int {
+        val q = prevAny(p)
+        return if (q < length && q == lineEnd(q) && q > lineStart(q)) prev(q) else q
+    }
+
+    /** The previous character, going back over a line break. */
+    fun prevAny(p: Int): Int = if (p > lineStart(p)) prev(p) else if (p > 0) p - 1 else p
+
     /** The first non-blank of the line of [p] (the last character of an all-blank line). */
     fun firstNonBlank(p: Int): Int {
         val end = lineEnd(p)

@@ -2,6 +2,8 @@
 package helium314.keyboard.latin.vim
 
 import android.app.KeyguardManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.os.Looper
 import android.text.InputType
 import android.view.KeyEvent
@@ -17,6 +19,7 @@ import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.LatinIME
 import helium314.keyboard.latin.R
 import helium314.keyboard.latin.ShadowFacilitator2
+import helium314.keyboard.latin.common.InputPointers
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.privacy.ExportService
@@ -401,6 +404,10 @@ class VimWiringTest {
         val codes = normal.sortedKeys.map { it.code }.toSet()
         for (c in "1234567890wertyuiopasdfghjkl;xcvb^$,".toList()) assertTrue(c.code in codes, "no key $c in the Normal layout")
         assertTrue(27 in codes && 18 in codes, "Esc and Ctrl-R keys")
+        // every command of the engine is a key or a popup of the Normal layout (popups are long presses)
+        val all = codes + normal.sortedKeys.flatMap { k -> (k.popupKeys ?: emptyArray()).map { it.mCode } }
+        for (c in ":/?nN.q@%~*#m\"'`WERTYUIOPASDFGJXCVBN<>{}()".toList()) assertTrue(c.code in all, "no key or popup $c in the Normal layout")
+        for (c in listOf(VimEngine.KEY_CTRL_A, VimEngine.KEY_CTRL_X, VimEngine.KEY_CTRL_V)) assertTrue(c in all, "no popup for the Ctrl key $c")
         keys(ime, "v")
         val visual = KeyboardSwitcher.getInstance().keyboard!!
         assertEquals(KeyboardElement.VIM_VISUAL, visual.mId.element)
@@ -620,5 +627,169 @@ class VimWiringTest {
         assertTrue(element!!.isAlphabet)
         assertEquals(ime.getString(R.string.vim_failed), toastText())
         assertEquals(0, ShadowInputMethodService.batchEdit, "the batch edit was closed")
+    }
+    // ---- the complete package: command line, Ctrl keys of insert mode, the clipboard registers, memory -----------------------------------
+
+    private fun vimStatus(): String? = KeyboardSwitcher::class.java.getDeclaredField("mVimStatusView").apply { isAccessible = true }.get(KeyboardSwitcher.getInstance())
+        .let { it as TextView }.takeIf { it.visibility == View.VISIBLE }?.text?.toString()
+
+    @Test fun theCommandLineIsTypedOnTheKeyboardAndNeverReachesTheFieldOrTheTypingPath() = withKeyboard { ime ->
+        field(ime, "foo bar", 3)
+        press(ime, KeyCode.VIM_MODE)
+        ShadowInputMethodService.textChanges.clear()
+        press(ime, ':'.code) // the key of the Normal layout
+        assertTrue(element!!.isAlphabet, "the typing keyboard shows for the line")
+        keys(ime, "s/o/0/") // the letters of the typing keyboard
+        ime.mKeyboardActionListener.onTextInput("g") // a key that types a text of its own goes to the line too
+        ime.mKeyboardActionListener.onStartBatchInput() // and a swipe is dropped: no word reaches the field
+        ime.mKeyboardActionListener.onEndBatchInput(InputPointers(2))
+        assertEquals(":s/o/0/g\u258F", vimStatus())
+        assertEquals("foo bar", text)
+        assertEquals(emptyList(), ShadowInputMethodService.textChanges)
+        press(ime, Constants.CODE_ENTER)
+        assertEquals("f00 bar", text)
+        assertEquals(listOf("commitText"), ShadowInputMethodService.textChanges, "the command is one text change")
+        assertEquals(KeyboardElement.VIM_NORMAL, element)
+        assertEquals("NORMAL", vimStatus())
+        // Backspace edits the line and the up key walks its history
+        press(ime, ':'.code)
+        keys(ime, "xy")
+        press(ime, KeyCode.DELETE)
+        assertEquals(":x\u258F", vimStatus())
+        press(ime, KeyCode.ARROW_UP)
+        assertEquals(":s/o/0/g\u258F", vimStatus())
+        press(ime, 27) // Esc leaves the line
+        assertEquals("NORMAL", vimStatus())
+        assertEquals("f00 bar", text)
+    }
+
+    @Test fun aSearchLineAndARecordingShowOnTheModeLine() = withKeyboard { ime ->
+        field(ime, "foo bar foo", 0)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "qa")
+        assertTrue(vimStatus()!!.contains(ime.getString(R.string.vim_recording, "a")), vimStatus())
+        press(ime, '/'.code)
+        keys(ime, "foo")
+        assertEquals("/foo\u258F", vimStatus())
+        press(ime, Constants.CODE_ENTER)
+        assertEquals(8 to 8, selection)
+        keys(ime, "q")
+        assertEquals("NORMAL", vimStatus())
+    }
+
+    @Test fun ctrlWAndCtrlRWorkInInsertModeThroughTheCtrlKey() = withKeyboard { ime ->
+        field(ime, "foo bar", 7)
+        keys(ime, " baz") // typing as always: the Vim layer sees nothing
+        assertEquals("foo bar baz", text)
+        press(ime, KeyCode.CTRL)
+        press(ime, 'w'.code)
+        assertEquals("foo bar ", text) // the word that was typed is gone
+        assertEquals(emptyList(), ShadowInputMethodService.keyDownCodes.filter { it == KeyEvent.KEYCODE_W })
+        keys(ime, "w") // the Ctrl was used up: a plain letter
+        assertEquals("foo bar w", text)
+        // Ctrl-R and a register name put the register
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "0\"ayw")
+        keys(ime, "A")
+        press(ime, KeyCode.CTRL)
+        press(ime, 'r'.code)
+        press(ime, 'a'.code) // the register name is typed on the ordinary keyboard and not into the field
+        assertEquals("foo bar wfoo ", text)
+        press(ime, KeyCode.VIM_MODE)
+        assertEquals(KeyboardElement.VIM_NORMAL, element)
+    }
+
+    @Test fun anotherCtrlLetterIsNotTakenByTheVimLayer() = withKeyboard { ime ->
+        field(ime, "foo", 3)
+        press(ime, KeyCode.CTRL)
+        ShadowInputMethodService.keyDownCodes.clear()
+        press(ime, 'z'.code)
+        assertTrue(KeyEvent.KEYCODE_Z in ShadowInputMethodService.keyDownCodes, "Ctrl-Z reaches the app as before")
+    }
+
+    @Test fun thePlusRegisterIsTheSystemClipboardThroughTheCopyAndPasteOwners() = withKeyboard { ime ->
+        val cm = ime.getSystemService(ClipboardManager::class.java)
+        field(ime, "foo bar", 0)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "\"+yw")
+        assertEquals("foo ", cm.primaryClip!!.getItemAt(0).text.toString())
+        cm.setPrimaryClip(ClipData.newPlainText("x", "ABC"))
+        keys(ime, "\"+P")
+        assertEquals("ABCfoo bar", text)
+    }
+
+    @Test fun theClipboardRegisterIsWrittenButNothingIsKeptInAnIncognitoField() = withKeyboard { ime ->
+        val cm = ime.getSystemService(ClipboardManager::class.java)
+        field(ime, "foo bar", 0, imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "\"+yw")
+        assertEquals("foo ", cm.primaryClip!!.getItemAt(0).text.toString()) // as the copy key does
+        clearToast()
+        keys(ime, "p")
+        assertEquals("foo bar", text) // the unnamed register was not filled
+        assertEquals(ime.getString(R.string.vim_register_off), toastText())
+        // a mark, a macro and a search are not kept either
+        clearToast()
+        keys(ime, "ma")
+        assertEquals(ime.getString(R.string.vim_register_off), toastText())
+        clearToast()
+        keys(ime, "qa")
+        assertEquals(ime.getString(R.string.vim_register_off), toastText())
+    }
+
+    @Test fun macrosAndMarksAreForgottenAtTheScreenLockAndWhenTheSettingIsTurnedOff() = withKeyboard { ime ->
+        field(ime, "foo bar baz", 0)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "qaxq")
+        keys(ime, "wma")
+        keys(ime, "@a")
+        assertEquals("oo ar baz", text) // x at the recording (the f), x again from the play (the b of bar)
+        Privacy.lock(ime)
+        Privacy.unlock(ime)
+        field(ime, "foo bar baz", 0)
+        press(ime, KeyCode.VIM_MODE)
+        clearToast()
+        keys(ime, "@a")
+        assertEquals("foo bar baz", text, "the macro was forgotten at the lock")
+        assertEquals(ime.getString(R.string.vim_register_empty), toastText())
+        clearToast()
+        keys(ime, "'a")
+        assertEquals(ime.getString(R.string.vim_mark_not_set), toastText())
+        // the setting off forgets them too
+        keys(ime, "qbxq")
+        ime.prefs().edit().putBoolean(Settings.PREF_VIM_MODE, false).commit()
+        ime.prefs().edit().putBoolean(Settings.PREF_VIM_MODE, true).commit()
+        field(ime, "foo bar baz", 0)
+        press(ime, KeyCode.VIM_MODE)
+        clearToast()
+        keys(ime, "@b")
+        assertEquals(ime.getString(R.string.vim_register_empty), toastText())
+        assertEquals("foo bar baz", text)
+    }
+
+    @Test fun theIndentFollowsTheSettingTabOrFourSpaces() = withKeyboard { ime ->
+        field(ime, "foo", 0)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, ">>")
+        assertEquals("    foo", text)
+        ime.prefs().edit().putBoolean(Settings.PREF_VIM_INDENT_TAB, true).commit()
+        field(ime, "foo", 0)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, ">>")
+        assertEquals("\tfoo", text)
+    }
+
+    @Test fun aTextChangedBehindTheEnginesBackInvalidatesTheMarks() = withKeyboard { ime ->
+        field(ime, "foo bar baz", 0)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "wma")
+        ShadowInputMethodService.text = "something else entirely"
+        ShadowInputMethodService.selectionStart = 0
+        ShadowInputMethodService.selectionEnd = 0
+        keys(ime, "l")
+        clearToast()
+        keys(ime, "'a")
+        assertEquals(ime.getString(R.string.vim_mark_invalid), toastText())
+        assertEquals("something else entirely", text)
     }
 }

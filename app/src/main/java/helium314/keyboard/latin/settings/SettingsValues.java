@@ -88,6 +88,7 @@ public class SettingsValues {
     public final boolean mUseDoubleSpacePeriod;
     public final boolean mSmartQuotes;
     public final boolean mVimMode;
+    public final boolean mVimIndentTab;
     public final boolean mBlockPotentiallyOffensive;
     public final KeyboardActionListener.SwipeAction mSpaceSwipeHorizontal;
     public final KeyboardActionListener.SwipeAction mSpaceSwipeVertical;
@@ -251,6 +252,7 @@ public class SettingsValues {
         mSmartQuotes = prefs.getBoolean(Settings.PREF_SMART_QUOTES, Defaults.PREF_SMART_QUOTES)
                 && inputAttributes.mIsGeneralTextInput && !InputTypeUtils.isUriOrEmailType(inputAttributes.mInputType);
         mVimMode = prefs.getBoolean(Settings.PREF_VIM_MODE, Defaults.PREF_VIM_MODE);
+        mVimIndentTab = prefs.getBoolean(Settings.PREF_VIM_INDENT_TAB, Defaults.PREF_VIM_INDENT_TAB);
         mBlockPotentiallyOffensive = prefs.getBoolean(Settings.PREF_BLOCK_POTENTIALLY_OFFENSIVE, Defaults.PREF_BLOCK_POTENTIALLY_OFFENSIVE);
         mUrlDetectionEnabled = prefs.getBoolean(Settings.PREF_URL_DETECTION, Defaults.PREF_URL_DETECTION);
         mAutoCorrectionEnabledPerUserSettings = prefs.getBoolean(Settings.PREF_AUTO_CORRECTION, Defaults.PREF_AUTO_CORRECTION);

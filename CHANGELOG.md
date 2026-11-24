@@ -3,18 +3,26 @@
 ## 2.0.3
 
 - New: Vim mode (Settings > Preferences, off by default). With it on, an Esc key appears on the suggestion strip. One tap opens
-  Normal mode with its own keys: move with h l w b e W B E 0 ^ $ gg G f F t T ; , (j and k go by visual line), type a count first
-  (3w), and use d, c, y with a motion or twice (dd, cc, yy), x X D C s S, r and a letter, p P, u and Ctrl-R (they use the
-  undo and redo of the keyboard), v and V for Visual mode with d, c, y and x, and the text objects iw aw and quotes and brackets on
-  the line (diw, ci", da(). i a I A o O, and c commands, give you the normal keyboard back; Esc returns. A line above the keys shows
-  the mode (NORMAL, VISUAL, V-LINE) and what you typed so far. English and Bulgarian.
-- Vim mode is not available in password fields or while the device is locked. The text it cuts or copies is kept in one memory-only
-  register, only where clipboard history may keep a copy; it is forgotten when the screen locks, at a wipe and whenever Vim mode is
-  off (also after a restored backup), and it never reaches the
-  system clipboard. If an app does not share its text, or changes it while a command runs, the command does nothing and says so; only
-  cursor motions then work, as cursor keys.
-- Not in this version: `.` (repeat), macros, marks, search with /, named registers, ex commands, J, counts on text objects, and
-  brackets that span lines.
+  Normal mode with its own keys (the Normal layout has more on long press): move with h l w b e W B E 0 ^ $ gg G f F t T ; , % { } ( ),
+  type a count first (3w), and use d, c, y with a motion, a text object (iw aw, quotes, brackets over several lines, with counts) or twice
+  (dd, cc, yy), x X D C s S r R, J gJ, ~ and g~ gu gU, > and < (a tab or four spaces: a setting), Ctrl-A and Ctrl-X on numbers, p P, u and
+  Ctrl-R (the undo and redo of the keyboard), v V and Ctrl-V (a block, shown as its span in the field) with d c y x r I A and more, gv, gi,
+  i a I A o O and c commands (they give you the normal keyboard back; Esc returns), and in insert mode Ctrl-R (a register), Ctrl-W, Ctrl-U,
+  Ctrl-H and Ctrl-O through the Ctrl key.
+- Also new: `.` repeats the last change (with a count); macros (q and a letter to record, q to stop, @ and a letter, @@, with counts; at most
+  2 000 keys, and a play stops at 20 000 keys); registers `"a` to `"z` (A to Z add), `"0` to `"9`, `"-`, `"_`, `".`, `"/`, `":`, and `"+` and `"*`
+  for the system clipboard through the copy and paste keys' own code; marks (m, ', `, '' and the last selection and change); search (/ ? n N *
+  # g* g#, with offsets, and the usual patterns: . * \+ \= ^ $ \< \> [ ] \( \) \| \c \C) that cannot hang the keyboard; and a command line
+  on the strip with ranges and :s :d :y :pu :m :t :co :j :> :< :normal :g :v :reg :marks :undo :redo (:w and :q say that a keyboard cannot
+  save or quit). A command, a macro or a command line that changes text is one change. Screen commands (H M L, scrolling, zz) are not offered.
+  A line above the keys shows the mode, what you typed so far, a recording and the command line. English and Bulgarian.
+- Vim mode is not available in password fields or while the device is locked. What it remembers (registers, macros, the repeat, marks,
+  searches, the command line history) is in memory only and is kept only where clipboard history may keep a copy; it is forgotten when the
+  screen locks, at a wipe and whenever Vim mode is off (also after a restored backup). The command line text never goes into the field and
+  is never learned or suggested. If an app does not share its text, or changes it while a command runs, the command does nothing and says so;
+  only cursor motions then work, as cursor keys.
+- Not in this version: sentence and paragraph text objects (is as ip ap), `\n` and `\v` in patterns, back references, the `c` flag of :s, Vim
+  scripts, `ge`, and undo inside a macro.
 
 ## 2.0.2
 

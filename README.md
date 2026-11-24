@@ -22,10 +22,10 @@ The current version is 2.0.3. It needs Android 11 or newer on a 64-bit ARM phone
   when another app draws over the keyboard.
 - Glide typing uses an open-source engine instead of Google's closed library.
 - Optional Vim mode (Settings > Preferences, off by default): an Esc key on the suggestion strip opens a Normal layout with the
-  motions h l w b e W B E 0 ^ $ gg G f F t T ; , (j and k as visual lines), counts, the operators d c y with every motion and
-  with iw aw and quote and bracket objects, x X D C s S r p P u, and Visual and Visual Line mode. `i a I A o O` or `cw` and
-  similar commands bring the typing keyboard back. Not in password fields. Not in the first version: `.`, macros, marks, search,
-  named registers, ex commands, counts on text objects and `J`.
+  motions, operators, counts and text objects of Vim, Visual, Visual Line and Visual Block mode, `.`, macros, registers (`"+` is the
+  system clipboard), marks, search with `/ ? n N * #`, and a command line with ranges and :s :d :y :pu :m :t :j :normal :g :v. `i a I A o O`
+  or `cw` and similar commands bring the typing keyboard back. What it remembers stays in memory and is forgotten at the screen lock.
+  Not in password fields. The results of its commands are checked against the real Vim (21 000 cases).
 - No contacts access, no list of installed apps, no Android backup. Backups are an encrypted export protected by a passphrase.
 
 English and Bulgarian (phonetic and BDS) are enabled on a new install. Dictionaries for English and Bulgarian are

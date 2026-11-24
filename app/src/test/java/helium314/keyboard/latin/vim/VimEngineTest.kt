@@ -80,11 +80,10 @@ class VimEngineTest {
         assertEquals(3, r.field.selStart)
     }
 
-    @Test fun aCountedTextObjectDoesNothing() {
+    @Test fun aCountedTextObjectTakesSeveralObjects() {
         val r = Rig("foo bar baz", 1)
-        r.keys("d2iw")
-        assertEquals("foo bar baz", r.field.text)
-        assertEquals(emptyList(), r.field.editCalls)
+        r.keys("d2iw") // the word and the blank after it, as Vim does
+        assertEquals("bar baz", r.field.text)
     }
 
     // ---- modes and pending state ------------------------------------------------------------------------------------------
@@ -148,8 +147,8 @@ class VimEngineTest {
         assertEquals("nav DOWN 3", r.field.calls.last())
         r.keys("k")
         assertEquals("nav UP 1", r.field.calls.last())
-        r.keys("dj") // the operator form works on the text: the line and the one below
-        assertEquals("ef", r.field.text)
+        r.keys("dj") // the operator form works on the text: the line and the one below (the fake field has moved down three lines and up one: line 2)
+        assertEquals("ab", r.field.text)
     }
 
     // ---- Visual mode --------------------------------------------------------------------------------------------------------
@@ -259,7 +258,7 @@ class VimEngineTest {
         val r = Rig("foo bar", 1)
         r.keys("yw")
         assertEquals("foo ", r.engine.register)
-        r.engine.clearRegister()
+        r.engine.clearMemory()
         assertNull(r.engine.register)
         val out = r.engine.key('p'.code)
         assertEquals(VimNotice.REGISTER_EMPTY, out.notice)

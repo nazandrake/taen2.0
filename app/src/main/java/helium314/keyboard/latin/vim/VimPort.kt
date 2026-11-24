@@ -2,7 +2,7 @@
 package helium314.keyboard.latin.vim
 
 /** The modes of the Vim layer. [INSERT] is the ordinary typing keyboard: the layer does not see its keys. */
-enum class VimMode { INSERT, NORMAL, VISUAL, VISUAL_LINE }
+enum class VimMode { INSERT, NORMAL, VISUAL, VISUAL_LINE, VISUAL_BLOCK }
 
 /** The text of the field as the editor gave it, whole and from offset 0; the selection is in the same offsets. */
 sealed interface VimRead {
@@ -30,6 +30,10 @@ interface VimPort {
     fun navigate(nav: VimNav, times: Int)
     /** The keyboard's undo and redo. */
     fun history(redo: Boolean)
+    /** The text on the system clipboard, through the keyboard's paste owner (the "+ and "* registers); null when there is none or it is refused. */
+    fun clipboardRead(): String?
+    /** Puts [text] on the system clipboard through the keyboard's copy owner; false when it is refused. */
+    fun clipboardWrite(text: String): Boolean
 }
 
 /** What the surrounding keyboard decides for the current field. */
@@ -40,6 +44,10 @@ interface VimRules {
     fun registerAllowed(): Boolean
     /** The field takes [text] as it is (multi-line, numeric fields). */
     fun accepts(text: String): Boolean
+    /** A clock in milliseconds that only ever goes forward, for the time limit of searches, ex commands and plays. */
+    fun nowMillis(): Long
+    /** The text of one level of indent for > and <: a tab, or four spaces (a setting). */
+    fun indentWithTab(): Boolean
 }
 
 /** A short message for the user; null for the normal case and for a command that fails silently (as a beep in Vim). */
@@ -62,12 +70,49 @@ enum class VimNotice {
     REGISTER_OFF,
     /** The register is empty. */
     REGISTER_EMPTY,
+    /** The register would hold more than 20 000 characters. */
+    REGISTER_FULL,
+    /** The system clipboard has no text, or it is refused. */
+    CLIPBOARD_EMPTY,
+    /** The system clipboard refused the text. */
+    CLIPBOARD_REFUSED,
+    /** The mark is not set. */
+    MARK_NOT_SET,
+    /** The text changed since the marks were set: they are gone. */
+    MARK_INVALID,
+    /** There is no earlier search pattern. */
+    NO_PATTERN,
+    /** The pattern was not found. */
+    NOT_FOUND,
+    /** The pattern is not one this keyboard understands. */
+    PATTERN_UNSUPPORTED,
+    /** The pattern is too big, or the search used up its steps or time: nothing was changed. */
+    SEARCH_LIMIT,
+    /** A macro or a command line was stopped at its limit (keys, time): the text is as the keys before it left it. */
+    PLAY_LIMIT,
+    /** Nothing to repeat with . */
+    NOTHING_TO_REPEAT,
+    /** The last change cannot be repeated (what was typed could not be told). */
+    NOT_REPEATABLE,
+    /** The recording is too long (over 2 000 keys) or could not be read: it was dropped. */
+    RECORDING_DROPPED,
+    /** A keyboard cannot save a field or quit: :w, :q and the like. */
+    CANNOT_SAVE,
+    /** :noh has nothing to do: fields show no search highlight. */
+    NO_HIGHLIGHT,
+    /** The ex command or its range is not valid. */
+    EX_ERROR,
+    /** The command is not offered: it depends on the screen (H M L, scrolling). */
+    SCREEN_COMMAND,
+    /** The undo of the keyboard cannot run inside a macro or a command line: it stopped there. */
+    UNDO_IN_PLAY,
 }
 
 /**
  * What the engine tells the keyboard after a key: [notice] is a short message for the user (null for the normal case and for a
  * command that fails silently, as a beep does in Vim); [handled] is false when the key is not for the Vim layer (typing mode).
  * [failed] is true when the command could not be done (Vim beeps; the tests stop a key sequence there, as Vim does).
+ * [message] is text for the user made by the command itself (the listing of :reg and :marks), shown in place of a notice.
  * The mode and the pending character argument are read from the engine.
  */
-class VimOutcome(val notice: VimNotice? = null, val handled: Boolean = true, val failed: Boolean = false)
+class VimOutcome(val notice: VimNotice? = null, val handled: Boolean = true, val failed: Boolean = false, val message: String? = null)
