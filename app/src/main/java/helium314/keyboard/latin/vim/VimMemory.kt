@@ -58,8 +58,33 @@ internal class VimMemory(private val rules: VimRules) {
     private val cmdHistory = ArrayList<String>()
     private val searchHistory = ArrayList<String>()
 
+    /**
+     * The typed text of the insert session that is open could still be kept: "capture was allowed throughout". It is set when a session starts
+     * ([insertBegin]) and can only go from true to false, by [taint]. The text typed in an insert does not pass through the layer (the typing
+     * keyboard writes it to the field), so the layer sees it only when the session ends; the answer of the capture rule at that moment says nothing
+     * about the time between. A session whose flag was ever false is dropped whole, never in part.
+     */
+    private var insertClean = true
+
     /** True where the clipboard capture rule lets the layer keep something. Asked at every write; the answer is never kept. */
     fun mayKeep(): Boolean = rules.registerAllowed()
+
+    /** A typing session begins (an insert command, Ctrl-O's return to insert): its text may be kept only if the rule allows it now. */
+    fun insertBegin() { insertClean = mayKeep() }
+
+    /**
+     * The capture rule turned to "no" at some time (or may have: the incognito switch, a settings reload, a change of the privacy decision), or the
+     * field or the session changed (a field started or finished, the screen lock, the setting turned off). The open insert session is tainted for good,
+     * the recording that is being made and the "." record that waits for typed text are dropped at once (the user is told at the next key).
+     */
+    fun taint() {
+        insertClean = false
+        if (recName != null) { dropRecording(); recDropped = true }
+        if (dotOpen) { dot = null; dotOpen = false }
+    }
+
+    /** True where the text typed in the insert session that ends now may be kept: the rule allows it now and it did throughout the session. */
+    fun typedMayBeKept(): Boolean = insertClean && mayKeep()
 
     /** Forgets everything. */
     fun clear() {
@@ -76,6 +101,7 @@ internal class VimMemory(private val rules: VimRules) {
         sub = null
         cmdHistory.clear()
         searchHistory.clear()
+        insertClean = false // a session that is open now is not kept either
     }
 
     /** The names of the stores that hold something (the tests; one label per store). */
@@ -141,8 +167,11 @@ internal class VimMemory(private val rules: VimRules) {
     /** The unnamed register points at [reg] only (the "+ and "* yank, whose text is the system clipboard's). */
     fun point(reg: Reg) { if (mayKeep()) regs.point(reg) }
 
-    /** The last inserted text (the "." register). */
+    /** The last inserted text (the "." register), from a command that does not type (the replacing character of "r"). */
     fun setLastInsert(text: String) { if (mayKeep() && text.length <= MAX_CHARS) regs.lastInsert = text }
+
+    /** The text typed in an insert session that ended: kept only where [typedMayBeKept]; else nothing of the session is kept. */
+    fun setLastTyped(text: String) { if (typedMayBeKept() && text.length <= MAX_CHARS) regs.lastInsert = text }
 
     fun setLastCommand(text: String) { if (mayKeep()) regs.lastCommand = text }
 
@@ -208,6 +237,26 @@ internal class VimMemory(private val rules: VimRules) {
 
     fun marksClear() = marks.clear()
 
+    /**
+     * An insert session that began on [old] ended (or went to one Normal command with Ctrl-O): the marks follow [typed] at [start] when it is known,
+     * else they follow their lines to [new]. Where the typed text may not be kept ([typedMayBeKept]) the marks are forgotten, so that the text
+     * they hold ([MarkStore.base] is a copy of the field) never contains it.
+     */
+    fun marksAfterInsert(old: String, start: Int, typed: String?, new: String) {
+        if (marks.base != old) return
+        if (!typedMayBeKept()) marks.clear()
+        else if (typed != null) marks.remapEdit(old, start, start, typed)
+        else marks.remap(old, new)
+    }
+
+    /** The marks [ ] and ^ of an insert that ended at [caret] in [text] (it began at [start]); not set where the typed text may not be kept. */
+    fun insertMarks(text: String, start: Int, caret: Int) {
+        if (!typedMayBeKept()) return
+        marks.set('[', text, start)
+        marks.set(']', text, caret)
+        marks.set('^', text, caret)
+    }
+
     /** An edit replaced [start, end) of [old]: the marks follow it; where nothing may be kept the marks are forgotten (they would hold the new text). */
     fun marksRemapEdit(old: String, start: Int, end: Int, replacement: String) {
         if (mayKeep()) marks.remapEdit(old, start, end, replacement) else marks.clear()
@@ -235,7 +284,7 @@ internal class VimMemory(private val rules: VimRules) {
         val d = dot ?: return
         if (!dotOpen) return
         dotOpen = false
-        if (!mayKeep()) { dot = null; return }
+        if (!typedMayBeKept()) { dot = null; return }
         for (ch in typed) d.keys.add(ch.code)
         d.keys.add(ESC_KEY)
     }
@@ -289,7 +338,7 @@ internal class VimMemory(private val rules: VimRules) {
     /** The text typed in an insert of the recording. Dropped with the recording when nothing may be kept now; a recording that gets too long is broken. */
     fun recordTyped(typed: String) {
         if (recName == null) return
-        if (!mayKeep()) { dropRecording(); recDropped = true; return }
+        if (!typedMayBeKept()) { dropRecording(); recDropped = true; return }
         if (recKeys + typed.length + 1 > MAX_MACRO_KEYS) recBroken = true
         else { recBuf.append(typed.replace('\n', '\r')); recKeys += typed.length }
     }
@@ -316,7 +365,7 @@ internal class VimMemory(private val rules: VimRules) {
 
     /** Called at the start of every key: a recording stops the moment the decision turns to "no", and the next answer says so. */
     fun sync() {
-        if (recName != null && !mayKeep()) { dropRecording(); recDropped = true }
+        if (!mayKeep()) taint() // a "no" seen now is a "no" for the session and the record that are open
     }
 
     /** True once after a recording was dropped by the decision turning to "no" (so the user is told). */

@@ -19,7 +19,7 @@ Details of the Vim mode:
   Ctrl-H and Ctrl-O through the Ctrl key.
 - Also new: `.` repeats the last change (with a count); macros (q and a letter to record, q to stop, @ and a letter, @@, with counts; at most
   2 000 keys; a macro, a repeat or a command line has one budget of 20 000 keys, 100 000 steps and 2.5 seconds, and no command builds text
-  over 20 000 characters: at a limit nothing is changed); registers `"a` to `"z` (A to Z add), `"0` to `"9`, `"-`, `"_`, `".`, `"/`, `":`, and `"+` and `"*`
+  over 20 000 characters; macros, :normal, @:, @@ and . can call one another at most 10 levels deep: at a limit nothing is changed); registers `"a` to `"z` (A to Z add), `"0` to `"9`, `"-`, `"_`, `".`, `"/`, `":`, and `"+` and `"*`
   for the system clipboard through the copy and paste keys' own code; marks (m, ', `, '' and the last selection and change); search (/ ? n N *
   # g* g#, with offsets, and the usual patterns: . * \+ \= ^ $ \< \> [ ] \( \) \| \c \C) that cannot hang the keyboard; and a command line
   on the strip with ranges and :s :d :y :pu :m :t :co :j :> :< :normal :g :v :reg :marks :undo :redo (:w and :q say that a keyboard cannot
@@ -28,7 +28,7 @@ Details of the Vim mode:
 - Vim mode is not available in password fields or while the device is locked. What it remembers (registers, macros, the repeat, marks,
   searches, the command line history) is in memory only and is kept only where clipboard history may keep a copy; it is forgotten when the
   screen locks, at a wipe and whenever Vim mode is off (also after a restored backup); where it may keep nothing it is asked again at every
-  write, so what you type after switching incognito on is not kept. The command line text never goes into the field and is never learned
+  write, and an insert during which incognito was switched on, or the field changed, keeps nothing at all (not its repeat, its macro or its last inserted text). The command line text never goes into the field and is never learned
   or suggested; :reg and :marks show their list in the line above the keys, never in a pop-up message; a command line that Vim mode does
   not understand is refused, not run in part. If an app does not share its text, or changes it while a command runs, the command does nothing and says so;
   only cursor motions then work, as cursor keys.

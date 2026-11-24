@@ -29,6 +29,8 @@ internal class VimEx(private val host: Host) {
         val budget: VimRegex.Budget
         /** Counts [steps] steps of this command line against its budget; false when the budget is spent (the line stops). */
         fun charge(steps: Int): Boolean
+        /** Counts [chars] characters of a text copy that is about to be built; false when the copies of this command are at their limit (the line stops, nothing is built). */
+        fun copy(chars: Long): Boolean
         /** The most characters the text may have; a command that would make it longer stops. */
         val maxChars: Int
         /** The 0-based line of mark [name] (a to z, < > ' [ ]), or null. */
@@ -65,6 +67,9 @@ internal class VimEx(private val host: Host) {
     private var size = 0L
 
     private fun spend(steps: Int = 1) { if (!host.charge(steps)) throw Stop(VimNotice.PLAY_LIMIT) }
+
+    /** A text copy of [chars] characters is about to be built (a join, a split): it counts against the copies of the command, and the command stops before it. */
+    private fun copying(chars: Int) { if (!host.copy(chars.toLong())) throw Stop(VimNotice.PLAY_LIMIT) }
 
     /** A change that adds [chars] characters to the text must still fit: checked before the larger string is built. */
     private fun guardGrow(chars: Long) { if (size - 1 + chars > host.maxChars) throw Stop(VimNotice.PLAY_LIMIT) }
@@ -104,6 +109,7 @@ internal class VimEx(private val host: Host) {
 
     /** Runs the command line [cmdLine] on [text] with the cursor at offset [cursor]. */
     fun run(text: String, cursor: Int, cmdLine: String): ExResult {
+        if (!host.copy(text.length.toLong())) return ExResult(text, cursor, VimNotice.PLAY_LIMIT) // the line list below is a copy of the text
         lines = ArrayList()
         for (s in text.split('\n')) lines.add(Line(s))
         size = text.length + 1L
@@ -751,10 +757,11 @@ internal class VimEx(private val host: Host) {
         val keys = p.rest()
         if (keys.isEmpty()) throw Stop(VimNotice.EX_ERROR)
         if (range.count == 0) {
+            copying(size.toInt() - 1) // the join below
             val text = join()
             val caret = offsetOf(cur)
             val out = host.normal(text, caret, keys) ?: throw Stop(VimNotice.PLAY_LIMIT)
-            replaceAll(out.first, out.second)
+            replaceAll(out.first, out.second, text)
             return
         }
         checkRange(range)
@@ -762,25 +769,29 @@ internal class VimEx(private val host: Host) {
         while (ln <= range.line2) {
             spend()
             // as in Vim a line number that the buffer lost meanwhile is the last line
+            copying(size.toInt() - 1)
             val text = join()
             var start = 0
             for (k in 0 until minOf(ln, lines.size) - 1) start += lines[k].s.length + 1
             val out = host.normal(text, start, keys) ?: throw Stop(VimNotice.PLAY_LIMIT)
-            replaceAll(out.first, out.second)
+            replaceAll(out.first, out.second, text)
             ln++
         }
     }
 
-    /** Takes the text a :normal run left: the lines that are the same stay the same objects (so that :g marks follow them). */
-    private fun replaceAll(newText: String, caret: Int) {
-        val old = join()
+    /**
+     * Takes the text a :normal run left ([old] is the text it was given, which the lines still hold): the lines that are the same stay the same objects
+     * (so that :g marks follow them).
+     */
+    private fun replaceAll(newText: String, caret: Int, old: String) {
         if (old == newText) {
             val line = VimLines.lineOf(newText, caret)
             moved(line, caret - VimLines.lineStartOf(newText, line))
             return
         }
+        copying(newText.length) // the split below
         val newLines = newText.split('\n')
-        val map = VimLines.lineMap(old.split('\n'), newLines)
+        val map = VimLines.lineMap(lines.map { it.s }, newLines) // the lines hold [old]: their strings are the old lines, no second split
         val updated = ArrayList<Line?>(newLines.size)
         for (k in newLines.indices) updated.add(null)
         for ((k, ln) in lines.withIndex()) if (k < map.size && map[k] >= 0) { ln.s = newLines[map[k]]; updated[map[k]] = ln }

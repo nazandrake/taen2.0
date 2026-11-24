@@ -14,11 +14,16 @@ package helium314.keyboard.latin.vim
  *
  * Bounds: one budget ([Run]) covers every command that runs several steps (a macro, a repeat, a command line with :g or :normal): keys, ex
  * steps, time. No text that a command computes may be longer than [MAX_CHARS], and the size is checked before a larger string is built. At
- * a limit the command stops with a [VimNotice] and the field is as it was (a play or an ex line is computed on a copy and not written).
+ * a limit the command stops with a [VimNotice] and the field is as it was (a play or an ex line is computed on a copy and not written). Executions
+ * nested in one another (a macro in a macro, :normal, @:, @@, "." in a macro, :g with :normal) are at most [MAX_NEST] levels deep, and the text copies
+ * that executions two or more levels deep build add up to at most [MAX_RUN_CHARS] characters in one command: no input makes the layer throw an
+ * OutOfMemoryError or a StackOverflowError (VimStressTest runs every nested form under a small heap and stack).
  *
  * Memory: everything the layer keeps between commands is in [VimMemory] (registers, macros, the "." record, marks, the search and the
  * substitute state, the histories), which asks [VimRules.registerAllowed] again at every write; [clearMemory] forgets all of it (screen
- * lock, wipe, the setting turned off). No other class of the package keeps field text or typed text across commands. The system clipboard
+ * lock, wipe, the setting turned off). The text typed in insert mode does not pass through the engine, so an insert session carries one flag, "capture
+ * allowed throughout" (see [VimMemory]), which [captureChanged] clears for good; a session whose flag is cleared keeps nothing. No other class of the
+ * package keeps field text or typed text across commands. The system clipboard
  * (the + and * registers) is reached only through [VimPort.clipboardRead] and [VimPort.clipboardWrite], the keyboard's own paste and copy owners.
  */
 class VimEngine(private val port: VimPort, private val rules: VimRules) {
@@ -65,6 +70,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     // ---- plays ---------------------------------------------------------------------------------------------------------------------
     private var replaying = false
     private var inTx = false
+    /** How many executions are open inside one another: a play is one, every :normal run is one more. At most [MAX_NEST]; 0 for a plain command. */
+    private var nest = 0
     private val playQueue = ArrayDeque<Int>()
     /** The budget of the command that is running (a play or an ex line), null for a plain command. */
     private var run: Run? = null
@@ -105,11 +112,21 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         lastVisualDollar = false
     }
 
+    /**
+     * The adapter tells the engine that the capture rule may have turned to "no" or that the field or the session changed (the incognito switch, a settings
+     * reload, a field that starts or finishes). While the user types in insert mode the engine is not called, so this is the only way it learns of a "no"
+     * in between: the insert session that is open keeps nothing, the recording and the "." record that wait for its text are dropped.
+     */
+    fun captureChanged() {
+        memory.taint()
+    }
+
     /** The field ended or changed: the typing keyboard is back and nothing is pending. Marks belong to a field and go with it. */
     fun reset() {
         io = port // a play that was cut short (an exception went to the guard) leaves nothing behind
         inTx = false
         replaying = false
+        nest = 0
         run = null
         playQueue.clear()
         playStopped = null
@@ -267,6 +284,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
 
     private fun beginInsert(text: String, start: Int, count: Int, kind: Char, block: BlockInsert? = null) {
         ins = InsertSession(text, start, count, kind, block)
+        memory.insertBegin() // what is typed from here on is kept only if capture is allowed now and stays allowed until the session ends
     }
 
     /** What was typed since [session] began, or null when the text is not "the old text with something inserted at the start point". */
@@ -297,17 +315,14 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         var failedNotice: VimNotice? = null
         if (session != null) {
             val typed = typedSince(session, text, caret)
-            if (memory.marksBase == session.baseText) {
-                if (typed != null) memory.marksRemapEdit(session.baseText, session.start, session.start, typed) else memory.marksRemap(session.baseText, text)
-            }
+            memory.marksAfterInsert(session.baseText, session.start, typed, text)
             if (typed == null) {
                 if (!replaying) { memory.dotBroken(); memory.recordBroken() } else memory.dotCloseInsert()
             } else {
-                memory.setLastInsert(typed)
+                // a session that capture was ever not allowed in (the incognito switch while typing) keeps none of these, whatever the rule says now
+                memory.setLastTyped(typed)
                 if (!replaying) { memory.dotTyped(typed); memory.recordTyped(typed) } else memory.dotCloseInsert()
-                memory.markSet('[', text, session.start)
-                memory.markSet(']', text, caret)
-                memory.markSet('^', text, caret)
+                memory.insertMarks(text, session.start, caret)
                 followRefused = false
                 val follow = followUp(session, typed, text, caret)
                 if (followRefused) { // the count's repeats were too long: they are not written, and a play that did this stops
@@ -468,7 +483,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     private fun finishInsertForOneCommand(s: Snap) {
         val session = ins
         ins = null
-        if (session != null && memory.marksBase == session.baseText) memory.marksRemap(session.baseText, s.text)
+        if (session != null) memory.marksAfterInsert(session.baseText, session.start, null, s.text)
         memory.dotCloseInsert()
         mode = VimMode.NORMAL
         clearPending()
@@ -1857,6 +1872,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     private class Run(val deadline: Long) {
         var keys = 0
         var steps = 0L
+        /** The characters of the text copies built so far (the line list of an ex run, the text a :normal call is given and the one it gives back). */
+        var chars = 0L
         var abort: VimNotice? = null
     }
 
@@ -1873,6 +1890,23 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         if (r.abort != null) return false
         r.steps += n
         if (r.steps > MAX_EX_STEPS || (r.steps / 64 != (r.steps - n) / 64 && rules.nowMillis() > r.deadline)) { abortRun(VimNotice.PLAY_LIMIT); return false }
+        return true
+    }
+
+    /**
+     * Counts [chars] characters of a text copy that is about to be built against the budget of the command; false when it would pass [MAX_RUN_CHARS] (the
+     * command is then aborted and nothing is built). Only the copies built while two or more executions are open inside one another count: those are
+     * the ones that nest (every level holds its own, and the iterations of :g and :normal inside a level build new ones). The copies of the first level
+     * (a command line with :normal over a range, one macro) are freed one iteration after the other: the key budget, the step budget and the time limit
+     * bound them, and a command line over thousands of lines of a long text stays possible. The keys of one play edit its own copy, which nothing keeps
+     * longer than one key.
+     */
+    private fun copyBudget(chars: Long): Boolean {
+        val r = run ?: return true // a plain command builds no nested copy
+        if (r.abort != null) return false
+        if (nest < 2) return true
+        r.chars += chars
+        if (r.chars > MAX_RUN_CHARS) { abortRun(VimNotice.PLAY_LIMIT); return false }
         return true
     }
 
@@ -2054,6 +2088,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
 
         override fun charge(steps: Int): Boolean = chargeSteps(steps)
 
+        override fun copy(chars: Long): Boolean = copyBudget(chars)
+
         override fun markLine(name: Char): Int? {
             val v = exVisualLines
             if (v != null && name == '<') return v.first
@@ -2180,16 +2216,25 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         override fun clipboardWrite(text: String): Boolean = real.clipboardWrite(text)
     }
 
-    private fun enqueue(keys: String, times: Int): VimOutcome {
+    /**
+     * Queues [keys] [times] times. A [nested] play (a macro, "@:", "@@" or "." run by the keys of another play) is one level deeper: the queue gets a
+     * [PLAY_END] after its keys, which gives the level back when the play ends, and one that would be deeper than [MAX_NEST] stops the whole command.
+     */
+    private fun enqueue(keys: String, times: Int, nested: Boolean = false): VimOutcome {
         val one = ArrayList<Int>()
         var i = 0
         while (i < keys.length) { val cp = keys.codePointAt(i); one.add(cp); i += Character.charCount(cp) }
         if (one.isEmpty()) return VimOutcome()
-        if (playQueue.size.toLong() + one.size.toLong() * times > MAX_PLAY_KEYS) {
+        if (nested && nest + 1 > MAX_NEST) {
+            abortRun(VimNotice.PLAY_LIMIT) // too deep: nothing is queued and nothing is written
+            return fail(VimNotice.PLAY_LIMIT)
+        }
+        if (playQueue.size.toLong() + one.size.toLong() * times + (if (nested) 1 else 0) > MAX_PLAY_KEYS) {
             abortRun(VimNotice.PLAY_LIMIT) // more keys than a play may run: none are queued and nothing is written
             return fail(VimNotice.PLAY_LIMIT)
         }
         // what a nested play adds goes in front of what the outer one still has to run
+        if (nested) { playQueue.addFirst(PLAY_END); nest++ }
         for (t in 0 until times) for (k in one.indices.reversed()) playQueue.addFirst(one[k])
         return VimOutcome()
     }
@@ -2217,13 +2262,14 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     }
 
     private fun play(keys: String, times: Int, visual: VisualInfo? = null): VimOutcome {
-        if (inTx) return enqueue(keys, times) // inside a play: the keys join the queue (no recursion)
+        if (inTx) return enqueue(keys, times, nested = true) // inside a play: the keys join the queue (no recursion), one level deeper
         val s = snapshot() ?: return VimOutcome(failure)
         val c = cursorOf(s) ?: return VimOutcome(VimNotice.SELECTED)
         val mem = MemPort(s.text, c, c, port)
         io = mem
         inTx = true
         replaying = true
+        nest = 1
         playQueue.clear()
         playStopped = null
         playFailure = null
@@ -2242,6 +2288,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         io = port
         inTx = false
         replaying = false
+        nest = 0
         run = null
         playQueue.clear()
         if (budget.abort != null) { // a limit (keys, steps, time, size): nothing the play computed is written, and the field is as it was
@@ -2278,6 +2325,9 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
 
     /** :normal on a copy of [text]: the keys run as Normal mode commands from [caret]; an incomplete command ends as with Esc. Null: a limit was hit. */
     private fun runNormal(text: String, caret: Int, keys: String): Pair<String, Int>? {
+        val wasNest = nest
+        if (wasNest + 1 > MAX_NEST) { abortRun(VimNotice.PLAY_LIMIT); return null } // too deep: nothing is built (every level holds a copy of the text)
+        if (!copyBudget(playQueue.size.toLong())) return null // the copy of the keys the outer play still has to run, built below
         val mem = MemPort(text, caret, caret, port)
         val savedIo = io
         val wasTx = inTx
@@ -2285,6 +2335,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         val outerQueue = ArrayList(playQueue) // a play that is running goes on after this one
         val outerStopped = playStopped
         playQueue.clear()
+        nest = wasNest + 1
         io = mem
         inTx = true
         replaying = true
@@ -2298,6 +2349,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         io = savedIo
         inTx = wasTx
         replaying = wasReplay
+        nest = wasNest
         playQueue.clear()
         playQueue.addAll(outerQueue)
         playStopped = outerStopped
@@ -2315,9 +2367,11 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     private fun drain(mem: MemPort): Boolean {
         val budget = run ?: Run(rules.nowMillis() + PLAY_MILLIS).also { run = it } // a play always has its budget; this only closes the case where it has none
         while (playQueue.isNotEmpty()) {
+            val next = playQueue.removeFirst()
+            if (next == PLAY_END) { nest--; continue } // a nested play ended: its level is free again (not a key)
             budget.keys++
             if (budget.keys > MAX_PLAY_KEYS || ((budget.keys and 63) == 0 && rules.nowMillis() > budget.deadline)) { abortRun(VimNotice.PLAY_LIMIT); return true }
-            val out = feedOne(playQueue.removeFirst(), mem)
+            val out = feedOne(next, mem)
             if (mem.overflow) { abortRun(VimNotice.PLAY_LIMIT); return true } // a change would make the text longer than the window
             if (budget.abort != null) { playQueue.clear(); return true }
             if (mem.blocked) { playQueue.clear(); playStopped = VimNotice.UNDO_IN_PLAY; return true }
@@ -2441,6 +2495,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         /** A macro holds at most this many keys (the memory owns the number); one play runs at most [MAX_PLAY_KEYS] keys, nested plays included. */
         const val MAX_MACRO_KEYS = VimMemory.MAX_MACRO_KEYS
         const val MAX_PLAY_KEYS = 20_000
+        /** Executions open inside one another (a macro in a macro, :normal in :normal, @: in :normal, a repeat): at most this many levels, a deeper one stops the command. */
+        const val MAX_NEST = 10
         /** The steps of the ex commands of one command line (a line, an iteration of :g, a :normal run, a command), counted in the same budget as the keys. */
         const val MAX_EX_STEPS = 100_000
         const val PLAY_MILLIS = 2_500L
@@ -2448,6 +2504,10 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
         const val SEARCH_MILLIS = 400L
         const val MAX_HISTORY = VimMemory.MAX_HISTORY
         const val MAX_CMDLINE = 1_000
+        /** The text copies that one command (a play, an ex line) may build, in characters: the line list of every ex run, the text of every :normal call and of its result. */
+        const val MAX_RUN_CHARS = 2_000_000L
+        /** In the queue of a play: the end of a nested play (a level is given back). Not a key; no key code is this value. */
+        private const val PLAY_END = Int.MIN_VALUE
         private const val LISTING_LINES = 12
         private const val GG = -2
         private val ARG_PREFIXES = setOf('f', 'F', 't', 'T', 'r', '"', 'q', '@', 'm', '\'', '`', '\u0001', '\u0002')

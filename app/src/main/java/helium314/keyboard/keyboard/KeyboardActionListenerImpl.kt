@@ -171,6 +171,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         when (primaryCode) {
             KeyCode.TOGGLE_AUTOCORRECT -> return settings.toggleAutoCorrect()
             KeyCode.TOGGLE_INCOGNITO_MODE -> {
+                vim.captureChanged() // the Vim layer is not called while the user types: a switch to "no" in the middle of an insert must reach it
                 settings.toggleAlwaysIncognitoMode()
                 return
             }
@@ -297,6 +298,10 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
 
     override fun onSelectionChanged(newSelStart: Int, newSelEnd: Int) {
         multiCursor.onSelectionChanged(newSelStart, newSelEnd)
+    }
+
+    override fun onFieldStarted() {
+        vim.fieldStarted()
     }
 
     override fun onFieldFinished() {

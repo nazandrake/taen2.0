@@ -53,6 +53,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 public final class Settings implements SharedPreferences.OnSharedPreferenceChangeListener {
@@ -232,6 +233,19 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     private SettingsValues mSettingsValues;
     private final ReentrantLock mSettingsValuesLock = new ReentrantLock();
 
+    /** A layer that must notice a reload of the settings (the privacy decision of the field is part of them). */
+    public interface ReloadHook {
+        /** [before] is null at the first load. Called on the thread that reloaded, after the new values are in place. */
+        void onReload(@Nullable SettingsValues before, @NonNull SettingsValues after);
+    }
+
+    private final ConcurrentHashMap<String, ReloadHook> mReloadHooks = new ConcurrentHashMap<>();
+
+    /** Registers [hook] (replacing an earlier one with the same [name]) to run after every reload of the settings. */
+    public void onReload(@NonNull final String name, @NonNull final ReloadHook hook) {
+        mReloadHooks.put(name, hook);
+    }
+
     // static cache for background images to avoid potentially slow reload on every settings reload
     private final static Drawable[] sCachedBackgroundImages = new Drawable[4];
 
@@ -308,15 +322,26 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
 
     public void loadSettings(final Context context, final Locale locale,
                              @NonNull final InputAttributes inputAttributes) {
+        final SettingsValues before;
+        final SettingsValues after;
         mSettingsValuesLock.lock();
         mContext = context;
         try {
+            before = mSettingsValues;
             final SharedPreferences prefs = mPrefs;
             Log.i(TAG, "loadSettings");
             mSettingsValues = RunInLocaleKt.runInLocale(context, locale,
                     ctx -> new SettingsValues(ctx, prefs, ctx.getResources(), inputAttributes));
+            after = mSettingsValues;
         } finally {
             mSettingsValuesLock.unlock();
+        }
+        for (final ReloadHook hook : mReloadHooks.values()) {
+            try {
+                hook.onReload(before, after);
+            } catch (final RuntimeException e) {
+                // a layer that fails to notice must not break the settings; each hook guards its own work
+            }
         }
     }
 

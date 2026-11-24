@@ -44,6 +44,8 @@ internal class GuardedVimEngine(private val engine: VimEngine, private val onFai
 
     fun clearMemory() = guarded(Unit) { engine.clearMemory() }
 
+    fun captureChanged() = guarded(Unit) { engine.captureChanged() }
+
     fun reset() = guarded(Unit) { engine.reset() }
 
     fun escape(): VimOutcome = guarded(VimOutcome()) { engine.escape() }

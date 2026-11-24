@@ -83,6 +83,7 @@ class VimWiringTest {
             it.initialSelStart = cursor
             it.initialSelEnd = cursor
         }
+        lastEditorInfo = ei
         ime.mHandler.onStartInput(ei, false)
         ime.mHandler.onStartInputView(ei, false)
         shadowOf(Looper.getMainLooper()).idle()
@@ -833,5 +834,92 @@ class VimWiringTest {
         keys(ime, "'a")
         assertEquals(ime.getString(R.string.vim_mark_invalid), toastText())
         assertEquals("something else entirely", text)
+    }
+
+    // ---- a session that was ever not allowed to be kept is dropped whole ---------------------------------------------------------------
+
+    /** Records `cw`, "ab" and "SECRET" typed, then Esc, with [before] run between "ab" and "SECRET" and [after] run between "SECRET" and Esc. */
+    private fun changeAndRecord(ime: LatinIME, before: () -> Unit, after: () -> Unit = {}) {
+        field(ime, "foo bar", 0)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "qa")
+        keys(ime, "cw")
+        keys(ime, "ab")
+        before()
+        keys(ime, "SECRET")
+        after()
+        press(ime, KeyCode.VIM_MODE) // Esc: the engine reads what was typed
+        keys(ime, "q")
+    }
+
+    /** What `.`, `".p` and `@a` do in three fresh fields: their texts and the notice each one gave. */
+    private fun whatIsRemembered(ime: LatinIME): List<Pair<String, String?>> {
+        val out = ArrayList<Pair<String, String?>>()
+        for ((start, keys) in listOf("xyz" to ".", "q" to "\".p", "w" to "@a")) {
+            field(ime, start, 0)
+            press(ime, KeyCode.VIM_MODE)
+            clearToast()
+            keys(ime, keys)
+            out.add(text to toastText())
+        }
+        return out
+    }
+
+    private fun kept() = listOf<Pair<String, String?>>("abSECRET" to null, "qabSECRET" to null, "abSECRET" to null)
+
+    private fun nothing(ime: LatinIME) = listOf<Pair<String, String?>>(
+        "xyz" to ime.getString(R.string.vim_nothing_to_repeat),
+        "q" to ime.getString(R.string.vim_register_empty),
+        "w" to ime.getString(R.string.vim_register_empty),
+    )
+
+    @Test fun aChangeTypedWithoutAnySwitchIsRepeatedPutAndPlayed() = withKeyboard { ime ->
+        changeAndRecord(ime, before = { })
+        // the control of the tests below: the same keys, no event, and everything typed is kept
+        assertEquals(kept(), whatIsRemembered(ime))
+    }
+
+    @Test fun textTypedWhileIncognitoWasSwitchedOnInTheMiddleOfAnInsertIsNeverRemembered() = withKeyboard { ime ->
+        // the keys that used to leak: qa, cw, "ab", the toolbar switch on, "SECRET", the switch off, Esc, q
+        val toggle = { press(ime, KeyCode.TOGGLE_INCOGNITO_MODE) }
+        changeAndRecord(ime, before = toggle, after = toggle)
+        assertEquals(nothing(ime), whatIsRemembered(ime))
+    }
+
+    /**
+     * Every event that tells the layer that capture may have turned to "no" or that the field or session changed, each reaching it through its own path:
+     * the same keys (`qa`, `cw`, "ab", the event, "SECRET", Esc, `q`) and then nothing may be remembered, not by `.`, not by `".p`, not by a macro.
+     * The tests of the other events do not hide a missing wire here: the toolbar key is tried with the preferences listener stopped (so that no settings
+     * reload follows it), and the reload with a preference written without the key.
+     */
+    private class Event(val name: String, val before: (LatinIME) -> Unit, val after: (LatinIME) -> Unit = { })
+
+    private fun setIncognito(ime: LatinIME, on: Boolean) { ime.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, on).commit() }
+
+    private var lastEditorInfo: EditorInfo? = null
+
+    private val events: List<Event> = listOf(
+        Event("the toolbar incognito key (settings listener stopped)", { ime -> Settings.getInstance().stopListener(); press(ime, KeyCode.TOGGLE_INCOGNITO_MODE) },
+            { ime -> press(ime, KeyCode.TOGGLE_INCOGNITO_MODE); Settings.getInstance().startListener() }),
+        Event("a settings reload with incognito forced (no key)", { ime -> setIncognito(ime, true) }, { ime -> setIncognito(ime, false) }),
+        Event("the same input restarted by the app", { ime -> ime.mHandler.onStartInput(lastEditorInfo, true) }),
+        Event("the input finished", { ime -> ime.mHandler.onFinishInput() }),
+        Event("the input view finished", { ime -> ime.mHandler.onFinishInputView(true) }),
+        Event("the screen lock", { ime -> Privacy.lock(ime) }, { ime -> Privacy.unlock(ime) }),
+        Event("the Vim setting turned off and on", { ime -> ime.prefs().edit().putBoolean(Settings.PREF_VIM_MODE, false).commit() },
+            { ime -> ime.prefs().edit().putBoolean(Settings.PREF_VIM_MODE, true).commit() }),
+    )
+
+    @Test fun everyEventThatReportsANoOrAChangeOfFieldDropsTheSessionTheRecordingAndTheRepeat() {
+        for (e in events) withKeyboard { ime ->
+            changeAndRecord(ime, before = { e.before(ime) }, after = { e.after(ime) })
+            assertEquals(nothing(ime), whatIsRemembered(ime), e.name)
+        }
+    }
+
+    @Test fun aReloadOfTheSettingsThatKeepsCaptureAllowedDropsNothing() = withKeyboard { ime ->
+        // the control of the table: a preference that changes the settings (a reload) while capture is allowed before and after
+        changeAndRecord(ime, before = { ime.prefs().edit().putBoolean(Settings.PREF_VIM_INDENT_TAB, true).commit() }, after = { ime.prefs().edit().putBoolean(Settings.PREF_VIM_INDENT_TAB, false).commit() })
+        assertEquals(kept(), whatIsRemembered(ime))
     }
 }

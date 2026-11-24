@@ -133,6 +133,11 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
             engine.clearMemory()
             leave() // Vim is not available while the device is locked (PrivacyPolicy): no Vim layout is left on the screen
         }
+        // every reload of the settings carries the privacy decision of the field (force-incognito, the app list, the field's own flags): where capture is "no" before
+        // or after it (or there was no decision before), what is being made is dropped; two reloads that both allow capture (a theme change) leave it alone
+        settings.onReload("vim") { before, after ->
+            if (before == null || !before.mPrivacy.storeClipboard || !after.mPrivacy.storeClipboard) engine.captureChanged()
+        }
     }
 
     /** The Esc key of the typing keyboard (the toolbar key) and of the Vim layouts. */
@@ -224,8 +229,20 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
         return true
     }
 
-    /** A new field, or the end of the input: the typing keyboard is back (the next keyboard load shows it). */
-    fun fieldFinished() = end()
+    /**
+     * The capture rule may have turned to "no" (the toolbar's incognito switch), or the field or the session changed: the engine is not called while the user
+     * types in insert mode, so it must be told. The insert session that is open, the recording and the "." record that wait for typed text are dropped.
+     */
+    fun captureChanged() = engine.captureChanged()
+
+    /** An input starts, a new field or the same one restarted by the app: an insert session, a recording or a repeat record from before is not carried over. */
+    fun fieldStarted() = engine.captureChanged()
+
+    /** A new field, or the end of the input: the typing keyboard is back (the next keyboard load shows it), and what was being made in the field is dropped. */
+    fun fieldFinished() {
+        engine.captureChanged()
+        end()
+    }
 
     private fun end() {
         engine.reset()

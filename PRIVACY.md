@@ -157,7 +157,16 @@ repeats, the marks of the field, the search pattern, the last substitute and the
 kept in memory only, in one holder (`VimMemory`) that nothing else in the package may bypass: it asks the rule below again at every write, so
 switching incognito on in the middle of a command, an insert or a recording keeps what follows out (a recording, and the typed text of a change
 that `.` would repeat, are dropped at that moment; `VimStoresTest` fills every store through real keys in such a field, and
-`VimStoresStructureTest` fails when a store or a writer is added without being named). It is never written to disk, never logged and never put on the system clipboard, except through the `"+` and `"*` registers,
+`VimStoresStructureTest` fails when a store or a writer is added without being named). What is typed in insert mode does not pass through
+the layer (the typing keyboard writes it to the field and the layer reads the difference at Esc), so the answer of the rule at Esc says nothing
+about the time before: an insert session carries one flag, "capture allowed throughout". It is set when the session starts and cleared by
+every event the keyboard reports to the layer (the incognito key; every settings reload where capture is off before or after it, which
+carries the privacy decision of the field; a field that starts, is restarted by the app or finishes; the screen lock and a wipe; Vim mode
+turned off) and by any key that meets a "no"; it is never set again. A session whose flag was cleared is dropped whole, at Esc, at the end of
+a recording and at every write into the holder: not its last inserted text, not the `.` record, not the recording, not the marks (they hold a
+copy of the field). `VimTaintTest` runs every kind of insert (`c`, `s`, `i`, `a`, `A`, `I`, `o`, `O`, `R`, a count, Visual and block inserts) through it,
+and `VimWiringTest` sends each event along its own path (the toolbar key with the settings listener stopped, a settings reload without the key, an input
+restarted, finished, the input view finished, the screen lock, the setting off) and fails when one of the wires is removed. It is never written to disk, never logged and never put on the system clipboard, except through the `"+` and `"*` registers,
 which are the system clipboard: `"+y` copies and `"+p` pastes through the same code as the copy key and the paste key (a copy keeps the
 sensitive flag of a password field, a paste of a number field takes only what the field accepts). Everything else is filled only where
 clipboard history may keep a copy (not in a password field, a field that asks for no personalized learning, an app on your incognito list
@@ -168,7 +177,11 @@ the field, and are dropped when the text was changed by anything but Vim mode. A
 has ONE budget: at most 20 000 keys, 100 000 ex steps (a line, an iteration of `:global`, a command) and 2.5 seconds together. Every search,
 pattern and `:substitute` is at most 3 million steps and 0.4 seconds, and no text that any command builds may be longer than 20 000
 characters (a count, a register, a replacement or a copy that would make it longer is refused before it is built: `:g/^/%t$` cannot double
-the text until memory ends). So nothing a user types or a pattern copied from elsewhere can hang the keyboard or use up its memory; at a limit
+the text until memory ends). Executions nested in one another (a macro in a macro, `:normal`, `@:`, `@@`, `.` in a macro, `:global` with
+`:normal`) are at most 10 levels deep (a play is one level, every `:normal` run one more), and the text copies that executions two or more
+levels deep build add up to at most 2 000 000 characters in one command, counted before each copy is built (a macro that calls itself, or
+`:normal @:`, stops at the tenth level: `VimNestingTest` has every form at the limit and one level past it, and `VimStressTest` runs them on the
+largest field in a child JVM with a 64 MB heap and a 512 KB stack, where no OutOfMemoryError or StackOverflowError may happen). So nothing a user types or a pattern copied from elsewhere can hang the keyboard or use up its memory; at a limit
 the command stops, says so and changes nothing (a play or an ex line runs on a copy that is then dropped). An ex line that Vim mode does not
 understand (characters left after the command, an unknown flag or argument, an expression register such as `:put =x`, a range where none is
 allowed) is refused with a message and never run in part. `:reg` and `:marks` show their listing in the keyboard's own mode line, never in
@@ -178,7 +191,7 @@ The command line (`:`, `/`, `?`) is typed on the keyboard's own layout, into the
 learned or suggested, and a swipe or a tapped suggestion is dropped while it is open. A macro, a repeat or an ex command that changes
 the text is run on a copy of the text and written to the field as one text change. `p` and `P` insert like the clipboard paste key (no
 learning). Checks: `VimGoldenTest` (21 000 cases whose results come from the real vim), `VimEngineTest`, `VimEngineV2Test`, `VimStoresTest`, `VimStoresStructureTest`, `VimMemoryRulesTest`,
-`VimBoundsTest` and `VimLimitsTest` (bounds, privacy, one change per command, ex lines that fail closed), `VimRegexTest`, `VimWindowTest`, `VimWiringTest`, `PrivacyPolicyTest`, a check of the
+`VimBoundsTest` and `VimLimitsTest` (bounds, privacy, one change per command, ex lines that fail closed), `VimTaintTest`, `VimNestingTest`, `VimStressTest`, `VimRegexTest`, `VimWindowTest`, `VimWiringTest`, `PrivacyPolicyTest`, a check of the
 compiled classes of the vim package against an allow list (every class of the package, whatever produced it, Kotlin or Java; it may refer
 only to plain Kotlin, its own package, a few value types and collections of Java and two pure text classes: no Android, file, network,
 clipboard, log, process, thread, reflection, preference or storage class, however the name is written, and no exception message; a member

@@ -25,8 +25,8 @@ class VimStoresStructureTest {
         "searchOff" to "searchState", "sub" to "substitute", "cmdHistory" to "commandHistory", "searchHistory" to "searchHistory",
     )
 
-    /** Not a store: the rule object, and the flag that tells the user once that a recording was dropped (it holds no text). */
-    private val notStores = setOf("rules", "recDropped")
+    /** Not a store: the rule object, the flag that tells the user once that a recording was dropped, and the flag of the insert session that is open (neither holds text). */
+    private val notStores = setOf("rules", "recDropped", "insertClean")
 
     @Test fun everyFieldOfTheMemoryIsAStoreWithALabelOrIsKnownNotToBeOne() {
         val fields = VimMemory::class.java.declaredFields.filter { !it.isSynthetic && !Modifier.isStatic(it.modifiers) }.map { it.name }.toSet()
@@ -65,6 +65,7 @@ class VimStoresStructureTest {
     private val readers = setOf(
         "get", "getUnnamed", "names", "getLastInsert", "getLastSearch", "getLastCommand", "writable", "getSearchForward", "getSearchOffset", "getSubstitute", "getLastFind",
         "getLastMacro", "history", "getMarksBase", "markGet", "markIsSet", "markNames", "dotRepeat", "getRecording", "takeDropped", "nonEmpty", "mayKeep",
+        "typedMayBeKept",
     )
 
     private val writers: Map<String, (VimMemory) -> Unit> = mapOf(
@@ -74,6 +75,7 @@ class VimStoresStructureTest {
         "store" to { m -> m.store('a', Reg("secret", RegType.CHAR)) },
         "point" to { m -> m.point(Reg("secret", RegType.CHAR)) },
         "setLastInsert" to { m -> m.setLastInsert("secret") },
+        "setLastTyped" to { m -> m.setLastTyped("secret") },
         "setLastCommand" to { m -> m.setLastCommand("secret") },
         "setSearch" to { m -> m.setSearch("secret", false, VimSearch.Offset.NONE) },
         "setSearchPattern" to { m -> m.setSearchPattern("secret") },
@@ -86,6 +88,8 @@ class VimStoresStructureTest {
         "marksClear" to { m -> m.marksClear() },
         "marksRemapEdit" to { m -> m.marksRemapEdit("secret", 0, 1, "x") },
         "marksRemap" to { m -> m.marksRemap("secret", "other") },
+        "marksAfterInsert" to { m -> m.marksAfterInsert("secret", 0, "x", "xsecret") },
+        "insertMarks" to { m -> m.insertMarks("secret", 0, 1) },
         "dotSet" to { m -> m.dotSet(null, null, listOf('s'.code), null, openForInsert = true) },
         "dotTyped" to { m -> m.dotTyped("secret") },
         "dotBroken" to { m -> m.dotBroken() },
@@ -96,6 +100,8 @@ class VimStoresStructureTest {
         "recordBroken" to { m -> m.recordBroken() },
         "recordStop" to { m -> m.recordStop() },
         "sync" to { m -> m.sync() },
+        "insertBegin" to { m -> m.insertBegin() },
+        "taint" to { m -> m.taint() }, // last: a tainted session refuses the typed text, which the positive control below does not want to meet before the other writers
     )
 
     @Test fun everyPublicMethodOfTheMemoryIsAReaderOrAWriterThatTheTestKnows() {

@@ -126,6 +126,9 @@ public interface KeyboardActionListener {
     /** The field lost the keyboard: what belongs to it is dropped. */
     void onFieldFinished();
 
+    /** An input starts (a new field, or the same one restarted by the app): what was being typed or recorded before is not carried over. */
+    void onFieldStarted();
+
     KeyboardActionListener EMPTY_LISTENER = new Adapter();
 
     enum SwipeAction { NONE, MOVE_CURSOR, SWITCH_LANGUAGE, TOGGLE_NUMPAD, TOGGLE_DPAD, HIDE_KEYBOARD, TOUCHPAD_MODE }
@@ -186,5 +189,7 @@ public interface KeyboardActionListener {
         public void onSelectionChanged(int newSelStart, int newSelEnd) {}
         @Override
         public void onFieldFinished() {}
+        @Override
+        public void onFieldStarted() {}
     }
 }

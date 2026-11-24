@@ -145,14 +145,14 @@ class GuardedVimEngineTest {
     @Test fun theGuardHasEveryPublicMemberOfTheEngineAndNothingElse() {
         fun publicNames(c: Class<*>) = c.declaredMethods.filter { java.lang.reflect.Modifier.isPublic(it.modifiers) && !it.isSynthetic && !it.name.contains('$') }.map { it.name }.toSet()
         val engine = publicNames(VimEngine::class.java)
-        assertTrue(engine.containsAll(setOf("escape", "key", "reset", "clearMemory", "getMode", "getWantsChar", "getPending", "getCmdline", "getRecordingRegister")), "positive control: the list is read: $engine")
+        assertTrue(engine.containsAll(setOf("escape", "key", "reset", "clearMemory", "captureChanged", "getMode", "getWantsChar", "getPending", "getCmdline", "getRecordingRegister")), "positive control: the list is read: $engine")
         assertEquals(engine, publicNames(GuardedVimEngine::class.java), "a public member of the engine without a guarded copy (or the other way round)")
     }
 
     /** Not every member can be made to throw by a fake (reading the mode, resetting), so the source is held to the rule: each public member's one expression is a guarded call. */
     @Test fun everyPublicMemberOfTheGuardRunsItsEngineCallInsideGuarded() {
         val members = File(main, "keyboard/GuardedVimEngine.kt").readLines().filter { Regex("""^    (val|fun) """).containsMatchIn(it) }
-        assertEquals(listOf("mode", "wantsChar", "pending", "cmdline", "recordingRegister", "clearMemory", "reset", "escape", "key"), members.map { Regex("""^    (?:val|fun) (\w+)""").find(it)!!.groupValues[1] })
+        assertEquals(listOf("mode", "wantsChar", "pending", "cmdline", "recordingRegister", "clearMemory", "captureChanged", "reset", "escape", "key"), members.map { Regex("""^    (?:val|fun) (\w+)""").find(it)!!.groupValues[1] })
         for (m in members) assertTrue(Regex("""= guarded\(|get\(\) = guarded\(""").containsMatchIn(m) && m.contains("engine."), "not guarded: $m")
     }
 
