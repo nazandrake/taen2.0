@@ -1386,4 +1386,5 @@ New dictionary:
     <string name="vim_not_accepted">This field does not take that text</string>
     <string name="vim_register_off">Nothing is kept for pasting in this field</string>
     <string name="vim_register_empty">Nothing to paste</string>
+    <string name="vim_failed">Vim mode stopped because of an error: back to typing</string>
 </resources>

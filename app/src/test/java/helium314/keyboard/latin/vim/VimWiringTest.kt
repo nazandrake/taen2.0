@@ -29,6 +29,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
+import org.robolectric.shadows.ShadowLog
 import org.robolectric.annotation.Config
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -477,6 +478,63 @@ class VimWiringTest {
         assertNotNull(vimEscKey())
         press(ime, KeyCode.VIM_MODE)
         assertEquals(KeyboardElement.VIM_NORMAL, element)
+    }
+
+    /** An exception of the engine, whose message holds the field text (as Integer.parseInt or Enum.valueOf make it), must not reach the caller: the system writes a crash message to the log. */
+    @Test fun anExceptionOfTheEngineNeverReachesTheSystemAndTheKeyboardGoesBackToTyping() = withKeyboard { ime ->
+        field(ime, "foo bar baz", 3)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "2d") // a pending command: it must not survive the failure
+        var thrown = 0
+        ShadowInputMethodService.extractedTextTransform = { thrown++; throw IllegalStateException("For input string: \"$it\"") }
+        clearToast()
+        ShadowLog.clear()
+        keys(ime, "w") // the engine reads the field and the read throws, with the field text in its message
+        assertEquals(1, thrown, "positive control: the engine did call the field and it threw")
+        assertEquals("foo bar baz", text)
+        assertTrue(element!!.isAlphabet, "back on the typing keyboard")
+        assertEquals(ime.getString(R.string.vim_failed), toastText(), "the generic notice, without the text")
+        assertEquals(emptyList(), ShadowLog.getLogs().map { it.msg }, "nothing is logged")
+        // recovery: nothing is pending, the register is untouched, and a normal command edits exactly
+        ShadowInputMethodService.extractedTextTransform = null
+        press(ime, KeyCode.VIM_MODE)
+        assertEquals(KeyboardElement.VIM_NORMAL, element)
+        keys(ime, "w")
+        assertEquals("foo bar baz", text, "the 2d did not survive: w alone only moves")
+        keys(ime, "dw")
+        assertEquals("foo baz", text)
+        assertEquals(KeyboardElement.VIM_NORMAL, element)
+    }
+
+    @Test fun anExceptionOnTheEscKeyIsDroppedToo() = withKeyboard { ime ->
+        field(ime, "foo bar baz", 3)
+        var thrown = 0
+        ShadowInputMethodService.extractedTextTransform = { thrown++; throw NumberFormatException("For input string: \"$it\"") }
+        clearToast()
+        ShadowLog.clear()
+        press(ime, KeyCode.VIM_MODE) // the Esc key enters Normal mode: the engine reads the field and the read throws
+        assertEquals(1, thrown)
+        assertEquals("foo bar baz", text)
+        assertTrue(element!!.isAlphabet)
+        assertEquals(ime.getString(R.string.vim_failed), toastText())
+        assertEquals(emptyList(), ShadowLog.getLogs().map { it.msg })
+        ShadowInputMethodService.extractedTextTransform = null // the control: the same key works once the field answers
+        press(ime, KeyCode.VIM_MODE)
+        assertEquals(KeyboardElement.VIM_NORMAL, element)
+        assertEquals(2 to 2, selection)
+    }
+
+    @Test fun anExceptionWhileTheCharacterArgumentIsPendingLeavesNoCommandBehind() = withKeyboard { ime ->
+        field(ime, "a,b,c", 1)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "f") // waits for a character
+        ShadowInputMethodService.extractedTextTransform = { throw IllegalArgumentException("Char sequence is empty: \"$it\"") }
+        press(ime, ','.code)
+        assertEquals("a,b,c", text)
+        assertTrue(element!!.isAlphabet)
+        ShadowInputMethodService.extractedTextTransform = null
+        keys(ime, ",") // typed: no f is waiting any more
+        assertEquals(",a,b,c", text) // at the caret (0, after the Esc step)
     }
 
     @Test fun theScreenLockLeavesTheVimLayoutAndTheKeysTypeAgain() = withKeyboard { ime ->

@@ -102,7 +102,14 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
         }
     }
 
-    internal val engine = VimEngine(port, rules)
+    // every call into the engine goes through the guard: an exception of the engine is dropped unread, never reaches the crash handler and its log (the field text can be in the message)
+    internal val engine = GuardedVimEngine(VimEngine(port, rules), ::engineFailed)
+
+    /** An engine call threw (the exception is already dropped): back to typing, nothing pending, one generic notice. */
+    private fun engineFailed() {
+        leave()
+        switcher.showToast(latinIME.getString(R.string.vim_failed), true)
+    }
 
     private var listener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 

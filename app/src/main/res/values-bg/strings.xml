@@ -871,4 +871,5 @@
     <string name="vim_not_accepted">Полето не приема този текст</string>
     <string name="vim_register_off">В това поле нищо не се пази за поставяне</string>
     <string name="vim_register_empty">Няма какво да се постави</string>
+    <string name="vim_failed">Режимът Vim спря поради грешка: обратно към писане</string>
 </resources>

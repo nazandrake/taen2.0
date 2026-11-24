@@ -157,7 +157,9 @@ at a wipe, and whenever Vim mode is off (also after a restored backup or an appl
 cases whose results come from the real vim), `VimEngineTest`, `VimWindowTest`, `VimWiringTest`, `PrivacyPolicyTest`, a check of the
 compiled classes of the vim package against an allow list (every class of the package, whatever produced it, Kotlin or Java; it may refer
 only to plain Kotlin, its own package, a few value types and collections of Java and two pure text classes: no Android, file, network,
-clipboard, log, process, thread, reflection, preference or storage class, however the name is written, and no exception message) and the release APK scan (no process is started by anything shipped).
+clipboard, log, process, thread, reflection, preference or storage class, however the name is written, and no exception message), a catch at the
+one door into the engine (an exception that a library call inside it throws can carry field text in its message, which the system would write to the log: the
+keyboard drops any exception of the engine unread, does not log or keep it, shows one generic message and goes back to typing; `GuardedVimEngineTest`) and the release APK scan (no process is started by anything shipped).
 
 ## What a keyboard cannot protect against
 

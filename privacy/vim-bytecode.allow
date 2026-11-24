@@ -18,6 +18,12 @@
 # and IllegalArgumentException) are refused, so field or register text cannot reach a crash message and logcat through the package. The same
 # holds for the Kotlin members that throw with a caller-supplied message (listed by name below) and every kotlin/jvm/internal/Intrinsics member
 # but the three the compiler emits.
+# BOUNDARY CATCH. The lists below cannot name every library member that puts its input in an exception message (Integer.parseInt, Enum.valueOf,
+# a cast, ...), so they are defence in depth. The one boundary is the adapter outside the package: GuardedVimEngine (keyboard package) runs every
+# call into the engine, and so everything the engine calls or runs, inside one catch of Exception. The exception is dropped unread, never logged
+# or kept, and nothing the engine throws reaches the system crash handler and its log (GuardedVimEngineTest, VimWiringTest).
+# SIGNATURES. Generic signatures are read by the full JVM grammar (nested Outer.Inner segments map to Outer$Inner and both are checked, type
+# arguments, wildcards, type variables, arrays), so no spelling of a type hides its class.
 
 # the package itself
 allow helium314/keyboard/latin/vim/

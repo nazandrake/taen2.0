@@ -248,6 +248,44 @@ class VimBytecodeTest {
         assertEquals(listOf("helium314/keyboard/latin/vim/P refers to bad/Annotation, which is not on the vim allow list"), problems)
     }
 
+    // ---- generic signatures: nested segments, type arguments, wildcards, type variables, arrays
+
+    private fun signatureRefs(vararg texts: String) = refs(ClassFile("a/B").also { c -> texts.forEach { c.utf(it) } }) - setOf("a/B", "java/lang/Object")
+
+    @Test fun aNestedSegmentOfAGenericSignatureNamesTheOuterAndTheNestedClass() {
+        // a field of type ObjectInputStream.GetField<String>: the nested form does not repeat the outer name before a `;` or a `<`
+        assertEquals(setOf("java/io/ObjectInputStream", "java/io/ObjectInputStream\$GetField", "java/lang/String"), signatureRefs("Ljava/io/ObjectInputStream.GetField<Ljava/lang/String;>;"))
+        assertEquals(setOf("java/io/ObjectInputStream", "java/io/ObjectInputStream\$GetField"), signatureRefs("Ljava/io/ObjectInputStream.GetField;"))
+        val problems = verdict { utf("Ljava/io/ObjectInputStream.GetField<Ljava/lang/String;>;") }
+        assertTrue(problems.toString(), problems.any { it.contains("refers to java/io/ObjectInputStream, which") })
+        assertTrue(problems.toString(), problems.any { it.contains("refers to java/io/ObjectInputStream\$GetField, which") })
+    }
+
+    @Test fun theWholeSignatureGrammarYieldsEveryClassName() {
+        assertEquals(setOf("a/Outer", "a/Outer\$Mid", "a/Outer\$Mid\$In", "x/Arg", "y/Arg2"), signatureRefs("La/Outer<Lx/Arg;>.Mid<Ly/Arg2;>.In;"))
+        assertEquals(setOf("java/util/Map", "java/io/File", "java/net/Socket", "java/lang/Process", "java/lang/Thread"), signatureRefs("Ljava/util/Map<+Ljava/io/File;-Ljava/net/Socket;>;", "<T:Ljava/lang/Process;>([[Ljava/lang/Thread;TT;)V"))
+        assertEquals(setOf("java/util/List", "java/io/File"), signatureRefs("Ljava/util/List<*>;", "[Ljava/io/File;"))
+        assertEquals(setOf("java/util/List", "java/io/File"), signatureRefs("Ljava/util/List<[Ljava/io/File;>;"))
+        // a type variable is not a class, and nothing else that merely begins with L is
+        assertEquals(emptySet<String>(), signatureRefs("TLjava;", "<L:I>(TL;)V", "Lorem.ipsum", "Lorem ipsum.dolor;"))
+        assertEquals(setOf("java/lang/Number"), signatureRefs("<L:Ljava/lang/Number;>(TL;)V")) // a type parameter named L
+        assertEquals(setOf("a/Outer", "a/Outer\$Lazy"), signatureRefs("La/Outer.Lazy;")) // a nested class whose name starts with L is no class of its own
+        // every kind of type argument before a nested segment is parsed through, so the nested class is still found
+        for (arg in listOf("*", "+Lx/A;", "-Lx/A;", "TT;", "Lx/A;", "Lx/A<Ly/B;>;", "[I", "[[Lx/A;", "Lx/A;*"))
+            assertTrue("a/O\$In for <$arg>", "a/O\$In" in signatureRefs("La/O<$arg>.In;"))
+        assertEquals(setOf("foo/Bar"), signatureRefs("Lfoo/Bar<weird")) // not a signature: its outer class counts all the same
+        assertEquals(setOf("a/O"), signatureRefs("La/O<>.In;")) // empty type arguments are not a signature: no nested class from it
+        assertEquals(setOf("a/O", "x/A"), signatureRefs("La/O<Lx/A;")) // not closed: the outer class and the argument count
+    }
+
+    @Test fun aNestedTypeThatIsAllowedStaysAllowed() {
+        // kotlin.collections.Map.Entry: an inner class of an allowed class, named in a Signature attribute
+        assertEquals(emptyList<String>(), verdict { utf("Lkotlin/collections/Map.Entry<Ljava/lang/String;Ljava/lang/Integer;>;"); utf("Ljava/util/List<Lkotlin/collections/Map\$Entry<Ljava/lang/String;Ljava/lang/Integer;>;>;") })
+        assertEquals(setOf("kotlin/collections/Map", "kotlin/collections/Map\$Entry", "java/lang/String", "java/lang/Integer"), signatureRefs("Lkotlin/collections/Map.Entry<Ljava/lang/String;Ljava/lang/Integer;>;"))
+        // the control: the same shape with a denied outer class is refused
+        assertTrue(verdict { utf("Ljava/io/File.Inner<Ljava/lang/String;>;") }.isNotEmpty())
+    }
+
     // ---- everything a Utf8 entry can say, the members that take a message
 
     @Test fun aTypeInAGenericSignatureOrAnUnpackagedTypeOrAStringThatLooksLikeOneIsChecked() {

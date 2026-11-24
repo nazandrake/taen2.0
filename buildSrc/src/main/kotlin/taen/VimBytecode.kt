@@ -28,9 +28,74 @@ object VimBytecode {
     private const val NAME_AND_TYPE = 12
     private const val METHOD_TYPE = 16
     private val descriptorType = Regex("L([^;]+);")
-    // a type inside any descriptor or generic signature (annotations, Signature attributes, method and field descriptors): L<name>; or L<name><
-    private val signatureType = Regex("""(?<![\w$/])L([\w$]+(?:/[\w$]+)*)[;<]""")
     private val internalName = Regex("""[\w$]+(?:/[\w$]+)+""")
+
+    /**
+     * The classes that the class type signatures in [text] name (annotations, Signature attributes, descriptors), by the full JVM signature grammar:
+     * `Lpkg/Outer<args>.Inner<args>;` yields `pkg/Outer` and `pkg/Outer$Inner` (every nested segment, each with the names of its outer classes), and
+     * the type arguments (`*`, `+T`, `-T`, a class type, a type variable, an array) are parsed for the classes they name. A text that is not a
+     * complete signature yields at most the outer class of a `L...;` or `L...<` it starts with.
+     */
+    fun signatureClasses(text: String): Set<String> {
+        val found = linkedSetOf<String>()
+        for (p in text.indices) {
+            // an `L` that starts a type is not inside a word, a package path or a nested segment (those are read by the parse that is already running)
+            if (text[p] == 'L' && (p == 0 || !(text[p - 1].isIdentifierChar() || text[p - 1] == '/' || text[p - 1] == '.'))) SignatureParser(text, p, found).classType()
+        }
+        return found
+    }
+
+    private fun Char.isIdentifierChar() = isLetterOrDigit() || this == '_' || this == '$'
+
+    private class SignatureParser(val s: String, var i: Int, val out: MutableSet<String>) {
+        private fun peek(): Char? = s.getOrNull(i)
+
+        private fun identifier(): String? {
+            val start = i
+            while (i < s.length && s[i].isIdentifierChar()) i++
+            return if (i > start) s.substring(start, i) else null
+        }
+
+        /** `L pkg/Name [<args>] (. Name [<args>])* ;` at [i]; true when it is complete. */
+        fun classType(): Boolean {
+            if (peek() != 'L') return false
+            i++
+            val path = StringBuilder(identifier() ?: return false)
+            while (peek() == '/') { i++; path.append('/').append(identifier() ?: return false) }
+            val names = mutableListOf(path.toString())
+            if (peek() == ';' || peek() == '<') out.add(names[0]) // the outer class counts even when the rest is not a signature
+            while (true) {
+                if (peek() == '<' && !typeArguments()) return false
+                when (peek()) {
+                    '.' -> { i++; names.add(names.last() + "$" + (identifier() ?: return false)) }
+                    ';' -> { i++; out.addAll(names); return true }
+                    else -> return false
+                }
+            }
+        }
+
+        private fun typeArguments(): Boolean {
+            i++ // <
+            var count = 0
+            while (peek() != '>') {
+                when (peek()) {
+                    '*' -> i++
+                    '+', '-' -> { i++; if (!reference()) return false }
+                    else -> if (!reference()) return false
+                }
+                count++
+            }
+            i++ // >
+            return count > 0
+        }
+
+        private fun reference(): Boolean = when (peek()) {
+            'L' -> classType()
+            'T' -> { i++; identifier() != null && peek() == ';' && run { i++; true } }
+            '[' -> { i++; val c = peek(); if (c != null && c in "BCDFIJSZ") { i++; true } else reference() }
+            else -> false
+        }
+    }
 
     /** Parses a class file and returns what its constant pool and its declared members refer to. Fails closed (IllegalArgumentException) on anything it does not understand. */
     fun references(bytes: ByteArray): ClassRefs {
@@ -88,7 +153,7 @@ object VimBytecode {
         val names = linkedSetOf<String>()
         for (k in 1 until count) if (tag[k] == 1) {
             val text = utf[k]!!
-            signatureType.findAll(text).forEach { refs.add(it.groupValues[1]) }
+            refs.addAll(signatureClasses(text))
             if (internalName.matches(text)) names.add(text)
         }
         u2() // access flags
