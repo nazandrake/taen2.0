@@ -83,6 +83,27 @@ class NextWordAssistTest {
         assertEquals(1, model.forgets, "the model forgot the text of the old field")
     }
 
+    @Test fun aShutDownWorkerDropsEveryLateStepWithoutThrowing() {
+        val thread = java.util.concurrent.Executors.newSingleThreadExecutor()
+        val late = NextWordAssist(thread, main) { now }
+        late.prepare(holder) // the model is loaded, so that a cancel has something to forget
+        late.cancel(listOf(holder))
+        late.request("the", listOf("cat"), { it == "dog" }, holder, show)
+        thread.shutdown() // what NextWordTyping.onDestroy does: the queued steps still run
+        assertEquals(true, thread.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS))
+        main.runAll()
+        assertEquals(1, model.forgets, "positive control: the cancel before the shut-down reached the model")
+        assertEquals(listOf("dog", "cat"), shown, "positive control: the request before the shut-down was served")
+        shown = null
+        late.cancel(listOf(holder)) // the service ended; the framework's finish-input callback and the lock hook come after that
+        late.prepare(holder)
+        late.request("the", listOf("fox"), { it == "dog" }, holder, show)
+        main.runAll()
+        assertNull(shown, "nothing ran after the shut-down")
+        assertEquals(1, model.forgets, "the dropped cancel did not run")
+        assertEquals(1, model.calls, "the dropped request did not run the model")
+    }
+
     @Test fun aDamagedModelOrAFailingStepShowsNothing() {
         val damaged = NextWordEngineHolder({ false }) { fakeRanker(model) }
         assist.request("the", listOf("cat"), { true }, damaged, show)
