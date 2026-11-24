@@ -15,6 +15,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+private object VimBoom { val n = "foo bar baz".toInt() } // an initializer of a helper object that parses text: ExceptionInInitializerError
+
 /** The guard around the engine: what the engine throws never gets out, whatever the exception and wherever in the engine it is thrown. */
 class GuardedVimEngineTest {
     private class Fixture(text: String = "foo bar baz", caret: Int = 4, val rules: VimRules = TestRules()) {
@@ -43,22 +45,41 @@ class GuardedVimEngineTest {
         assertEquals("foo bar baz", f.field.text)
     }
 
-    @Test fun everyKindOfExceptionButAnErrorIsDropped() {
+    @Test fun everyThrowableButAVirtualMachineErrorIsDropped() {
+        // Exceptions and Errors alike: a class initializer that fails is an Error that carries the cause (and so the text) in its stack trace
         for (error in listOf<Throwable>(IllegalStateException("x"), IllegalArgumentException("x"), NumberFormatException("x"), NullPointerException("x"), ClassCastException("x"),
-            IndexOutOfBoundsException("x"), ArithmeticException("x"), UnsupportedOperationException("x"), IOException("a checked exception that Kotlin lets through"), Exception("plain"), RuntimeException())) {
+            IndexOutOfBoundsException("x"), ArithmeticException("x"), UnsupportedOperationException("x"), IOException("a checked exception that Kotlin lets through"), Exception("plain"), RuntimeException(),
+            AssertionError("x"), ExceptionInInitializerError(NumberFormatException("For input string: \"foo bar baz\"")), NoClassDefFoundError("Could not initialize class"), LinkageError("x"),
+            NotImplementedError("An operation is not implemented: foo bar baz"), object : Error("a Kotlin or library Error built with the text") {})) {
             val f = Fixture()
             f.guard.escape()
             f.armedRead { error }
             f.guard.key('x'.code)
             assertEquals(1, f.failures, error.toString())
+            assertEquals(VimMode.INSERT, f.guard.mode, error.toString())
         }
-        for (error in listOf<Throwable>(StackOverflowError(), OutOfMemoryError(), AssertionError("x"))) {
+        // the JVM's own failures carry no caller text and are not ours to hide: rethrown as they are, nothing reset
+        for (error in listOf<Throwable>(StackOverflowError(), OutOfMemoryError(), InternalError("x"), UnknownError("x"))) {
             val f = Fixture()
             f.guard.escape()
             f.armedRead { error }
-            assertEquals(error, assertFailsWith<Throwable> { f.guard.key('x'.code) }, "an Error is not ours to hide")
+            assertEquals(error, assertFailsWith<Throwable> { f.guard.key('x'.code) }, "a VirtualMachineError passes unchanged")
             assertEquals(0, f.failures)
+            assertEquals(VimMode.NORMAL, f.guard.mode, "nothing was reset")
         }
+    }
+
+    @Test fun anObjectInitializerThatParsesTheFieldTextFailsWithAnErrorThatIsDropped() {
+        // a real ExceptionInInitializerError (its cause is a NumberFormatException with the text), then the NoClassDefFoundError of every later use
+        val f = Fixture()
+        f.guard.escape()
+        f.armedRead { VimBoom.n; throw IllegalStateException("unreachable") }
+        f.guard.key('x'.code)
+        assertEquals(1, f.failures)
+        f.guard.escape() // Esc reads the field too: the second use of the object
+        assertEquals(2, f.failures)
+        val cause = runCatching { VimBoom.n }.exceptionOrNull()
+        assertTrue(cause is NoClassDefFoundError, "positive control: a later use is a NoClassDefFoundError, an Error: $cause")
     }
 
     @Test fun anExceptionOfThePortOfTheRulesAndOfARunningLambdaIsDroppedToo() {

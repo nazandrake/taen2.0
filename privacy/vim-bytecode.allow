@@ -20,10 +20,20 @@
 # but the three the compiler emits.
 # BOUNDARY CATCH. The lists below cannot name every library member that puts its input in an exception message (Integer.parseInt, Enum.valueOf,
 # a cast, ...), so they are defence in depth. The one boundary is the adapter outside the package: GuardedVimEngine (keyboard package) runs every
-# call into the engine, and so everything the engine calls or runs, inside one catch of Exception. The exception is dropped unread, never logged
-# or kept, and nothing the engine throws reaches the system crash handler and its log (GuardedVimEngineTest, VimWiringTest).
+# call into the engine, and so everything the engine calls or runs, inside one catch of Throwable (an Error from a failing object initializer
+# carries the text in its cause too). Only a VirtualMachineError (out of memory, stack overflow) passes: it carries no caller text. What is
+# caught is dropped unread, never logged or kept, and nothing else the engine throws reaches the system crash handler and its log
+# (GuardedVimEngineTest, VimWiringTest). An edit is one text change (one commitText inside a batch edit), so a cursor placement that fails after
+# it leaves the edited text, Vim resets and says so; a failed change leaves the field as it was.
 # SIGNATURES. Generic signatures are read by the full JVM grammar (nested Outer.Inner segments map to Outer$Inner and both are checked, type
-# arguments, wildcards, type variables, arrays), so no spelling of a type hides its class.
+# arguments, wildcards, type variables, arrays), so no spelling of a type hides its class. Two rules, by where the text comes from:
+#  - a constant pool entry that is not a plain string constant and starts as a type or signature (L..;, an array, a method signature, type
+#    parameters) must parse completely, else the guard FAILS and names the entry by its index, never by its text;
+#  - a plain string constant (named by a CONSTANT_String) is text: when it is not a complete signature, every slash-separated identifier token
+#    in it (java/io/File) is checked as a class name, so text with a slash in it needs its class name on this list.
+# THREAT MODEL. The guard stops field or register text from leaving the vim package through files, logs, stdout, processes, network, reflection or
+# crash messages, for mistakes in code written in good faith and for any field input. Deliberately hostile code merged into the repo is out of its
+# scope: code review covers that.
 
 # the package itself
 allow helium314/keyboard/latin/vim/

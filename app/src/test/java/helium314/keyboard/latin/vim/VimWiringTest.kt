@@ -549,4 +549,76 @@ class VimWiringTest {
         Privacy.unlock(ime)
         assertEquals("x", pasteIntoNewField(ime), "the register was forgotten at the lock")
     }
+
+    // ---- an edit is one text change: a failed cursor placement after it leaves the edited text, a failed change leaves the field as it was
+
+    private data class Edit(val keys: String, val result: String)
+
+    /** The field text is "foo bar baz" with the cursor on the b of bar (index 4); every result is what Vim gives for the keys. */
+    @Test fun everyEditingCommandMakesExactlyOneTextChange() = withKeyboard { ime ->
+        val edits = listOf(
+            Edit("dw", "foo baz"), Edit("d2w", "foo "), Edit("cw", "foo  baz"), Edit("x", "foo ar baz"), Edit("s", "foo ar baz"), Edit("rX", "foo Xar baz"),
+            Edit("D", "foo "), Edit("C", "foo "), Edit("dd", ""), Edit("cc", ""), Edit("o", "foo bar baz\n"), Edit("O", "\nfoo bar baz"),
+            Edit("ywP", "foo bar bar baz"), Edit("ywp", "foo bbar ar baz"), Edit("yyp", "foo bar baz\nfoo bar baz"),
+            Edit("vlld", "foo  baz"), Edit("vllc", "foo  baz"), Edit("vllx", "foo  baz"), Edit("Vd", ""), Edit("Vc", ""),
+        )
+        for ((keys, result) in edits) {
+            field(ime, "foo bar baz", 5)
+            press(ime, KeyCode.VIM_MODE) // Esc: one left, the cursor is on the b of bar
+            assertEquals(4 to 4, selection, keys)
+            ShadowInputMethodService.textChanges.clear()
+            keys(ime, keys)
+            assertEquals(result, text, keys)
+            assertEquals(listOf("commitText"), ShadowInputMethodService.textChanges, "$keys: one text-changing call")
+        }
+        // the positive control of the counter: typing a letter is counted, so the counter does see a change
+        field(ime, "foo", 1)
+        ShadowInputMethodService.textChanges.clear()
+        keys(ime, "x")
+        assertEquals(1, ShadowInputMethodService.textChanges.size)
+        // a command that changes nothing makes no call at all
+        field(ime, "foo bar baz", 5)
+        press(ime, KeyCode.VIM_MODE)
+        ShadowInputMethodService.textChanges.clear()
+        keys(ime, "yw")
+        assertEquals(emptyList(), ShadowInputMethodService.textChanges)
+    }
+
+    @Test fun aCursorPlacementThatFailsAfterTheEditLeavesTheEditedTextAndVimIsReset() = withKeyboard { ime ->
+        field(ime, "foo bar baz", 5)
+        press(ime, KeyCode.VIM_MODE)
+        clearToast()
+        keys(ime, "dw") // the control: the same command with a working field
+        assertEquals("foo baz", text)
+        assertEquals(KeyboardElement.VIM_NORMAL, element)
+        assertEquals(null, toastText())
+        field(ime, "foo bar baz", 5)
+        press(ime, KeyCode.VIM_MODE)
+        clearToast()
+        ShadowInputMethodService.textChanges.clear()
+        ShadowInputMethodService.beforeSetSelection = { _, _ -> if (ShadowInputMethodService.textChanges.isNotEmpty()) throw IllegalStateException("the placement fails: \"foo bar baz\"") }
+        keys(ime, "dw")
+        ShadowInputMethodService.beforeSetSelection = null
+        assertEquals("foo baz", text, "the text is the command's result")
+        assertEquals(listOf("commitText"), ShadowInputMethodService.textChanges)
+        assertTrue(element!!.isAlphabet, "Vim is reset: the typing keyboard is back")
+        assertEquals(ime.getString(R.string.vim_failed), toastText())
+        keys(ime, "x")
+        assertEquals("foo xbaz", text, "a key types again at the caret the commit left: no Vim command is pending")
+    }
+
+    @Test fun aTextChangeThatFailsLeavesTheFieldAsItWasAndVimIsReset() = withKeyboard { ime ->
+        field(ime, "foo bar baz", 5)
+        press(ime, KeyCode.VIM_MODE)
+        clearToast()
+        ShadowInputMethodService.textChanges.clear()
+        ShadowInputMethodService.beforeCommitText = { throw IllegalStateException("the change fails: \"foo bar baz\"") }
+        keys(ime, "dw")
+        ShadowInputMethodService.beforeCommitText = null
+        assertEquals("foo bar baz", text)
+        assertEquals(emptyList(), ShadowInputMethodService.textChanges)
+        assertTrue(element!!.isAlphabet)
+        assertEquals(ime.getString(R.string.vim_failed), toastText())
+        assertEquals(0, ShadowInputMethodService.batchEdit, "the batch edit was closed")
+    }
 }

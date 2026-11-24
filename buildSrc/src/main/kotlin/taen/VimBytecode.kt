@@ -17,9 +17,10 @@ object VimBytecode {
 
     /**
      * The references of one class: classes (`java/io/File`) and members of classes with their descriptor (`java/io/File.delete:()Z`), every type
-     * of a descriptor or signature included. [names] are the CONSTANT_Utf8 entries that read as an internal class name (`java/io/File`).
+     * of a descriptor or signature included. [names] are the names that read as an internal class name (`java/io/File`) in a CONSTANT_Utf8 entry.
+     * [unparsed] are the indexes of the entries that start as a type or signature and do not parse completely (see [references]).
      */
-    class ClassRefs(val name: String, val refs: Set<String>, val names: Set<String> = emptySet())
+    class ClassRefs(val name: String, val refs: Set<String>, val names: Set<String> = emptySet(), val unparsed: List<Int> = emptyList())
 
     private const val CLASS = 7
     private const val FIELDREF = 9
@@ -30,11 +31,17 @@ object VimBytecode {
     private val descriptorType = Regex("L([^;]+);")
     private val internalName = Regex("""[\w$]+(?:/[\w$]+)+""")
 
+    /** What an entry that is meant as a type or signature starts with: `Lpkg/Name;`, `Lpkg/`, an array of a type, a method signature `(`, type parameters `<T:`. */
+    private val signatureStart = Regex("""^(?:L[\w$]+(?:/[\w$]+)*[;<.]|L[\w$]+/|\[+[BCDFIJSZ]|\[+L[\w$]+|\[+T[\w$]+|\(|<[\w$]+:)""")
+
+    /** True when [text] is one complete signature (a type, a method descriptor or signature, a class signature) by the JVM grammar. */
+    fun isCompleteSignature(text: String): Boolean = SignatureParser(text, 0, mutableSetOf()).complete()
+
     /**
      * The classes that the class type signatures in [text] name (annotations, Signature attributes, descriptors), by the full JVM signature grammar:
      * `Lpkg/Outer<args>.Inner<args>;` yields `pkg/Outer` and `pkg/Outer$Inner` (every nested segment, each with the names of its outer classes), and
      * the type arguments (`*`, `+T`, `-T`, a class type, a type variable, an array) are parsed for the classes they name. A text that is not a
-     * complete signature yields at most the outer class of a `L...;` or `L...<` it starts with.
+     * complete signature yields the classes read before it breaks off (the outer class of a `L...;`, `L...<` or `L....`, and the nested ones).
      */
     fun signatureClasses(text: String): Set<String> {
         val found = linkedSetOf<String>()
@@ -63,15 +70,63 @@ object VimBytecode {
             val path = StringBuilder(identifier() ?: return false)
             while (peek() == '/') { i++; path.append('/').append(identifier() ?: return false) }
             val names = mutableListOf(path.toString())
-            if (peek() == ';' || peek() == '<') out.add(names[0]) // the outer class counts even when the rest is not a signature
+            // a class counts even when the rest is not a signature; a dot after a bare name ("Lorem.ipsum") is no nested segment of a class
+            if (peek() == ';' || peek() == '<' || (peek() == '.' && '/' in names[0])) out.add(names[0])
             while (true) {
                 if (peek() == '<' && !typeArguments()) return false
                 when (peek()) {
-                    '.' -> { i++; names.add(names.last() + "$" + (identifier() ?: return false)) }
+                    '.' -> {
+                        i++
+                        names.add(names.last() + "$" + (identifier() ?: return false))
+                        if (peek() == ';' || peek() == '<' || peek() == '.') out.add(names.last())
+                    }
                     ';' -> { i++; out.addAll(names); return true }
                     else -> return false
                 }
             }
+        }
+
+        fun complete(): Boolean = whole() && i == s.length
+
+        /** A signature of any kind: optional type parameters, then a method (`(`), or the class types of a class or field signature, or one type. */
+        private fun whole(): Boolean {
+            if (peek() == '<' && !typeParameters()) return false
+            return when (peek()) {
+                '(' -> method()
+                'L' -> { do { if (!classType()) return false } while (peek() == 'L'); true }
+                else -> javaType()
+            }
+        }
+
+        /** `<T:bound:interface U:...>`: the class bound may be empty. */
+        private fun typeParameters(): Boolean {
+            i++ // <
+            var count = 0
+            while (peek() != '>') {
+                if (identifier() == null || peek() != ':') return false
+                i++
+                if (peek() == 'L' || peek() == 'T' || peek() == '[') { if (!reference()) return false }
+                while (peek() == ':') { i++; if (!reference()) return false }
+                count++
+            }
+            i++ // >
+            return count > 0
+        }
+
+        /** `(` types `)` result (`V` or a type) and `^` throws. */
+        private fun method(): Boolean {
+            i++ // (
+            while (peek() != ')') if (!javaType()) return false
+            i++ // )
+            if (peek() == 'V') i++ else if (!javaType()) return false
+            while (peek() == '^') { i++; if (!reference()) return false }
+            return true
+        }
+
+        private fun javaType(): Boolean {
+            val c = peek()
+            if (c != null && c in "BCDFIJSZ") { i++; return true }
+            return reference()
         }
 
         private fun typeArguments(): Boolean {
@@ -148,13 +203,23 @@ object VimBytecode {
             }
         }
         // Every Utf8 entry counts, whatever attribute holds it (annotations, signatures, inner classes, a string constant): one that reads as a type
-        // or as an internal class name is checked without parsing each attribute kind. Fail closed: a string constant that looks like a class
-        // name is checked as one.
+        // or as an internal class name is checked without parsing each attribute kind. Fail closed, by two rules:
+        //  - an entry that is NOT a plain string constant (no CONSTANT_String names it) and starts as a type or signature must parse completely by the
+        //    JVM grammar, else it is reported by its index in `unparsed` (the guard fails; a malformed signature could hide a denied class);
+        //  - a plain string constant is text, not a signature: it may be anything, so when it is not a complete signature every slash-separated
+        //    identifier token in it is checked as a class name (`see java/io/File`). A complete signature is checked by the classes it names.
+        val plainStrings = (1 until count).filter { tag[it] == 8 }.map { a[it] }.toSet()
         val names = linkedSetOf<String>()
+        val unparsed = mutableListOf<Int>()
         for (k in 1 until count) if (tag[k] == 1) {
             val text = utf[k]!!
             refs.addAll(signatureClasses(text))
             if (internalName.matches(text)) names.add(text)
+            if (k in plainStrings) {
+                if (!isCompleteSignature(text)) internalName.findAll(text).forEach { names.add(it.value) }
+            } else if (signatureStart.containsMatchIn(text) && !isCompleteSignature(text)) {
+                unparsed.add(k)
+            }
         }
         u2() // access flags
         val thisIndex = u2()
@@ -168,7 +233,7 @@ object VimBytecode {
                 repeat(u2()) { u2(); skip(u4()) }
             }
         }
-        return ClassRefs(thisName, refs, names)
+        return ClassRefs(thisName, refs, names, unparsed)
     }
 
     /** `deny`/`allow` lines as in privacy/dex-rules.txt, with names in slash form. Anything not matched is denied. */
@@ -240,6 +305,8 @@ object VimBytecode {
             val parsed = try { references(bytes) } catch (e: IllegalArgumentException) { problems.add("$file: unreadable class file (${e.message})"); continue }
             for (ref in parsed.refs) if (!allowed(ref, entries)) problems.add("${parsed.name} refers to $ref, which is not on the vim allow list")
             for (n in parsed.names) if (n !in parsed.refs && !allowed(n, entries)) problems.add("${parsed.name} has the constant $n, which reads as a class name that is not on the vim allow list")
+            // the index, never the text of the entry, is in the message
+            for (k in parsed.unparsed) problems.add("${parsed.name} has constant pool entry #$k, which starts as a type signature but does not parse completely")
         }
         return problems
     }

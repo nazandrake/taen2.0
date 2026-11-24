@@ -286,6 +286,54 @@ class VimBytecodeTest {
         assertTrue(verdict { utf("Ljava/io/File.Inner<Ljava/lang/String;>;") }.isNotEmpty())
     }
 
+    // ---- a signature that does not parse completely: fail closed
+
+    private val notComplete = ", which starts as a type signature but does not parse completely"
+
+    @Test fun aMalformedNestedDeniedClassInASignatureIsNotSkipped() {
+        // the nested segment of a denied class that is never closed: the outer class and the nested one are named all the same
+        assertEquals(setOf("java/util/List", "bad/Denied", "bad/Denied\$Inner"), signatureRefs("Ljava/util/List<Lbad/Denied.Inner<"))
+        assertEquals(setOf("bad/Denied", "bad/Denied\$Inner"), signatureRefs("Lbad/Denied.Inner<"))
+        assertEquals(setOf("bad/Denied"), signatureRefs("Lbad/Denied.")) // cut off after the dot
+        val problems = verdict { utf("Ljava/util/List<Lbad/Denied.Inner<") }
+        assertTrue(problems.toString(), problems.any { it.contains("refers to bad/Denied, which") })
+        assertTrue(problems.toString(), problems.any { it.contains("refers to bad/Denied\$Inner, which") })
+        assertTrue(problems.toString(), problems.any { it.endsWith(notComplete) })
+    }
+
+    @Test fun anEntryThatStartsAsASignatureAndDoesNotParseCompletelyFailsWithItsIndexAndNotItsText() {
+        val broken = listOf("Ljava/util/List<", "Lfoo/Bar;extra", "(Ljava/lang/String;", "[Lx/Y", "<T:Ljava/lang/Object;", "Lfoo/Bar<>;", "[Lfoo/", "(I)", "(ILfoo/Bar;)Vx", "(I)V^", "Lx/Y", "[Bx", "Ljava/util/List<Lbad/Denied.Inner<")
+        for (text in broken) {
+            var index = 0
+            val problems = verdict { index = utf(text) }
+            val expected = "helium314/keyboard/latin/vim/P has constant pool entry #$index$notComplete"
+            assertTrue("$text: $problems", expected in problems)
+            assertTrue("$text: the message holds no text of the entry", problems.none { it.contains(text) && it.endsWith(notComplete) })
+        }
+        // positive controls: complete signatures of every kind, and entries that do not start as one
+        val complete = listOf("Ljava/util/List<Ljava/lang/Integer;>;", "(Ljava/lang/String;I)V", "()V", "(IJ[[Ljava/lang/String;)[I", "[I", "[[Ljava/lang/String;", "Ljava/lang/Object;",
+            "<T:Ljava/lang/Object;>(TT;[I)Ljava/util/List<TT;>;", "<T::Ljava/lang/CharSequence;>(TT;)TT;", "<T:Ljava/lang/Object;U::Ljava/lang/CharSequence;>Ljava/lang/Object;Ljava/lang/Iterable<TT;>;",
+            "Lkotlin/collections/Map.Entry<Ljava/lang/String;+Ljava/lang/Integer;>;", "()Ljava/util/List<*>;", "<init>", "<clinit>", "Lorem ipsum", "plain text", "", "[x", "Lazy")
+        for (text in complete) assertEquals(text, emptyList<String>(), verdict { utf(text) })
+    }
+
+    @Test fun aStringConstantThatDoesNotParseHasEverySlashSeparatedTokenCheckedAsAClassName() {
+        val x = "helium314/keyboard/latin/vim/X"
+        fun problems(text: String) = VimBytecode.check(mapOf("$x.class" to ClassFile(x).also { it.string(text) }.bytes()), committed)
+        // the string is not a signature, and no entry starts as one, so there is no failure for the entry: only the names in it count
+        assertEquals(listOf("$x has the constant java/io/File, which reads as a class name that is not on the vim allow list"), problems("see java/io/File and more"))
+        assertEquals(listOf("$x has the constant java/io/File, which reads as a class name that is not on the vim allow list", "$x has the constant java/net/Socket, which reads as a class name that is not on the vim allow list"),
+            problems("a java/io/File, then java/net/Socket."))
+        val malformed = problems("Ljava/util/List<Lbad/Denied.Inner<")
+        assertTrue(malformed.toString(), malformed.any { it.contains("bad/Denied") })
+        assertTrue(malformed.toString(), malformed.none { it.endsWith(notComplete) })
+        // positive controls: allowed names, and text without a slash-separated token
+        assertEquals(emptyList<String>(), problems("see java/util/Locale and helium314/keyboard/latin/vim/VimBuf"))
+        assertEquals(emptyList<String>(), problems("Lorem ipsum dolor, sit amet"))
+        // a string constant that is a complete signature is checked by it
+        assertEquals(listOf("$x refers to java/io/File, which is not on the vim allow list"), problems("Ljava/io/File;"))
+    }
+
     // ---- everything a Utf8 entry can say, the members that take a message
 
     @Test fun aTypeInAGenericSignatureOrAnUnpackagedTypeOrAStringThatLooksLikeOneIsChecked() {
@@ -306,7 +354,7 @@ class VimBytecodeTest {
         val bad = ClassFile(x).also { it.string("java/io/File") }
         assertEquals(listOf("$x has the constant java/io/File, which reads as a class name that is not on the vim allow list"), VimBytecode.check(mapOf("$x.class" to bad.bytes()), committed))
         // positive controls: a class name that is allowed, text that is no name, and a dotted name
-        for (text in listOf("helium314/keyboard/latin/vim/VimBuf", "java/util/Locale", "hello world", "10/20 split", "java.io.File", "text", ""))
+        for (text in listOf("helium314/keyboard/latin/vim/VimBuf", "java/util/Locale", "hello world", "10 20 split", "java.io.File", "text", ""))
             assertEquals(text, emptyList<String>(), VimBytecode.check(mapOf("$x.class" to ClassFile(x).also { it.string(text) }.bytes()), committed))
         assertEquals(listOf("$x has the constant text/plain, which reads as a class name that is not on the vim allow list"), VimBytecode.check(mapOf("$x.class" to ClassFile(x).also { it.string("text/plain") }.bytes()), committed))
     }

@@ -148,7 +148,8 @@ and the count and operator typed so far. The keys of these layouts are commands,
 corrected, added to the recent emoji or checked for the trigger word. Commands that change text read the text of the field (up to 20 000
 characters, only when the app shares all of it, which the keyboard checks against the text before and after the cursor) and read it
 again just before the change; if it cannot be read, changed meanwhile or
-is selected, nothing happens and a short message says so. Vim mode is not available in password fields or while the device is locked.
+is selected, nothing happens and a short message says so. An edit is one text change: a failed cursor move after it leaves the edited
+text (Vim mode stops and says so), and a failed change leaves the field as it was. Vim mode is not available in password fields or while the device is locked.
 
 The one register (what `d`, `c`, `x`, `y` took, for `p` and `P`) is kept in memory only. It is never written to disk, never put on the
 system clipboard and never logged. It is filled only where clipboard history may keep a copy (not in a password field, a field that
@@ -157,9 +158,9 @@ at a wipe, and whenever Vim mode is off (also after a restored backup or an appl
 cases whose results come from the real vim), `VimEngineTest`, `VimWindowTest`, `VimWiringTest`, `PrivacyPolicyTest`, a check of the
 compiled classes of the vim package against an allow list (every class of the package, whatever produced it, Kotlin or Java; it may refer
 only to plain Kotlin, its own package, a few value types and collections of Java and two pure text classes: no Android, file, network,
-clipboard, log, process, thread, reflection, preference or storage class, however the name is written, and no exception message), a catch at the
+clipboard, log, process, thread, reflection, preference or storage class, however the name is written, and no exception message; a type signature that does not parse completely fails the check), a catch at the
 one door into the engine (an exception that a library call inside it throws can carry field text in its message, which the system would write to the log: the
-keyboard drops any exception of the engine unread, does not log or keep it, shows one generic message and goes back to typing; `GuardedVimEngineTest`) and the release APK scan (no process is started by anything shipped).
+keyboard drops anything the engine throws, an Error from a failing initializer included (only an out-of-memory or stack-overflow error of the VM passes), unread, does not log or keep it, shows one generic message and goes back to typing; `GuardedVimEngineTest`) and the release APK scan (no process is started by anything shipped).
 
 ## What a keyboard cannot protect against
 
