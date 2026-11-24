@@ -4,8 +4,11 @@ import javax.xml.parsers.DocumentBuilderFactory
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
@@ -111,31 +114,29 @@ abstract class PrivacyCheck : DefaultTask() {
 
 /**
  * Checks the compiled classes of the Vim package against privacy/vim-bytecode.allow (see [VimBytecode]). The input is the output of the Kotlin
- * compiler, not of R8: the guard must not depend on where the shrinker moves code.
+ * compiler and of javac ([classes]), not of R8: the guard must not depend on where the shrinker moves code. [allJars] and [allDirectories] are
+ * every compiled output of the variant's program (project, modules and libraries, from AGP): a class of the package in one that is not
+ * scanned fails the task, so no producer of classes can bypass the guard.
  */
 abstract class VimBytecodeCheck : DefaultTask() {
     @get:InputFiles @get:PathSensitive(PathSensitivity.RELATIVE) abstract val classes: ConfigurableFileCollection
+    @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) abstract val allJars: ListProperty<RegularFile>
+    @get:InputFiles @get:PathSensitive(PathSensitivity.NONE) abstract val allDirectories: ListProperty<Directory>
     @get:InputFile abstract val allowList: RegularFileProperty
     @get:OutputFile abstract val report: RegularFileProperty
     @get:Input abstract val variantName: Property<String>
 
     @TaskAction
     fun check() {
-        val found = sortedMapOf<String, ByteArray>()
-        for (root in classes.files.filter { it.isDirectory }) {
-            root.walkTopDown().filter { it.isFile && it.extension == "class" }.forEach { f ->
-                val rel = f.relativeTo(root).invariantSeparatorsPath
-                if (rel.startsWith(VimBytecode.PACKAGE_DIR)) found[rel] = f.readBytes()
-            }
-        }
+        val collected = VimBytecode.collect(classes.files.toList(), allDirectories.get().map { it.asFile } + allJars.get().map { it.asFile })
         val entries = VimBytecode.parse(allowList.get().asFile.readLines())
-        val problems = VimBytecode.check(found, entries)
+        val problems = collected.problems + VimBytecode.check(collected.classes, entries)
         val refs = sortedSetOf<String>()
-        for (bytes in found.values) try { refs.addAll(VimBytecode.references(bytes).refs.filter { '.' !in it }) } catch (e: IllegalArgumentException) { /* reported by check */ }
+        for (bytes in collected.classes.values) try { refs.addAll(VimBytecode.references(bytes).refs.filter { '.' !in it }) } catch (e: IllegalArgumentException) { /* reported by check */ }
         report.get().asFile.apply { parentFile.mkdirs() }.writeText(refs.joinToString("\n", postfix = "\n"))
         if (problems.isNotEmpty())
             throw GradleException("vimBytecode FAILED for ${variantName.get()}:\n  " + problems.joinToString("\n  "))
-        logger.lifecycle("vimBytecode OK (${variantName.get()}): ${found.size} classes, ${refs.size} referenced classes, all on the allow list")
+        logger.lifecycle("vimBytecode OK (${variantName.get()}): ${collected.classes.size} classes, ${refs.size} referenced classes, all on the allow list")
     }
 }
 

@@ -478,6 +478,19 @@ class SourceRulesTest {
         assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/vim/VimText.kt", "import java.text.BreakIterator\nimport java.util.Locale"))
     }
 
+    @Test fun theVimPackageIsKotlinOnlyAndNeverNamesIntrinsics() {
+        // a Java file can hide any name behind unicode escapes, so no .java file may sit in the package, whatever it contains
+        val java = problems("helium314/keyboard/latin/vim/VimSink.java", "package helium314.keyboard.latin.vim;\nclass VimSink { }")
+        assertEquals(1, java.count { it.startsWith("vim:") })
+        assertTrue(java.toString(), java.single { it.startsWith("vim:") }.contains("VimSink.java"))
+        // a hand-written call of a compiler helper with a message (Kotlin cannot spell the name any other way)
+        for (text in listOf("kotlin.jvm.internal.Intrinsics.checkNotNull(null, registerText)", "import kotlin.jvm.internal.Intrinsics\nIntrinsics.throwIllegalState(registerText)", "typealias I = `Intrinsics`"))
+            assertEquals(text, 1, problems(vimEngine, text).count { it.startsWith("vim:") })
+        // positive controls: Java elsewhere, and a word that only contains the name
+        assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/utils/JniUtils.java", "package helium314.keyboard.latin.utils;\nclass JniUtils { }").filter { it.startsWith("vim:") })
+        assertEquals(emptyList<String>(), problems(vimEngine, "val intrinsicsCount = 1\nval notIntrinsicsX = 2"))
+    }
+
     // ---- Glide typing: the gesture package never stores, logs or sends a gesture ----------------------------------------
 
     private val engine = "helium314/keyboard/latin/gesture/GlideEngine.kt"

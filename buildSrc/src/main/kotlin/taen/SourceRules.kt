@@ -235,6 +235,8 @@ object SourceRules {
             """|\bprint\b|\bPrint(?:Stream|Writer)\b|\bdumpStack\b|\bSystem\.(?:out|err|console|setOut|setErr|getLogger)\b|\bjava\.util\.logging\b|\bLogger\b""" +
             // the java.lang and kotlin names that do I/O, run a process or a thread, or reach any class by name (reflection)
             """|\b(?:System|Runtime|ProcessBuilder|ProcessHandle|Process|Thread|ClassLoader|javaClass|getClass|KClass|readLine|readln)\b""" +
+            // the compiler's helper class: a hand-written call with a message (checkNotNull, throwIllegalState) would put text into a crash message
+            """|\bIntrinsics\b""" +
             """|\bClass\s*\.\s*forName\b|::\s*class\s*\.\s*java|\.\s*java\b|\.\s*invoke\s*\(""")
 
     private fun vimNameAllowed(name: String): Boolean {
@@ -248,6 +250,8 @@ object SourceRules {
     // not depend on how a name is spelled. Backticks are stripped first, since `java`.io.File is the same name.
     private fun vimPackageProblems(relativePath: String, source: String): List<String> {
         if (!relativePath.startsWith(VIM_PACKAGE)) return emptyList()
+        // Kotlin only: a Java file can hide any name behind unicode escapes, which no source lint reads (the bytecode guard scans its class too)
+        if (relativePath.endsWith(".java")) return listOf("vim: the vim package is Kotlin only, a Java source file is not allowed: $relativePath")
         val text = source.replace("`", "")
         val found = vimForbidden.find(text)?.value
             ?: vimImport.findAll(text).map { it.groupValues[1] }.firstOrNull { !vimNameAllowed(it) }

@@ -125,9 +125,13 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   cleared at `Privacy.lock` and wipe and whenever the value of the setting is off (a change of any key, `clear()`, a restored backup, an
   applied profile); `p` and `P` insert through the connection's `commitText` (the history paste path) and, as that path, also work in a
   no-learning or incognito field. The selection is ordered once in `VimWindow.read` (it may run backwards). The vim package is checked
-  on its COMPILED classes (`VimBytecode`, task `vimBytecodeRelease`, part of `privacyCheck` and `assembleRelease`; it reads the Kotlin
-  compiler's output, before R8): every class and member a class of the package refers to, including every type in a descriptor, must be
-  on `privacy/vim-bytecode.allow`, the rest is denied: its own package, a few `java.lang` value types, `java.util` collections,
+  on its COMPILED classes (`VimBytecode`, task `vimBytecodeRelease`, part of `privacyCheck` and `assembleRelease`; it reads the output of
+  the Kotlin compiler and of javac, before R8, and fails when a class of the package is in any other compiled output of the program, a
+  jar or a directory it did not scan, or when a `.java` file is in the package): every class and member (with its descriptor) a class
+  of the package refers to, every type in a descriptor, signature or annotation and every string constant that reads as a class name must
+  be on `privacy/vim-bytecode.allow`, the rest is denied (only the three `kotlin.jvm.internal.Intrinsics` members the compiler emits, and
+  none of the Kotlin members that throw with a caller's message, are allowed; reflection is unreachable because `Class` members,
+  `reflect` and `ClassLoader` are denied; code outside the package is reachable only through the allowed classes): its own package, a few `java.lang` value types, `java.util` collections,
   `Locale`, `java.text.BreakIterator` and the Kotlin runtime except `kotlin.io`, `system`, `concurrent`, `reflect`; no `java.io`, `nio`,
   `net`, `android`, `System`, `Runtime`, `Process`, `Thread`, `ClassLoader`, `Class` member or reflection. Backticks, a typealias, an
   import alias, a full name or an inlined library call compile to the same references, so the spelling cannot hide one. The source

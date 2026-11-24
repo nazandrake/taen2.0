@@ -63,9 +63,9 @@ class VimBytecodeTest {
         val bytes = VimBytecode::class.java.getResourceAsStream("/taen/VimBytecode.class")!!.use { it.readBytes() }
         val parsed = VimBytecode.references(bytes)
         assertEquals("taen/VimBytecode", parsed.name)
-        for (expected in listOf("java/io/DataInputStream", "java/io/DataInputStream.readUTF", "java/io/ByteArrayInputStream", "kotlin/jvm/internal/Intrinsics", "taen/ApkRules", "taen/ApkRules.parse"))
+        for (expected in listOf("java/io/DataInputStream", "java/io/DataInputStream.readUTF:()Ljava/lang/String;", "java/io/ByteArrayInputStream", "kotlin/jvm/internal/Intrinsics", "taen/ApkRules", "taen/ApkRules.parse:(Ljava/util/List;)Ltaen/ApkRules\$Rules;"))
             assertTrue("$expected in ${parsed.refs}", expected in parsed.refs)
-        assertFalse("java/io/File" in parsed.refs)
+        assertFalse("java/net/Socket" in parsed.refs) // the guard itself reads files now, but opens no socket
     }
 
     @Test fun aMethodFieldAndInterfaceMethodNameTheirOwnerAndMember() {
@@ -74,7 +74,7 @@ class VimBytecodeTest {
         c.field("java/lang/System", "out", "Ljava/io/PrintStream;")
         c.interfaceMethod("java/util/List", "size", "()I")
         val r = refs(c)
-        for (e in listOf("java/io/RandomAccessFile", "java/io/RandomAccessFile.write", "java/lang/System", "java/lang/System.out", "java/io/PrintStream", "java/util/List", "java/util/List.size", "a/B", "java/lang/Object"))
+        for (e in listOf("java/io/RandomAccessFile", "java/io/RandomAccessFile.write:([B)V", "java/lang/System", "java/lang/System.out:Ljava/io/PrintStream;", "java/io/PrintStream", "java/util/List", "java/util/List.size:()I", "a/B", "java/lang/Object"))
             assertTrue("$e in $r", e in r)
     }
 
@@ -100,10 +100,9 @@ class VimBytecodeTest {
         assertTrue(r.none { it.startsWith("java/io/File.") })
     }
 
-    @Test fun aStringConstantIsNotAReferenceAndALongTakesTwoSlots() {
+    @Test fun aDottedStringIsNotAReferenceAndALongTakesTwoSlots() {
         val c = ClassFile("a/B")
         c.string("java.io.File")
-        c.string("Ljava/io/File;")
         c.long()
         c.cls("java/util/Locale") // parsed correctly only if the long above took two slots
         val r = refs(c)
@@ -170,7 +169,7 @@ class VimBytecodeTest {
         c.method("java/io/File", "delete", "()Z")
         val r = rules("allow helium314/keyboard/latin/vim/", "allow java/lang/Object")
         assertEquals(
-            listOf("helium314/keyboard/latin/vim/X refers to java/io/File, which is not on the vim allow list", "helium314/keyboard/latin/vim/X refers to java/io/File.delete, which is not on the vim allow list"),
+            listOf("helium314/keyboard/latin/vim/X refers to java/io/File, which is not on the vim allow list", "helium314/keyboard/latin/vim/X refers to java/io/File.delete:()Z, which is not on the vim allow list"),
             VimBytecode.check(mapOf("helium314/keyboard/latin/vim/X.class" to c.bytes()), r))
         assertEquals(emptyList<String>(), VimBytecode.check(mapOf("helium314/keyboard/latin/vim/Y.class" to ClassFile("helium314/keyboard/latin/vim/Y").bytes()), r))
         assertEquals(1, VimBytecode.check(emptyMap(), r).size)
@@ -196,6 +195,11 @@ class VimBytecodeTest {
             method("java/lang/Enum", "valueOf", "(Ljava/lang/Class;Ljava/lang/String;)Ljava/lang/Enum;") // the compiler's enum code names Class in a descriptor
             field("kotlin/collections/CollectionsKt", "x", "Ljava/util/List;")
             method("java/util/ArrayList", "add", "(Ljava/lang/Object;)Z")
+            utf("Lorg/jetbrains/annotations/NotNull;") // annotations that the compiler writes, named only in the attributes
+            utf("Lorg/jetbrains/annotations/Nullable;")
+            utf("Landroidx/compose/runtime/internal/StabilityInferred;")
+            utf("Ljava/util/List<Ljava/lang/Integer;>;")
+            method("kotlin/NoWhenBranchMatchedException", "<init>", "()V")
             method("java/lang/invoke/StringConcatFactory", "makeConcatWithConstants", "(Ljava/lang/invoke/MethodHandles\$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;")
             method("java/lang/invoke/LambdaMetafactory", "metafactory", "(Ljava/lang/invoke/MethodHandles\$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodType;Ljava/lang/invoke/MethodHandle;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;")
         })
@@ -234,5 +238,160 @@ class VimBytecodeTest {
         for ((what, build) in denied) assertTrue("$what must be refused", verdict(build).isNotEmpty())
         // the positive control for the whole table: the same helper accepts a clean class
         assertEquals(emptyList<String>(), verdict { method("kotlin/math/MathKt", "abs", "(I)I") })
+    }
+
+    // ---- attribute-only types and the exception helpers of the compiler
+
+    @Test fun aTypeNamedOnlyInAnAnnotationIsChecked() {
+        // RuntimeVisibleAnnotations hold the descriptor as a CONSTANT_Utf8 and no Class entry names the type
+        val problems = verdict { utf("Lbad/Annotation;") }
+        assertEquals(listOf("helium314/keyboard/latin/vim/P refers to bad/Annotation, which is not on the vim allow list"), problems)
+    }
+
+    // ---- everything a Utf8 entry can say, the members that take a message
+
+    @Test fun aTypeInAGenericSignatureOrAnUnpackagedTypeOrAStringThatLooksLikeOneIsChecked() {
+        val r = refs(ClassFile("a/B").also {
+            it.utf("Ljava/util/Map<Ljava/lang/String;Ljava/util/List<Ljava/io/File;>;>;") // a Signature attribute
+            it.utf("LBad;")
+            it.string("Ljava/net/Socket;") // a string constant, fail closed
+            it.utf("Lowercase text with a semicolon")
+            it.utf("Hello; Lorem ipsum;") // L is not at a start of a type here
+            it.utf("HELLO;") // an L inside a word does not start a type
+        })
+        for (e in listOf("java/util/Map", "java/lang/String", "java/util/List", "java/io/File", "Bad", "java/net/Socket")) assertTrue("$e in $r", e in r)
+        assertEquals(setOf("a/B", "java/lang/Object") + setOf("java/util/Map", "java/lang/String", "java/util/List", "java/io/File", "Bad", "java/net/Socket"), r.toSet())
+    }
+
+    @Test fun aStringConstantThatReadsAsAClassNameOnlyCountsWhenItIsNotAllowed() {
+        val x = "helium314/keyboard/latin/vim/X"
+        val bad = ClassFile(x).also { it.string("java/io/File") }
+        assertEquals(listOf("$x has the constant java/io/File, which reads as a class name that is not on the vim allow list"), VimBytecode.check(mapOf("$x.class" to bad.bytes()), committed))
+        // positive controls: a class name that is allowed, text that is no name, and a dotted name
+        for (text in listOf("helium314/keyboard/latin/vim/VimBuf", "java/util/Locale", "hello world", "10/20 split", "java.io.File", "text", ""))
+            assertEquals(text, emptyList<String>(), VimBytecode.check(mapOf("$x.class" to ClassFile(x).also { it.string(text) }.bytes()), committed))
+        assertEquals(listOf("$x has the constant text/plain, which reads as a class name that is not on the vim allow list"), VimBytecode.check(mapOf("$x.class" to ClassFile(x).also { it.string("text/plain") }.bytes()), committed))
+    }
+
+    @Test fun onlyTheThreeIntrinsicsMembersThatTheCompilerEmitsAreAllowedAndOnlyWithTheirDescriptor() {
+        val objectString = "(Ljava/lang/Object;Ljava/lang/String;)V"
+        for ((name, desc) in listOf("areEqual" to "(Ljava/lang/Object;Ljava/lang/Object;)Z", "checkNotNullParameter" to objectString, "checkNotNullExpressionValue" to objectString))
+            assertEquals(name, emptyList<String>(), verdict { method("kotlin/jvm/internal/Intrinsics", name, desc) })
+        val refused = listOf(
+            "checkNotNull" to objectString, "checkNotNull" to "(Ljava/lang/Object;)V", "checkNotNullParameter" to "(Ljava/lang/Object;Ljava/lang/String;I)V", "checkNotNullExpressionValue" to "(Ljava/lang/String;)V",
+            "areEqual" to "(Ljava/lang/Double;Ljava/lang/Double;)Z", "throwIllegalState" to "(Ljava/lang/String;)V", "throwIllegalArgument" to "(Ljava/lang/String;)V",
+            "throwUninitializedPropertyAccessException" to "(Ljava/lang/String;)V", "throwAssert" to "(Ljava/lang/String;)V", "checkHasClass" to "(Ljava/lang/String;)V",
+            "checkExpressionValueIsNotNull" to objectString, "checkParameterIsNotNull" to objectString, "checkReturnedValueIsNotNull" to objectString, "throwNpe" to "(Ljava/lang/String;)V",
+        )
+        for ((name, desc) in refused) assertTrue("$name$desc must be refused", verdict { method("kotlin/jvm/internal/Intrinsics", name, desc) }.any { it.contains("kotlin/jvm/internal/Intrinsics.$name:$desc") })
+    }
+
+    @Test fun otherKotlinMembersThatThrowWithACallerMessageAreRefused() {
+        val denied = mapOf<String, ClassFile.() -> Unit>(
+            "check(false) { text }" to { method("kotlin/PreconditionsKt", "check", "(ZLkotlin/jvm/functions/Function0;)V") },
+            "error(text)" to { method("kotlin/PreconditionsKt__PreconditionsKt", "error", "(Ljava/lang/Object;)Ljava/lang/Void;") },
+            "requireNotNull(x) { text }" to { method("kotlin/PreconditionsKt__PreconditionsKt", "requireNotNull", "(Ljava/lang/Object;Lkotlin/jvm/functions/Function0;)Ljava/lang/Object;") },
+            "an assertion helper" to { method("kotlin/PreconditionsKt__AssertionsKt", "assert", "(Z)V") },
+            "TODO(text)" to { method("kotlin/StandardKt", "TODO", "(Ljava/lang/String;)Ljava/lang/Void;") },
+            "TODO(text) of the part class" to { method("kotlin/StandardKt__StandardKt", "TODO", "(Ljava/lang/String;)Ljava/lang/Void;") },
+            "NotImplementedError" to { method("kotlin/NotImplementedError", "<init>", "(Ljava/lang/String;)V") },
+            "UninitializedPropertyAccessException" to { method("kotlin/UninitializedPropertyAccessException", "<init>", "(Ljava/lang/String;)V") },
+            "KotlinNothingValueException" to { method("kotlin/KotlinNothingValueException", "<init>", "(Ljava/lang/String;)V") },
+            "KotlinNullPointerException" to { method("kotlin/KotlinNullPointerException", "<init>", "(Ljava/lang/String;)V") },
+            "NoWhenBranchMatchedException with a message" to { method("kotlin/NoWhenBranchMatchedException", "<init>", "(Ljava/lang/String;)V") },
+            "stackTraceToString" to { method("kotlin/ExceptionsKt", "stackTraceToString", "(Ljava/lang/Throwable;)Ljava/lang/String;") },
+            "the part class of ExceptionsKt" to { method("kotlin/ExceptionsKt__ExceptionsKt", "printStackTrace", "(Ljava/lang/Throwable;)V") },
+        )
+        for ((what, build) in denied) assertTrue("$what must be refused", verdict(build).isNotEmpty())
+        // positive controls: the compiler's own exhaustive-when exception, and the plain library calls of the package
+        assertEquals(emptyList<String>(), verdict { method("kotlin/NoWhenBranchMatchedException", "<init>", "()V") })
+        assertEquals(emptyList<String>(), verdict { method("kotlin/ranges/RangesKt", "coerceIn", "(III)I"); method("kotlin/text/StringsKt", "repeat", "(Ljava/lang/CharSequence;I)Ljava/lang/String;") })
+    }
+
+    @Test fun theNamedKotlinThrowersStayRefusedEvenIfTheirTypesAreAllowedLater() {
+        // TODO and the Throwable helpers are also refused today because Void and Throwable are not listed; the rule by member name must hold on its own
+        val withTypes = committed + listOf(false to "java/lang/Void", false to "java/lang/Throwable")
+        val cases = mapOf(
+            "kotlin/StandardKt.TODO" to "(Ljava/lang/String;)Ljava/lang/Void;", "kotlin/StandardKt__StandardKt.TODO" to "(Ljava/lang/String;)Ljava/lang/Void;",
+            "kotlin/ExceptionsKt.stackTraceToString" to "(Ljava/lang/Throwable;)Ljava/lang/String;", "kotlin/ExceptionsKt__ExceptionsKt.printStackTrace" to "(Ljava/lang/Throwable;)V",
+        )
+        for ((member, desc) in cases) {
+            val owner = member.substringBefore('.')
+            val bytes = ClassFile("${pkg}T").also { it.method(owner, member.substringAfter('.'), desc) }.bytes()
+            assertTrue("$member must be refused by its own rule", VimBytecode.check(mapOf("${pkg}T.class" to bytes), withTypes).any { it.contains("refers to $member:$desc") })
+        }
+        // the positive control: with the two types allowed, a method that merely uses them is accepted
+        val plain = ClassFile("${pkg}T").also { it.method("kotlin/text/StringsKt", "x", "(Ljava/lang/Throwable;)Ljava/lang/Void;") }.bytes()
+        assertEquals(emptyList<String>(), VimBytecode.check(mapOf("${pkg}T.class" to plain), withTypes))
+    }
+
+    // ---- every class of the package, whatever produced it
+
+    private fun tempDir(): File = java.nio.file.Files.createTempDirectory("vimbytecode").toFile().also { it.deleteOnExit() }
+
+    private fun File.putClass(name: String, bytes: ByteArray = ClassFile(name).bytes()): File {
+        File(this, "$name.class").apply { parentFile.mkdirs() }.writeBytes(bytes)
+        return this
+    }
+
+    private fun jar(vararg entries: String): File {
+        val f = File(tempDir(), "lib.jar")
+        java.util.zip.ZipOutputStream(f.outputStream()).use { z -> for (e in entries) { z.putNextEntry(java.util.zip.ZipEntry(e)); z.write(ByteArray(4)); z.closeEntry() } }
+        return f
+    }
+
+    private val pkg = "helium314/keyboard/latin/vim/"
+
+    @Test fun aJavacClassOfThePackageIsCheckedLikeAKotlinClass() {
+        // the rest of the app sits in the same outputs and is not this guard's business (it does I/O, which would be denied in the package)
+        val kotlinOut = tempDir().putClass("${pkg}VimEngine").putClass("helium314/keyboard/latin/Other", ClassFile("helium314/keyboard/latin/Other").also { it.method("java/io/File", "delete", "()Z") }.bytes())
+        val javacOut = tempDir().putClass("${pkg}VimSink", ClassFile("${pkg}VimSink").also { it.method("java/io/RandomAccessFile", "write", "([B)V") }.bytes())
+        val got = VimBytecode.collect(listOf(kotlinOut, javacOut), listOf(kotlinOut, javacOut))
+        assertEquals(emptyList<String>(), got.problems)
+        assertEquals(2, got.classes.size)
+        val problems = VimBytecode.check(got.classes, committed)
+        assertEquals(listOf("${pkg}VimSink refers to java/io/RandomAccessFile, which is not on the vim allow list", "${pkg}VimSink refers to java/io/RandomAccessFile.write:([B)V, which is not on the vim allow list"), problems)
+        // the control: without the javac output the same class is not seen, which is why the output is listed
+        assertEquals(emptyList<String>(), VimBytecode.check(VimBytecode.collect(listOf(kotlinOut), listOf(kotlinOut)).classes, committed))
+    }
+
+    @Test fun twoRootsMayHoldTheSameClassNameAndBothAreKept() {
+        val a = tempDir().putClass("${pkg}Same")
+        val b = tempDir().putClass("${pkg}Same", ClassFile("${pkg}Same").also { it.method("java/io/File", "delete", "()Z") }.bytes())
+        val got = VimBytecode.collect(listOf(a, b), emptyList())
+        assertEquals(2, got.classes.size)
+        assertEquals(2, VimBytecode.check(got.classes, committed).size)
+    }
+
+    @Test fun aClassOfThePackageInAnOutputThatIsNotScannedIsAProblem() {
+        val scanned = tempDir().putClass("${pkg}VimEngine")
+        val other = tempDir().putClass("${pkg}Hidden")
+        val got = VimBytecode.collect(listOf(scanned), listOf(scanned, other))
+        assertEquals(listOf("${pkg}Hidden.class is in ${other.path}, a compiled output that the vim guard does not scan"), got.problems)
+        // the same directory reached by another path is the scanned one
+        assertEquals(emptyList<String>(), VimBytecode.collect(listOf(scanned), listOf(File(scanned, "../${scanned.name}"))).problems)
+    }
+
+    @Test fun aClassOfThePackageInAJarIsAProblemAndOtherJarsAndClassesAreNot() {
+        val scanned = tempDir().putClass("${pkg}VimEngine")
+        val bad = jar("${pkg}Y.class", "other/Z.class", "META-INF/versions/9/${pkg}M.class")
+        assertEquals(
+            listOf("${pkg}Y.class is in ${bad.path}, a compiled output that the vim guard does not scan", "META-INF/versions/9/${pkg}M.class is in ${bad.path}, a compiled output that the vim guard does not scan"),
+            VimBytecode.collect(listOf(scanned), listOf(scanned, bad)).problems)
+        // positive controls: a jar and a directory without a class of the package, a resource named like one, a class of a sibling package, a directory that does not exist
+        val clean = jar("helium314/keyboard/latin/Other.class", "helium314/keyboard/latin/vimlike/A.class", "${pkg}notes.txt", "META-INF/${pkg}x.class")
+        val otherDir = tempDir().putClass("helium314/keyboard/latin/Other").putClass("helium314/keyboard/latin/vimlike/A")
+        assertEquals(emptyList<String>(), VimBytecode.collect(listOf(scanned), listOf(scanned, clean, otherDir, File(otherDir, "missing"))).problems)
+    }
+
+    @Test fun anEmptyCollectionOfScannedOutputsIsAProblemForTheCheck() {
+        assertEquals(1, VimBytecode.check(VimBytecode.collect(emptyList(), emptyList()).classes, committed).size)
+    }
+
+    @Test fun anIntrinsicsCallWithAMessageIsRefused() {
+        val problems = verdict { method("kotlin/jvm/internal/Intrinsics", "checkNotNull", "(Ljava/lang/Object;Ljava/lang/String;)V") }
+        assertTrue(problems.toString(), problems.any { it.contains("kotlin/jvm/internal/Intrinsics.checkNotNull") })
+        val thrown = verdict { method("kotlin/jvm/internal/Intrinsics", "throwIllegalState", "(Ljava/lang/String;)V") }
+        assertTrue(thrown.toString(), thrown.any { it.contains("kotlin/jvm/internal/Intrinsics.throwIllegalState") })
     }
 }

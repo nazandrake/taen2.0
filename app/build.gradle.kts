@@ -1,6 +1,8 @@
+import com.android.build.api.artifact.ScopedArtifact
 import com.android.build.api.artifact.SingleArtifact
 import com.android.build.api.variant.ApplicationVariant
 import com.android.build.api.variant.HostTestBuilder
+import com.android.build.api.variant.ScopedArtifacts
 import taen.ApkScan
 import taen.PrivacyCheck
 import taen.VimBytecodeCheck
@@ -192,15 +194,18 @@ androidComponents.onVariants { variant ->
         variantName.set(variant.name)
     }
     if (variant.buildType == "release") { // the shipped build; the unminified variants still contain whole libraries
-        // the Vim package is checked on the class files of the Kotlin compiler (before R8), by every reference it makes
-        tasks.register<VimBytecodeCheck>("vimBytecode$capitalized") {
+        // the Vim package is checked on the class files of the Kotlin compiler AND of javac (before R8), by every reference it makes; a class of
+        // the package in any other compiled output of the program (AGP's complete class set: project, modules, libraries) fails the task
+        val vimBytecode = tasks.register<VimBytecodeCheck>("vimBytecode$capitalized") {
             group = "verification"
             description = "Checks that the compiled Vim package refers only to classes and members on privacy/vim-bytecode.allow"
             classes.from(tasks.named("compile${capitalized}Kotlin").map { it.outputs.files })
+            classes.from(tasks.named("compile${capitalized}JavaWithJavac").map { it.outputs.files })
             allowList.set(rootProject.layout.projectDirectory.file("privacy/vim-bytecode.allow"))
             report.set(layout.buildDirectory.file("reports/vim-bytecode-${variant.name}.txt"))
             variantName.set(variant.name)
         }
+        variant.artifacts.forScope(ScopedArtifacts.Scope.ALL).use(vimBytecode).toGet(ScopedArtifact.CLASSES, VimBytecodeCheck::allJars, VimBytecodeCheck::allDirectories)
         tasks.register<ApkScan>("apkScan$capitalized") {
             group = "verification"
             description = "Scans the ${variant.name} APK for network, tracker and class-loader references and unlisted native libraries"
