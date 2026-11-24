@@ -220,7 +220,9 @@ object SourceRules {
     // Android class at all: no file, network, clipboard, log, preference or storage class, so what it reads can neither be kept nor sent.
     private const val VIM_PACKAGE = "helium314/keyboard/latin/vim/"
     private val vimForbidden = Regex(
-        """\bjava\.(?:io|nio|net)\.|\bFile\w*\b|\bLog\b|\bprintln\b|\bPrivacy\b|\bSettings\b|SharedPreferences|\bprefs\s*\(|\bSecureStore\b|\bClip(?:boardManager|Data)\b|\bandroid\.|\bSystem\.(?:out|err)\b|\bprintStackTrace\b""")
+        """\bjava\.(?:io|nio|net)\.|\bFile\w*\b|\bLog\b|\bprintln\b|\bPrivacy\b|\bSettings\b|SharedPreferences|\bprefs\s*\(|\bSecureStore\b|\bClip(?:boardManager|Data)\b|\bandroid\.|\bprintStackTrace\b""" +
+            // every writer to stdout or stderr (Kotlin print and println reach logcat through System.out), and java.util.logging
+            """|\bprint\b|\bPrint(?:Stream|Writer)\b|\bdumpStack\b|\bSystem\.(?:out|err|console|setOut|setErr|getLogger)\b|\bjava\.util\.logging\b|\bLogger\b""")
 
     private fun vimPackageProblems(relativePath: String, text: String): List<String> =
         if (!relativePath.startsWith(VIM_PACKAGE)) emptyList()

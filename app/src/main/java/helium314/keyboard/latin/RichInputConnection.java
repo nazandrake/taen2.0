@@ -482,6 +482,16 @@ public final class RichInputConnection implements PrivateCommandPerformer {
                 n, flags);
     }
 
+    /**
+     * The text before the cursor as the editor gives it now, never from the keyboard's own cache (which is what a check of the editor's
+     * answer must not rely on). The Vim layer compares the extracted field text with this and with {@link #getTextAfterCursor}.
+     */
+    @Nullable public CharSequence getTextBeforeCursorFromEditor(final int n, final int flags) {
+        mIC = mParent.getCurrentInputConnection();
+        if (!isConnected()) return null;
+        return mIC.getTextBeforeCursor(n, flags);
+    }
+
     @Nullable private CharSequence getTextBeforeCursorAndDetectLaggyConnection(
             final int operation, final long timeout, final int n, final int flags) {
         mIC = mParent.getCurrentInputConnection();

@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.latin.vim
 
+import android.app.KeyguardManager
 import android.os.Looper
 import android.text.InputType
 import android.view.KeyEvent
+import android.view.View
+import android.widget.TextView
 import android.view.inputmethod.EditorInfo
 import helium314.keyboard.ShadowInputMethodManager2
 import helium314.keyboard.ShadowInputMethodService
@@ -12,11 +15,15 @@ import helium314.keyboard.keyboard.KeyboardElement
 import helium314.keyboard.keyboard.KeyboardSwitcher
 import helium314.keyboard.keyboard.internal.keyboard_parser.floris.KeyCode
 import helium314.keyboard.latin.LatinIME
+import helium314.keyboard.latin.R
 import helium314.keyboard.latin.ShadowFacilitator2
 import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.database.ClipboardDao
+import helium314.keyboard.latin.privacy.ExportService
 import helium314.keyboard.latin.privacy.Privacy
 import helium314.keyboard.latin.settings.Settings
+import helium314.keyboard.latin.suggestions.SuggestionStripView
+import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.prefs
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -27,6 +34,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -224,6 +232,58 @@ class VimWiringTest {
         assertEquals(VimEngine.MAX_CHARS - 1, text.length)
     }
 
+    // the keyboard's own toast-like view (it ignores a message while the last one is showing, so a test clears it first)
+    private fun toastView() = KeyboardSwitcher::class.java.getDeclaredField("mFakeToastView").apply { isAccessible = true }.get(KeyboardSwitcher.getInstance()) as TextView
+    private fun clearToast() { toastView().visibility = View.GONE }
+    private fun toastText(): String? = toastView().takeIf { it.visibility == View.VISIBLE }?.text?.toString()
+
+    /** The editor's answer is never trusted to be the whole field: an edit needs the text on both sides of the cursor to match what the editor gives for them. */
+    @Test fun aFieldThatTheEditorGivesCutShortIsNeverEdited() = withKeyboard { ime ->
+        val max = VimEngine.MAX_CHARS
+        ShadowInputMethodService.extractedTextTransform = { it.take(max) } // the first 20000 of 20001 characters, startOffset 0
+        field(ime, "x".repeat(max + 1), 1)
+        press(ime, KeyCode.VIM_MODE)
+        clearToast()
+        keys(ime, "d$")
+        assertEquals(max + 1, text.length, "d$ is refused: no character is left behind")
+        assertEquals(ime.getString(R.string.vim_too_long), toastText())
+        keys(ime, "x")
+        assertEquals(max + 1, text.length)
+        keys(ime, "dd")
+        assertEquals(max + 1, text.length)
+        field(ime, "x".repeat(max + 1), max + 1) // the cursor at the end: it lies outside the text that was given
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "x")
+        assertEquals(max + 1, text.length)
+        // the same editor with a field of exactly 20000 characters: the answer is whole and the edit is done
+        field(ime, "x".repeat(max), 1)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "d$")
+        assertEquals("", text)
+        // an editor whose answer differs from the field only before the cursor, only after it, or lacks the start but says offset 0
+        for ((name, transform) in listOf<Pair<String, (String) -> String>>("head replaced" to { "Y" + it.drop(1) }, "tail replaced" to { it.dropLast(1) + "Z" }, "start missing" to { it.drop(1) })) {
+            ShadowInputMethodService.extractedTextTransform = transform
+            field(ime, "foo bar", 3)
+            press(ime, KeyCode.VIM_MODE)
+            clearToast()
+            keys(ime, "dw")
+            assertEquals("foo bar", text, name)
+            assertEquals(ime.getString(R.string.vim_partial_text), toastText(), name)
+        }
+        ShadowInputMethodService.extractedTextTransform = { it.take(4) } // the selection lies beyond the text that was given
+        field(ime, "foo bar", 6)
+        press(ime, KeyCode.VIM_MODE)
+        clearToast()
+        keys(ime, "x")
+        assertEquals("foo bar", text)
+        assertEquals(ime.getString(R.string.vim_partial_text), toastText())
+        field(ime, "foo bar", 3)
+        press(ime, KeyCode.VIM_MODE)
+        ShadowInputMethodService.extractedTextTransform = null // positive control: the same keys edit the whole field
+        keys(ime, "dw")
+        assertEquals("foobar", text) // the caret was on the blank: dw takes it
+    }
+
     @Test fun aLineBreakIsNotInsertedInASingleLineField() = withKeyboard { ime ->
         field(ime, "one two", 1, InputType.TYPE_CLASS_TEXT)
         press(ime, KeyCode.VIM_MODE)
@@ -294,5 +354,81 @@ class VimWiringTest {
         assertTrue(element!!.isAlphabet)
         keys(ime, "x") // typed, not a command
         assertEquals("xother", text)
+    }
+
+    /** What a paste of the register gives in a fresh field "x" (the register survives a field change). */
+    private fun pasteIntoNewField(ime: LatinIME): String {
+        field(ime, "x", 0)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "P")
+        return text
+    }
+
+    private fun fillRegister(ime: LatinIME) {
+        field(ime, "foo bar", 1)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "yw")
+    }
+
+    /** The register follows the effective setting, whatever path changed it: clear(), a restore of a backup without the key, the key removed. */
+    @Test fun theRegisterIsForgottenWheneverTheSettingEndsUpOffWhateverPathChangedIt() = withKeyboard { ime ->
+        fillRegister(ime)
+        ime.prefs().edit().putString("unrelated_key", "1").commit() // positive control: another change keeps the register
+        assertEquals("foo x", pasteIntoNewField(ime))
+        fillRegister(ime)
+        ime.prefs().edit().clear().commit() // notifies key == null; the setting is gone, so it is off
+        ime.prefs().edit().putBoolean(Settings.PREF_VIM_MODE, true).commit()
+        assertEquals("x", pasteIntoNewField(ime), "clear()")
+        fillRegister(ime)
+        ExportService.replacePrefs(ime.prefs(), mapOf("unrelated_key" to "2")) // a restored backup that has no vim_mode
+        ime.prefs().edit().putBoolean(Settings.PREF_VIM_MODE, true).commit()
+        assertEquals("x", pasteIntoNewField(ime), "restore without the key")
+        fillRegister(ime)
+        ime.prefs().edit().remove(Settings.PREF_VIM_MODE).commit()
+        ime.prefs().edit().putBoolean(Settings.PREF_VIM_MODE, true).commit()
+        assertEquals("x", pasteIntoNewField(ime), "key removed")
+        fillRegister(ime)
+        ExportService.replacePrefs(ime.prefs(), mapOf(Settings.PREF_VIM_MODE to true)) // positive control: a restore that keeps Vim on keeps the register
+        assertEquals("foo x", pasteIntoNewField(ime))
+    }
+
+    /** Vim reads and edits the field: it is not available over the keyguard (PrivacyPolicy: locked), the strip has no Esc key there. */
+    @Test fun noVimModeWhileTheDeviceIsLocked() = withKeyboard { ime ->
+        ime.setInputView(KeyboardSwitcher.getInstance().onCreateInputView(ime, true)) // the strip view exists
+        val strip = LatinIME::class.java.getDeclaredField("mSuggestionStripView").apply { isAccessible = true }.get(ime) as SuggestionStripView
+        fun vimEscKey(): View? = strip.findViewWithTag(ToolbarKey.VIM)
+        val keyguard = shadowOf(ime.getSystemService(KeyguardManager::class.java))
+        field(ime, "foo bar", 3)
+        assertNotNull(vimEscKey(), "positive control: unlocked, the strip has the Esc key")
+        keyguard.setIsDeviceLocked(true)
+        field(ime, "foo bar", 3)
+        assertTrue(Settings.getValues().mIsLocked, "the field is shown while the device is locked")
+        strip.updateFieldKeys() // the strip is asked for its keys again, as the keyboard does at a field start that shows a strip
+        assertNull(vimEscKey(), "no Esc key on the strip")
+        val reads = ShadowInputMethodService.extractedTextCalls
+        press(ime, KeyCode.VIM_MODE)
+        assertTrue(element!!.isAlphabet)
+        assertEquals(reads, ShadowInputMethodService.extractedTextCalls, "the field is not read")
+        assertEquals(3 to 3, selection)
+        assertEquals("foo bar", text)
+        keyguard.setIsDeviceLocked(false) // positive control: unlocked, the key is there and Vim works
+        field(ime, "foo bar", 3)
+        strip.updateFieldKeys()
+        assertNotNull(vimEscKey())
+        press(ime, KeyCode.VIM_MODE)
+        assertEquals(KeyboardElement.VIM_NORMAL, element)
+    }
+
+    @Test fun theScreenLockLeavesTheVimLayoutAndTheKeysTypeAgain() = withKeyboard { ime ->
+        field(ime, "foo bar", 3)
+        press(ime, KeyCode.VIM_MODE)
+        keys(ime, "yw")
+        assertEquals(KeyboardElement.VIM_NORMAL, element)
+        Privacy.lock(ime)
+        assertTrue(element!!.isAlphabet, "no Vim layout is left behind the lock")
+        keys(ime, "k")
+        assertEquals("foko bar", text, "a key types after the lock") // typed into the field at the caret (2)
+        Privacy.unlock(ime)
+        assertEquals("x", pasteIntoNewField(ime), "the register was forgotten at the lock")
     }
 }

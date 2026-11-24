@@ -425,7 +425,10 @@ class SourceRulesTest {
     @Test fun theVimPackageHasNoStorageLoggingClipboardNetworkOrAndroidClass() {
         for (text in listOf("import java.io.File", "val f = java.io.FileOutputStream(p)", "Log.d(TAG, \"x\")", "println(text)", "val p = Privacy.prefs", "val s = Settings.getInstance()",
             "ctx.getSharedPreferences(\"n\", 0)", "import java.net.Socket", "val c = ClipData.newPlainText(a, b)", "cm as ClipboardManager", "import android.content.Context",
-            "System.out.println(register)", "e.printStackTrace()", "val x = SecureStore(f)")) {
+            "System.out.println(register)", "e.printStackTrace()", "val x = SecureStore(f)",
+            // every other writer to stdout or stderr (Kotlin print reaches logcat through System.out)
+            "print(registerText)", "print (registerText)", "kotlin.io.print(registerText)", "list.forEach(::print)", "System.err.print(x)", "System.console()?.printf(x)", "System.setOut(null)",
+            "val w = PrintStream(o)", "val w = PrintWriter(o)", "Thread.dumpStack()", "val l = java.util.logging.Logger.getLogger(\"v\")", "val l = Logger.getLogger(\"v\")")) {
             val found = problems(vimEngine, text).filter { it.startsWith("vim:") }
             assertEquals("$text: $found", 1, found.size)
         }
@@ -435,6 +438,7 @@ class SourceRulesTest {
         // positive controls: the same text elsewhere is no vim problem; clean vim code (a register as a plain String, a text buffer) passes
         assertTrue(problems("helium314/keyboard/keyboard/VimInput.kt", "import android.text.InputType\nval c = Settings.getInstance()").none { it.startsWith("vim:") })
         assertEquals(emptyList<String>(), problems(vimEngine, "private var registerText: String? = null\nclass VimBuf(val text: String) { fun next(p: Int) = p + 1 }"))
+        assertEquals(emptyList<String>(), problems(vimEngine, "val printable = blueprint.pending\nfun printed() = 1 // words that only contain the letters are no writer"))
         assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/vim/VimText.kt", "import java.text.BreakIterator\nimport java.util.Locale"))
     }
 

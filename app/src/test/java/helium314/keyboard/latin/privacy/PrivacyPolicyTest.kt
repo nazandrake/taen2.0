@@ -189,6 +189,8 @@ class PrivacyPolicyTest {
         assertFalse(d.recordRecents)
         assertFalse(d.passwordField)
         assertFalse(decide(locked = false).incognito)
+        assertFalse(d.vimMode) // the Vim layer reads and edits the field: not over the keyguard
+        assertTrue(decide(locked = false).vimMode)
     }
 
     @Test fun incognitoIsTheOrOfEveryReason() {
@@ -202,7 +204,7 @@ class PrivacyPolicyTest {
             )
             assertEquals(mask != 0, d.incognito, "mask $mask")
             assertEquals(mask != 0, !d.storeClipboard, "mask $mask")
-            assertEquals(mask and 1 == 0, d.vimMode, "mask $mask") // only a password field takes the Vim layer away; the register follows storeClipboard
+            assertEquals(mask and 1 == 0 && mask and 16 == 0, d.vimMode, "mask $mask") // a password field and a locked device take the Vim layer away; the register follows storeClipboard
         }
     }
 

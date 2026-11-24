@@ -146,13 +146,14 @@ Vim mode is off until you turn it on in Settings > Preferences. Then an Esc key 
 toolbar); it opens the Normal layout, and Visual and Visual Line mode have their own layout. A mode line above the keys shows the mode
 and the count and operator typed so far. The keys of these layouts are commands, not typing: nothing they do is learned, suggested,
 corrected, added to the recent emoji or checked for the trigger word. Commands that change text read the text of the field (up to 20 000
-characters, only when the app shares all of it) and read it again just before the change; if it cannot be read, changed meanwhile or
-is selected, nothing happens and a short message says so. Vim mode is not available in password fields.
+characters, only when the app shares all of it, which the keyboard checks against the text before and after the cursor) and read it
+again just before the change; if it cannot be read, changed meanwhile or
+is selected, nothing happens and a short message says so. Vim mode is not available in password fields or while the device is locked.
 
 The one register (what `d`, `c`, `x`, `y` took, for `p` and `P`) is kept in memory only. It is never written to disk, never put on the
 system clipboard and never logged. It is filled only where clipboard history may keep a copy (not in a password field, a field that
 asks for no personalized learning, an app on your incognito list or while incognito is on), and it is forgotten when the screen locks,
-at a wipe, and when you turn Vim mode off. `p` and `P` insert like the clipboard paste key (no learning). Checks: `VimGoldenTest` (3 600
+at a wipe, and whenever Vim mode is off (also after a restored backup or an applied profile). `p` and `P` insert like the clipboard paste key (no learning). Checks: `VimGoldenTest` (3 600
 cases whose results come from the real vim), `VimEngineTest`, `VimWiringTest`, `PrivacyPolicyTest`, SourceRules (the vim package has
 no Android, file, network, clipboard, log, preference or storage class).
 

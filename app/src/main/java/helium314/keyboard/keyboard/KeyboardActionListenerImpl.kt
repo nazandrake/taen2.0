@@ -188,10 +188,10 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             KeyCode.CARET_BELOW -> return addCursor { multiCursor.addCaretOnNextLine(it.first, it.second) }
             KeyCode.UNDO -> if (multiCursor.hasUndo()) multiCursor.undoLastEdit()?.let { return showNavigationResult(it) }
         }
-        if (vim.consumes(primaryCode)) return
-        if (multiCursor.isActive && typeIntoCursors(primaryCode)) return
         if (Settings.getValues().mIsLocked && KeyCode.isIsBlockedWhenLocked(primaryCode))
             return
+        if (vim.consumes(primaryCode)) return // after the lock block: no Vim key is used while the device is locked
+        if (multiCursor.isActive && typeIntoCursors(primaryCode)) return
         val mkv = keyboardSwitcher.mainKeyboardView
 
         // checking if the character is a combining accent

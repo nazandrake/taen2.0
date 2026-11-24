@@ -41,9 +41,18 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
             val text = extracted.text ?: return VimRead.Unreadable
             if (extracted.startOffset != 0) return VimRead.Partial
             if (text.length > VimEngine.MAX_CHARS) return VimRead.TooLong
-            val a = extracted.selectionStart
-            val b = extracted.selectionEnd
-            return VimRead.Text(text.toString(), minOf(a, b), maxOf(a, b))
+            val a = minOf(extracted.selectionStart, extracted.selectionEnd)
+            val b = maxOf(extracted.selectionStart, extracted.selectionEnd)
+            if (a < 0 || b > text.length) return VimRead.Partial
+            // The editor's size hint and startOffset prove nothing: an editor may cut its answer short and still say offset 0. The text counts
+            // as the whole field only when the text on both sides of the selection, read from the editor with explicit bounds, is exactly
+            // what the extracted text has there; any doubt is a refusal.
+            val before = connection.getTextBeforeCursorFromEditor(VimEngine.MAX_CHARS + 1, 0) ?: return VimRead.Unreadable
+            val after = connection.getTextAfterCursor(VimEngine.MAX_CHARS + 1, 0) ?: return VimRead.Unreadable
+            if (before.length + (b - a) + after.length > VimEngine.MAX_CHARS) return VimRead.TooLong
+            val whole = text.toString()
+            if (before.toString() != whole.substring(0, a) || after.toString() != whole.substring(b)) return VimRead.Partial
+            return VimRead.Text(whole, a, b)
         }
 
         override fun select(start: Int, end: Int) {
@@ -84,7 +93,7 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
     }
 
     private val rules = object : VimRules {
-        override fun available() = settings.current.mVimMode && settings.current.mPrivacy.vimMode // PrivacyPolicy: never in a password field
+        override fun available() = settings.current.mVimMode && settings.current.mPrivacy.vimMode // PrivacyPolicy: never in a password field or while locked
 
         override fun registerAllowed() = settings.current.mPrivacy.storeClipboard // PrivacyPolicy: the clipboard capture rule
 
@@ -103,7 +112,7 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
     init {
         Privacy.onLock("vim") { // the register is forgotten at the screen lock and at a wipe (Privacy.beginWipe runs these hooks too)
             engine.clearRegister()
-            end()
+            leave() // Vim is not available while the device is locked (PrivacyPolicy): no Vim layout is left on the screen
         }
     }
 
@@ -151,6 +160,12 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
         switcher.setVimStatus(null)
     }
 
+    /** Back to typing at once: the engine is reset and a Vim layout that is showing is left (the setting off, the screen lock). */
+    private fun leave() {
+        end()
+        if (isVimLayout()) switcher.leaveVimLayout(latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
+    }
+
     private fun isVimLayout(): Boolean = switcher.keyboard?.mId?.element.let { it == KeyboardElement.VIM_NORMAL || it == KeyboardElement.VIM_VISUAL }
 
     private fun after(outcome: VimOutcome) {
@@ -193,15 +208,17 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
         VimNotice.REGISTER_EMPTY -> R.string.vim_register_empty
     })
 
-    /** Turning the setting off forgets the register and leaves the Vim layouts. */
+    /**
+     * The register and the Vim layouts follow the value of the setting, not one key name: a change of any key, clear() (key == null), a restored
+     * backup and an applied profile all call this, and while the value is off the register is empty and the layouts are left.
+     */
     private fun watchSetting() {
         if (listener != null) return
         val prefs = latinIME.prefs()
-        val l = SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
-            if (key == Settings.PREF_VIM_MODE && !p.getBoolean(Settings.PREF_VIM_MODE, Defaults.PREF_VIM_MODE)) {
+        val l = SharedPreferences.OnSharedPreferenceChangeListener { p, _ ->
+            if (!p.getBoolean(Settings.PREF_VIM_MODE, Defaults.PREF_VIM_MODE)) {
                 engine.clearRegister()
-                end()
-                if (isVimLayout()) switcher.leaveVimLayout(latinIME.currentAutoCapsState, latinIME.currentRecapitalizeState)
+                leave()
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(l)

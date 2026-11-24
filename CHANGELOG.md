@@ -8,8 +8,9 @@
   undo and redo of the keyboard), v and V for Visual mode with d, c, y and x, and the text objects iw aw and quotes and brackets on
   the line (diw, ci", da(). i a I A o O, and c commands, give you the normal keyboard back; Esc returns. A line above the keys shows
   the mode (NORMAL, VISUAL, V-LINE) and what you typed so far. English and Bulgarian.
-- Vim mode is not available in password fields. The text it cuts or copies is kept in one memory-only register, only where clipboard
-  history may keep a copy; it is forgotten when the screen locks, at a wipe and when you turn Vim mode off, and it never reaches the
+- Vim mode is not available in password fields or while the device is locked. The text it cuts or copies is kept in one memory-only
+  register, only where clipboard history may keep a copy; it is forgotten when the screen locks, at a wipe and whenever Vim mode is
+  off (also after a restored backup), and it never reaches the
   system clipboard. If an app does not share its text, or changes it while a command runs, the command does nothing and says so; only
   cursor motions then work, as cursor keys.
 - Not in this version: `.` (repeat), macros, marks, search with /, named registers, ex commands, J, counts on text objects, and

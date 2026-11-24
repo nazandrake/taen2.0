@@ -113,14 +113,18 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   the narrow `VimPort` and `VimRules` interfaces; `VimInput` (keyboard package) is its one adapter. The keys of the Normal and Visual
   layouts never reach the typing path (`KeyboardActionListenerImpl.onCodeInput` gives them to `VimInput.consumes` first: no learning,
   suggestions, auto-correct, recents or trigger word check; `InputLogic.setVimActive` stops word resume and suggestions). Every edit
-  is computed from the whole field text read for that command (at most 20 000 characters, from offset 0) and the field is read again
+  is computed from the whole field text read for that command (at most 20 000 characters, from offset 0; the editor's size hint and
+  `startOffset` prove nothing, the text counts as whole only when the text before and after the selection that the editor gives with
+  explicit bounds matches the extracted text, `VimInput.read`) and the field is read again
   just before the edit: text or selection changed, text unreadable, partial or too long, text selected in Normal mode, a field that does
   not take the inserted text: nothing is done and a notice is shown; a range is never widened. Only pure cursor motions fall back to
-  cursor keys when the text cannot be read. `PrivacyPolicy.Decision.vimMode` (no password field) is the only place that decides
-  availability. The one unnamed register is a String in memory, filled only while `Decision.storeClipboard` holds (the clipboard capture
-  rule), never put on the system clipboard, never stored or logged, cleared at `Privacy.lock` and wipe and when the setting is turned off;
-  `p` and `P` insert through the connection's `commitText` (the history paste path). The vim package has no Android, file, network,
-  clipboard, log, preference or storage class (SourceRules). Expected values of the engine tests are Vim's own
+  cursor keys when the text cannot be read. `PrivacyPolicy.Decision.vimMode` (no password field, not while the device is locked: the Esc key is
+  hidden and no Vim key is used then) is the only place that decides availability. The one unnamed register is a String in memory, filled
+  only while `Decision.storeClipboard` holds (the clipboard capture rule), never put on the system clipboard, never stored or logged,
+  cleared at `Privacy.lock` and wipe and whenever the value of the setting is off (a change of any key, `clear()`, a restored backup, an
+  applied profile); `p` and `P` insert through the connection's `commitText` (the history paste path) and, as that path, also work in a
+  no-learning or incognito field. The vim package has no Android, file, network, clipboard, log (also `print`, `System.out`, `System.err`),
+  preference or storage class (SourceRules). Expected values of the engine tests are Vim's own
   (`tools/gen-vim-golden.py` runs `vim -u NONE -N -es` and writes `app/src/test/resources/vim/golden.jsonl`). Tests: `VimBasicTest`,
   `VimGoldenTest`, `VimEngineTest`, `VimWiringTest`, `PrivacyPolicyTest`, `SourceRulesTest`.
 

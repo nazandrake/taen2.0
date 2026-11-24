@@ -502,6 +502,8 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
     private fun paste(before: Boolean): VimOutcome {
         val n = countGiven() ?: 1
         clearPending()
+        // Putting the register is allowed in every field where Vim is available, also a no-learning or per-app incognito field, as pasting
+        // from the clipboard history is; only filling the register follows registerAllowed (nothing is kept from such a field).
         val reg = registerText
         if (reg == null) return VimOutcome(if (rules.registerAllowed()) VimNotice.REGISTER_EMPTY else VimNotice.REGISTER_OFF)
         val s = snapshot() ?: return VimOutcome(failure)
