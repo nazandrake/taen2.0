@@ -5,6 +5,7 @@ import android.app.KeyguardManager
 import android.content.Context
 import helium314.keyboard.latin.personalization.PersonalizationHelper
 import helium314.keyboard.latin.privacy.Privacy
+import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.Log
 
 /**
@@ -28,6 +29,7 @@ object ScreenLockPolicy {
     @JvmStatic
     fun onUserPresent(context: Context) {
         Privacy.unlock(context)
+        Settings.getInstance().reloadForCurrentField() // a field that started before this broadcast was decided as locked
         Log.i(TAG, "user present: the credential-encrypted storage is open")
     }
 
@@ -36,6 +38,7 @@ object ScreenLockPolicy {
     fun onScreenOn(context: Context) {
         if (isKeyguardLocked(context)) return
         Privacy.unlock(context)
+        Settings.getInstance().reloadForCurrentField()
         Log.i(TAG, "screen on without keyguard: the credential-encrypted storage is open")
     }
 
