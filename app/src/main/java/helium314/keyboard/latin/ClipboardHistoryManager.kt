@@ -103,7 +103,7 @@ class ClipboardHistoryManager(
         armPasteChip()
     }
 
-    private val pasteChip = PasteChip { SystemClock.elapsedRealtime() }
+    private val pasteChip = PasteChip({ SystemClock.elapsedRealtime() })
     private val pasteChipExpiry = Runnable {
         pasteChip.clear()
         latinIME.refreshPasteChip()
@@ -132,10 +132,11 @@ class ClipboardHistoryManager(
         handler.removeCallbacks(pasteChipExpiry)
     }
 
-    /** The screen went off: no chip is offered across the lock. */
+    /** The screen went off: no chip is offered across the lock, and the one on the strip goes at once. */
     fun onScreenOff() {
         pasteChip.clear()
         handler.removeCallbacks(pasteChipExpiry)
+        latinIME.refreshPasteChip()
     }
 
     // Only text is stored. Whether a copy may be stored is decided by ClipboardCapture (sensitive flag, password field, locked device).

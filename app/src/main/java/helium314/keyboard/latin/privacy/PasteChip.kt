@@ -11,7 +11,7 @@ package helium314.keyboard.latin.privacy
  * that starts from a copy until it is used, [LIFETIME_MILLIS] have passed, the clipboard no longer holds text (an image, cleared), or the screen
  * locks. A new copy starts the time again. Time is injected.
  */
-class PasteChip(private val clock: () -> Long) {
+class PasteChip(private val clock: () -> Long, private val locked: () -> Boolean = { Privacy.isLocked }) {
     private var copiedAt = 0L
     private var armed = false
 
@@ -25,7 +25,7 @@ class PasteChip(private val clock: () -> Long) {
     fun onCopy(enabled: Boolean, decision: PrivacyPolicy.Decision, hasText: Boolean, clipTimestamp: Long) {
         if (clipTimestamp > 0 && clipTimestamp == lastClipTimestamp) return
         lastClipTimestamp = clipTimestamp
-        armed = allowed(enabled, decision, hasText)
+        armed = allowed(enabled, decision, hasText, locked())
         copiedAt = clock()
     }
 
@@ -36,7 +36,7 @@ class PasteChip(private val clock: () -> Long) {
             clear()
             return false
         }
-        return allowed(enabled, decision, true)
+        return allowed(enabled, decision, true, locked())
     }
 
     /** The chip was tapped. */
@@ -53,8 +53,12 @@ class PasteChip(private val clock: () -> Long) {
     companion object {
         const val LIFETIME_MILLIS = 60_000L
 
-        /** The one rule: the setting is on, the clip is text, and the device is not locked. */
-        fun allowed(enabled: Boolean, decision: PrivacyPolicy.Decision, hasText: Boolean): Boolean =
-            enabled && hasText && decision.pasteSuggestion
+        /**
+         * The one rule: the setting is on, the clip is text, and the device is not locked. The lock is asked twice: the field's [decision] (locked
+         * when its input started) and [lockedNow], the live screen lock that the word suggestions use too (a copy may arrive while the screen is off,
+         * with no input start since).
+         */
+        fun allowed(enabled: Boolean, decision: PrivacyPolicy.Decision, hasText: Boolean, lockedNow: Boolean): Boolean =
+            enabled && hasText && decision.pasteSuggestion && !lockedNow
     }
 }

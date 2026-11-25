@@ -15,7 +15,8 @@ import kotlin.test.assertTrue
  */
 class PasteChipTest {
     private var now = 1_000_000L
-    private val chip = PasteChip { now }
+    private var lockedNow = false
+    private val chip = PasteChip({ now }, { lockedNow })
 
     private val text = InputType.TYPE_CLASS_TEXT
     private val password = text or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -71,6 +72,32 @@ class PasteChipTest {
         assertTrue(visible(plain), "and it is back where it is allowed")
         copy(decide(inputType = password, locked = true))
         assertFalse(visible(decide(inputType = password, locked = true)), "a locked password field")
+    }
+
+    /** The lock is asked live (the same flag the word suggestions use), not only through the decision a field was started with. */
+    @Test fun aLiveLockHidesTheChipWhateverTheFieldDecisionSays() {
+        copy()
+        assertTrue(plain.pasteSuggestion, "positive control: the field's decision allows it")
+        assertTrue(visible(), "positive control: shown while unlocked")
+        lockedNow = true
+        assertFalse(visible(plain), "locked now, though the decision of the field says unlocked")
+        lockedNow = false
+        assertTrue(visible(plain), "unlocked again within the minute: back")
+    }
+
+    @Test fun aCopyMadeWhileLiveLockedIsNeverOffered() {
+        lockedNow = true
+        copy() // the field's decision is stale (unlocked) but the lock is on
+        lockedNow = false
+        assertFalse(visible(), "not offered after the unlock either")
+        assertEquals(0L, chip.remainingMillis())
+        copy()
+        assertTrue(visible(), "positive control: an unlocked copy is offered")
+    }
+
+    @Test fun theAllowedRuleTakesTheLiveLock() {
+        assertTrue(PasteChip.allowed(true, plain, true, lockedNow = false), "positive control")
+        assertFalse(PasteChip.allowed(true, plain, true, lockedNow = true))
     }
 
     @Test fun theSettingOffOrNoTextMeansNoChip() {

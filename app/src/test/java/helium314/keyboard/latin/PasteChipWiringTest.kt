@@ -420,6 +420,62 @@ class PasteChipWiringTest {
         assertEquals(emptyList(), chips(ime), "and not in a field of another app within the minute either")
     }
 
+    /** The lock removes the chip from the strip at once: no input start follows the screen-off broadcast before a tap. */
+    @Test fun theScreenOffTakesTheChipOffTheStripAtOnce() = withKeyboard { ime ->
+        copyWithoutKeyboardThenOpen(ime)
+        assertEquals(1, chips(ime).size, "positive control: the chip is on the strip")
+        ime.applicationContext.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(emptyList(), chips(ime), "no input start came: the strip itself no longer has the chip")
+        ime.applicationContext.sendBroadcast(Intent(Intent.ACTION_SCREEN_ON))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(emptyList(), chips(ime), "and not after the screen is on again, before or after the unlock")
+    }
+
+    /** A chip that is still attached while the rule says no (the lock came and nothing laid the strip out) pastes nothing. */
+    @Test fun aTapOnAChipWhoseRuleNowSaysNoDoesNotPaste() = withKeyboard { ime ->
+        copyWithoutKeyboardThenOpen(ime)
+        val attached = chip(ime)
+        Privacy.lock(ime) // the lock takes effect; the strip is not laid out again
+        assertFalse(ime.pasteChipVisible(), "positive control: the rule says no")
+        assertTrue(attached.parent != null, "positive control: the view is still attached")
+        attached.performClick()
+        assertEquals("", ShadowInputMethodService.text, "nothing was pasted")
+        assertEquals(emptyList(), chips(ime), "and the tap took the stale chip off")
+        Privacy.unlock(ime)
+        copyText(ime, "second")
+        assertEquals(1, chips(ime).size, "positive control: unlocked, a new copy has a chip")
+        chip(ime).performClick()
+        assertEquals("second", ShadowInputMethodService.text, "and it pastes")
+    }
+
+    /** A copy that arrives while the screen is off: the field's own decision is from before the lock, the live lock decides. */
+    @Test fun aCopyMadeWhileTheScreenIsOffGetsNoChipNowOrAfterTheUnlock() = withKeyboard { ime ->
+        val keyguard = shadowOf(ime.getSystemService(KeyguardManager::class.java))
+        startField(ime) // decided unlocked
+        keyguard.setKeyguardLocked(true)
+        ime.applicationContext.sendBroadcast(Intent(Intent.ACTION_SCREEN_OFF))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertTrue(Privacy.isLocked, "positive control: the lock is on")
+        copyText(ime) // no input start since: the stale decision says unlocked
+        assertEquals(emptyList(), chips(ime), "none while the screen is off")
+        ime.applicationContext.sendBroadcast(Intent(Intent.ACTION_SCREEN_ON))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(emptyList(), chips(ime), "none after the screen is on, before the unlock")
+        keyguard.setKeyguardLocked(false)
+        ime.applicationContext.sendBroadcast(Intent(Intent.ACTION_USER_PRESENT))
+        shadowOf(Looper.getMainLooper()).idle()
+        assertFalse(Privacy.isLocked, "positive control: unlocked")
+        assertEquals(emptyList(), chips(ime), "none after the unlock")
+        startField(ime, text, "a", packageName = "org.other.app")
+        assertEquals(emptyList(), chips(ime), "none in a field that starts after the unlock within the minute")
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(61_000))
+        startField(ime, text, "b", packageName = "org.other.app")
+        assertEquals(emptyList(), chips(ime), "and none once the minute has passed")
+        copyText(ime, "second")
+        assertEquals(1, chips(ime).size, "positive control: a copy after the unlock has a chip")
+    }
+
     @Test fun anImageClipGetsNoChip() = withKeyboard { ime ->
         startField(ime)
         ShadowInputMethodService.inputViewShown = false

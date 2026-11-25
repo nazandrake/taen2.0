@@ -348,6 +348,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     override fun onClick(view: View) {
         if (view === pasteChipView) { // the paste key's own code; the chip does not outlive its use
+            if (!listener.pasteChipVisible()) { // the rule is asked again: a lock may have come with the strip not laid out since
+                updateFieldKeys()
+                return
+            }
             AudioAndHapticFeedbackManager.getInstance().performHapticAndAudioFeedback(KeyCode.NOT_SPECIFIED, view, HapticEvent.KEY_PRESS)
             val code = getCodeForToolbarKey(ToolbarKey.PASTE)
             if (code != KeyCode.UNSPECIFIED) listener.onCodeInput(code, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false)
