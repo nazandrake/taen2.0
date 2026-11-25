@@ -12,8 +12,16 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -41,12 +49,20 @@ class NextWordTypingLifecycleTest {
 
     private fun idle() = shadowOf(Looper.getMainLooper()).idle()
 
+    /** The model thread of a service's next-word glue (private there): the one place a step of the model runs. */
+    private fun workerOf(ime: LatinIME): ExecutorService =
+        ime.mNextWord.javaClass.getDeclaredField("worker").apply { isAccessible = true }.get(ime.mNextWord) as ExecutorService
+
     // ---- pass 1 ---------------------------------------------------------------------------------------------------------
 
     @Test fun finishingTheInputViewWhileTheServiceStopsDoesNotThrow() = withKeyboard { ime ->
         ime.mNextWord.onDestroy() // what LatinIME.onDestroy does first
-        ime.onFinishInputView(false) // what the framework sends while the service stops: onFieldChange on the glue
-        idle()
+        assertTrue(workerOf(ime).isShutdown, "positive control: the model thread is gone, so a step queued on it would be rejected")
+        val thrown = runCatching {
+            ime.onFinishInputView(false) // what the framework sends while the service stops: onFieldChange on the glue
+            idle()
+        }.exceptionOrNull()
+        assertNull(thrown, "nothing is thrown while the service stops: $thrown")
     }
 
     // ---- pass 2 ---------------------------------------------------------------------------------------------------------
@@ -84,5 +100,14 @@ class NextWordTypingLifecycleTest {
         old.onFinishInputView(false) // a late callback of the old service
         idle()
         assertTrue(Privacy.isLocked.not(), "the new service's lock hook ran and the unlock reopened the tier")
+        // the live thread: a step submitted after all of it really runs on the new service's own thread, and the old one's is shut down
+        assertTrue(workerOf(old).isShutdown)
+        assertFalse(workerOf(next).isShutdown)
+        val ran = CountDownLatch(1)
+        val thread = AtomicReference<String>()
+        workerOf(next).execute { thread.set(Thread.currentThread().name); ran.countDown() }
+        assertTrue(ran.await(5, TimeUnit.SECONDS), "the step submitted after the events ran")
+        assertEquals("taen-nextword", thread.get())
+        assertFailsWith<RejectedExecutionException> { workerOf(old).execute { } } // the control: the old thread takes nothing
     }
 }
