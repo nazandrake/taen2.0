@@ -30,6 +30,17 @@ class PrivacyPolicyTest {
         assertTrue(plain.keyPreviews)
     }
 
+    /** the Paste chip shows no text and reads nothing until tapped: every field kind may have it, a locked device may not. */
+    @Test fun thePasteChipIsAllowedInEveryKindOfFieldExceptWhileLocked() {
+        assertTrue(decide().pasteSuggestion, "a plain field")
+        assertTrue(decide(inputType = text or InputType.TYPE_TEXT_VARIATION_PASSWORD).pasteSuggestion, "a password field")
+        assertTrue(decide(imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING).pasteSuggestion, "a no-learning field")
+        assertTrue(decide(force = true).pasteSuggestion, "force incognito")
+        assertTrue(decide(apps = setOf("org.example.app")).pasteSuggestion, "an app on the incognito list")
+        assertFalse(decide(locked = true).pasteSuggestion, "locked")
+        assertFalse(decide(inputType = text or InputType.TYPE_TEXT_VARIATION_PASSWORD, locked = true).pasteSuggestion, "a locked password field")
+    }
+
     /** it gives a password field the strip keys and marks its copies, and nothing is remembered more. */
     @Test fun theClipboardSettingGivesAPasswordFieldItsStripKeys() {
         val pw = text or InputType.TYPE_TEXT_VARIATION_PASSWORD

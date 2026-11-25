@@ -133,6 +133,7 @@ object Defaults {
     const val PREF_BIGRAM_PREDICTIONS = true
     const val PREF_SUGGEST_PUNCTUATION = false
     const val PREF_SUGGEST_CLIPBOARD_CONTENT = false
+    const val PREF_SUGGEST_PASTE = true
     /** Off: a password field has no strip keys. On: it has them, and a copy made in it is flagged sensitive (PrivacyPolicy). */
     const val PREF_CLIPBOARD_IN_SECURE_FIELDS = false
     const val PREF_GESTURE_INPUT = true // the glide quality gate passes (GlideQualityGateTest)

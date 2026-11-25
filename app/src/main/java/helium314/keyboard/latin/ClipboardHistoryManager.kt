@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
@@ -25,6 +26,7 @@ import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.databinding.ClipboardSuggestionBinding
 import helium314.keyboard.latin.privacy.ClipboardCapture
+import helium314.keyboard.latin.privacy.PasteChip
 import helium314.keyboard.latin.privacy.PrivacyPolicy
 import helium314.keyboard.latin.settings.SettingsValues
 import helium314.keyboard.latin.utils.prefs
@@ -81,6 +83,7 @@ class ClipboardHistoryManager(
     fun onDestroy() {
         clipboardManager.removePrimaryClipChangedListener(this)
         handler.removeCallbacks(expiryRunnable)
+        handler.removeCallbacks(pasteChipExpiry)
     }
 
     // entries leave the history when they reach the retention time, even if nothing is copied or shown meanwhile
@@ -97,6 +100,43 @@ class ClipboardHistoryManager(
             fetchPrimaryClip()
             dontShowCurrentSuggestion = false
         }
+        armPasteChip()
+    }
+
+    private val pasteChip = PasteChip({ SystemClock.elapsedRealtime() })
+    private val pasteChipExpiry = Runnable {
+        pasteChip.clear()
+        latinIME.refreshPasteChip()
+    }
+
+    /**
+     * A copy offers the Paste chip (PasteChip decides). Only the description of the clip is looked at (is it text); its content is not read here,
+     * and it is read when the chip is tapped, by the paste. The history setting does not matter: the chip stores nothing.
+     */
+    private fun armPasteChip() {
+        val hasText = clipboardManager.primaryClipDescription?.hasMimeType("text/*") == true
+        pasteChip.onCopy(latinIME.mSettings.current.mSuggestPaste, privacyDecision(), hasText, clipboardManager.primaryClipDescription?.timestamp ?: 0L)
+        handler.removeCallbacks(pasteChipExpiry)
+        if (pasteChip.remainingMillis() > 0) handler.postDelayed(pasteChipExpiry, pasteChip.remainingMillis())
+        latinIME.refreshPasteChip()
+    }
+
+    /** The current field shows the chip (called by the strip each time it lays out its keys). */
+    fun pasteChipVisible(): Boolean {
+        val current = latinIME.mSettings.current
+        return pasteChip.visible(current.mSuggestPaste, current.mPrivacy)
+    }
+
+    fun onPasteChipUsed() {
+        pasteChip.onUsed()
+        handler.removeCallbacks(pasteChipExpiry)
+    }
+
+    /** The screen went off: no chip is offered across the lock, and the one on the strip goes at once. */
+    fun onScreenOff() {
+        pasteChip.clear()
+        handler.removeCallbacks(pasteChipExpiry)
+        latinIME.refreshPasteChip()
     }
 
     // Only text is stored. Whether a copy may be stored is decided by ClipboardCapture (sensitive flag, password field, locked device).

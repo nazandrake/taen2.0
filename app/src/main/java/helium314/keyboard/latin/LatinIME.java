@@ -194,7 +194,10 @@ public class LatinIME extends InputMethodService implements
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-            if (Intent.ACTION_SCREEN_OFF.equals(action)) ScreenLockPolicy.onScreenOff(context);
+            if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                mClipboardHistoryManager.onScreenOff(); // no Paste chip across a lock
+                ScreenLockPolicy.onScreenOff(context);
+            }
             else if (Intent.ACTION_USER_PRESENT.equals(action)) ScreenLockPolicy.onUserPresent(context);
             else if (Intent.ACTION_SCREEN_ON.equals(action)) ScreenLockPolicy.onScreenOn(context);
         }
@@ -1657,6 +1660,23 @@ public class LatinIME extends InputMethodService implements
                 mKeyboardSwitcher.getCurrentKeyboardScript(),
                 mHandler);
         updateStateAfterInputTransaction(completeInputTransaction);
+    }
+
+    // Implementation of {@link SuggestionStripView.Listener}: the Paste chip (PasteChip, owned by the clipboard manager).
+    @Override
+    public boolean pasteChipVisible() {
+        return mClipboardHistoryManager.pasteChipVisible();
+    }
+
+    @Override
+    public void onPasteChipUsed() {
+        mClipboardHistoryManager.onPasteChipUsed();
+    }
+
+    /** Lays the strip's keys out again when the chip appears or goes (only while the strip is on screen). */
+    public void refreshPasteChip() {
+        if (!hasSuggestionStripView() || !isInputViewShown()) return;
+        mSuggestionStripView.updateFieldKeys();
     }
 
     /**

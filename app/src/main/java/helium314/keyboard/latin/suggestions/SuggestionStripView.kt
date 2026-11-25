@@ -53,6 +53,7 @@ import helium314.keyboard.latin.utils.ToolbarMode
 import helium314.keyboard.latin.utils.addPinnedKey
 import helium314.keyboard.latin.utils.createToolbarKey
 import helium314.keyboard.latin.utils.dpToPx
+import helium314.keyboard.latin.utils.getCodeForToolbarKey
 import helium314.keyboard.latin.utils.getEnabledToolbarKeys
 import helium314.keyboard.latin.utils.getPinnedToolbarKeys
 import helium314.keyboard.latin.utils.prefs
@@ -86,6 +87,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         fun onSwipeDownOnToolbar()
         /** The voice key was held down long enough (start = true), or released after that (start = false): record while held. */
         fun onVoiceHold(start: Boolean)
+        /** The Paste chip is to be shown in the current field (a fresh copy, not used, not expired; PasteChip decides). */
+        fun pasteChipVisible(): Boolean
+        /** The Paste chip was tapped (after its paste): it is gone. */
+        fun onPasteChipUsed()
     }
 
     private val moreSuggestionsContainer: View
@@ -139,6 +144,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private val fieldKeys = ArrayList<View>()
     /** The pinned keys hidden while the field is a password field (see [updateFieldKeys]). */
     private val hiddenByPolicy = ArrayList<View>()
+    /** The Paste chip: the first view of the pinned row while [Listener.pasteChipVisible] says so (see [updateFieldKeys]). */
+    private var pasteChipView: TextView? = null
 
     init {
         val colors = Settings.getValues().mColors
@@ -340,6 +347,18 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     }
 
     override fun onClick(view: View) {
+        if (view === pasteChipView) { // the paste key's own code; the chip does not outlive its use
+            if (!listener.pasteChipVisible()) { // the rule is asked again: a lock may have come with the strip not laid out since
+                updateFieldKeys()
+                return
+            }
+            AudioAndHapticFeedbackManager.getInstance().performHapticAndAudioFeedback(KeyCode.NOT_SPECIFIED, view, HapticEvent.KEY_PRESS)
+            val code = getCodeForToolbarKey(ToolbarKey.PASTE)
+            if (code != KeyCode.UNSPECIFIED) listener.onCodeInput(code, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false)
+            listener.onPasteChipUsed()
+            updateFieldKeys()
+            return
+        }
         val tag = view.tag
         if (tag is ToolbarKey) {
             onClickToolbarKey(view) { listener.onCodeInput(it, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, false) }
@@ -570,6 +589,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
         fieldKeys.clear()
         hiddenByPolicy.forEach { it.isVisible = true }
         hiddenByPolicy.clear()
+        (pasteChipView?.parent as? ViewGroup)?.removeView(pasteChipView)
+        pasteChipView = null
         updateVoiceKey() // the voice key has its own setting
         val settings = Settings.getValues()
         if (!settings.mPrivacy.suggestionStrip) {
@@ -579,6 +600,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 view.isVisible = false
                 hiddenByPolicy.add(view)
             }
+            addPasteChip(settings.mColors) // the chip is no clipboard key: it shows no text (PasteChip owns the rule), so a password field has it too
             return
         }
         // the Vim Esc key: one visible key on the strip (and in the toolbar) while Vim mode is on and allowed in this field
@@ -592,6 +614,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 fieldKeys.add(button)
             }
         }
+        addPasteChip(settings.mColors)
         if (!FieldText.isNumericField(settings.mInputAttributes.mInputType)) return
         for (key in listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL)) {
             if (pinnedKeys.findViewWithTag<View>(key) != null) continue
@@ -601,6 +624,32 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
             pinnedKeys.addView(button)
             fieldKeys.add(button)
         }
+    }
+
+    /**
+     * The Paste chip: an icon and the label of the paste key, no text of the clip. First view of the pinned row, next to the word suggestions.
+     * Not added while the toolbar replaces the strip (then the paste key is in the toolbar) or before the listener is set.
+     */
+    private fun addPasteChip(colors: Colors) {
+        if (!::listener.isInitialized || !listener.pasteChipVisible()) return
+        val label = resources.getString(R.string.paste)
+        val chip = TextView(context, null, R.attr.suggestionWordStyle)
+        chip.text = label
+        chip.contentDescription = label
+        chip.gravity = android.view.Gravity.CENTER
+        chip.setTextColor(colors.get(ColorType.KEY_TEXT))
+        KeyboardIconsSet.instance.getNewDrawable(ToolbarKey.PASTE.name, context)?.let {
+            colors.setColor(it, ColorType.CLIPBOARD_SUGGESTION_ICON)
+            it.setBounds(0, 0, chip.lineHeight, chip.lineHeight)
+            chip.setCompoundDrawablesRelative(it, null, null, null)
+            chip.compoundDrawablePadding = 4.dpToPx(resources)
+        }
+        chip.setPaddingRelative(8.dpToPx(resources), 0, 8.dpToPx(resources), 0)
+        colors.setBackground(chip, ColorType.CLIPBOARD_SUGGESTION_BACKGROUND)
+        chip.setOnClickListener(this)
+        chip.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT)
+        pinnedKeys.addView(chip, 0)
+        pasteChipView = chip
     }
 
     fun updateVoiceKey() {

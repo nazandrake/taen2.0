@@ -150,15 +150,15 @@ The key is generated outside the repository and never committed (`.gitignore` bl
 refuses a keystore inside the repo, the pre-push hook refuses key files). Only you hold it: nobody else generates, stores or
 sees your release key or its passphrase.
 
-Release steps, run by you on your machine (the version is `versionName` in `app/build.gradle.kts`: 2.0.3 now):
+Release steps, run by you on your machine (the version is `versionName` in `app/build.gradle.kts`: 2.0.4 now):
 
 ```
 make keygen               # once: ~/.config/taen/release.p12 (PKCS12, RSA 4096, mode 600); keytool asks for the password and a name
 make keystore-pass        # once: asks for the keystore password one time and keeps it in your desktop keyring (or a mode 600 file)
 make verify-repro         # two clean builds of HEAD must print REPRODUCIBLE <hash>
-make build                # runs privacyCheck, writes dist/taen-2.0.3-unsigned.apk (same hash as verify-repro) and SHA256SUMS
+make build                # runs privacyCheck, writes dist/taen-2.0.4-unsigned.apk (same hash as verify-repro) and SHA256SUMS
 make leak-audit           # static leak checks and the planted-failure proofs (section 9)
-make sign                 # dist/taen-2.0.3-signed.apk; no prompt: the password comes from the keyring or the file of make keystore-pass
+make sign                 # dist/taen-2.0.4-signed.apk; no prompt: the password comes from the keyring or the file of make keystore-pass
 ```
 
 Before a release, `CHANGELOG.md` needs an entry `## <versionName>` whose first lines (up to the first blank line, 3 to 6 lines) say what is new in plain

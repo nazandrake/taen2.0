@@ -48,6 +48,11 @@ object PrivacyPolicy {
         val personalizedSuggestions: Boolean get() = !incognito
         val keyPreviews: Boolean get() = !passwordField
         val clipboardSuggestion: Boolean get() = !passwordField
+        /**
+         * The Paste chip of the strip (PasteChip) may be offered: also in a password or incognito field, because the chip shows no text and the
+         * clipboard is read only when it is tapped; never while the device or the screen is locked.
+         */
+        val pasteSuggestion: Boolean get() = !locked
         /** The strip shows its keys (the word suggestions of a password field are off anyway). */
         val suggestionStrip: Boolean get() = !passwordField || secureClipboard
         /** A copy made in this field is flagged EXTRA_IS_SENSITIVE: the system hides its preview and the keyboard never stores or shows it. */

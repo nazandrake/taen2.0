@@ -149,6 +149,10 @@ class ShadowInputMethodService {
         var currentInputType = InputType.TYPE_CLASS_TEXT
         var currentImeOptions = 0
         var currentPackage: String? = null
+        /** false: the keyboard is hidden (the phone shows an app without a text field) */
+        var inputViewShown = true
+        /** EditorInfo.fieldId of the field that has the input */
+        var currentFieldId = 0
         /** The content types the focused field announces (EditorInfo.contentMimeTypes), and every commitContent call it received (uri, type, flags). */
         var currentContentMimeTypes: Array<String>? = null
         /** The locales the field names for its input (EditorInfo.hintLocales). */
@@ -204,6 +208,8 @@ class ShadowInputMethodService {
             currentInputType = InputType.TYPE_CLASS_TEXT
             currentImeOptions = 0
             currentPackage = null
+            inputViewShown = true
+            currentFieldId = 0
             currentContentMimeTypes = null
             currentHintLocales = null
             contentCommits.clear()
@@ -244,6 +250,7 @@ class ShadowInputMethodService {
         inputType = currentInputType
         imeOptions = currentImeOptions
         packageName = currentPackage
+        fieldId = currentFieldId
         contentMimeTypes = currentContentMimeTypes
         hintLocales = currentHintLocales
         // anything else?
@@ -251,7 +258,7 @@ class ShadowInputMethodService {
     @Implementation
     fun getCurrentInputConnection() = ic
     @Implementation
-    fun isInputViewShown() = true // otherwise selection updates will do nothing
+    fun isInputViewShown() = inputViewShown // true by default: otherwise selection updates will do nothing
 
     // essentially this is the text field we're editing in
     private val ic = object : InputConnection {
