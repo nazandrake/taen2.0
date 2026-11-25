@@ -418,6 +418,79 @@ class SourceRulesTest {
         assertEquals(emptyList<String>(), problems(multiCursor, "class FieldText(val text: CharSequence, val startOffset: Int)\nfun type(insert: String) = edit(insert)"))
     }
 
+    // ---- Vim layer: the vim package works on field text in memory and has no Android, file, network, clipboard, log or storage class ---
+
+    private val vimEngine = "helium314/keyboard/latin/vim/VimEngine.kt"
+
+    @Test fun theVimPackageHasNoStorageLoggingClipboardNetworkOrAndroidClass() {
+        for (text in listOf("import java.io.File", "val f = java.io.FileOutputStream(p)", "Log.d(TAG, \"x\")", "println(text)", "val p = Privacy.prefs", "val s = Settings.getInstance()",
+            "ctx.getSharedPreferences(\"n\", 0)", "import java.net.Socket", "val c = ClipData.newPlainText(a, b)", "cm as ClipboardManager", "import android.content.Context",
+            "System.out.println(register)", "e.printStackTrace()", "val x = SecureStore(f)",
+            // every other writer to stdout or stderr (Kotlin print reaches logcat through System.out)
+            "print(registerText)", "print (registerText)", "kotlin.io.print(registerText)", "list.forEach(::print)", "System.err.print(x)", "System.console()?.printf(x)", "System.setOut(null)",
+            "val w = PrintStream(o)", "val w = PrintWriter(o)", "Thread.dumpStack()", "val l = java.util.logging.Logger.getLogger(\"v\")", "val l = Logger.getLogger(\"v\")")) {
+            val found = problems(vimEngine, text).filter { it.startsWith("vim:") }
+            assertEquals("$text: $found", 1, found.size)
+        }
+    }
+
+    /** The vim package is an allow list: planted violations that no deny list named (a process that runs `log`, reflection, other imports). */
+    @Test fun theVimPackageMayUseOnlyKotlinItsOwnPackageAndTwoPureJavaClasses() {
+        for (text in listOf(
+            "ProcessBuilder(\"log\", \"-t\", \"v\", registerText).start()", "java.lang.ProcessBuilder(\"log\", registerText).start()",
+            "Runtime.getRuntime().exec(arrayOf(\"log\", registerText))", "val p = Runtime . getRuntime()", "import java.io.File", "import java.io.*",
+            "android.util.Log.d(\"v\", registerText)", "val c = Class.forName(\"android.util.Log\")", "val c = Class . forName(n)",
+            "import java.lang.reflect.Method", "val k = VimBuf::class.java", "val k = VimBuf :: class . java", "val k = x.javaClass", "val k = x.getClass()",
+            "Thread { register = null }.start()", "val l = ClassLoader.getSystemClassLoader()", "val t = System.currentTimeMillis()", "System.exit(1)",
+            "import kotlin.io.println", "import kotlin.io.*", "import kotlin.system.exitProcess", "import kotlin.concurrent.thread", "import kotlin.reflect.full.memberFunctions",
+            "val x = kotlin.io.readLine()", "val line = readLine()", "val line = readln()", "f.invoke(registerText)", "f?.invoke(registerText)",
+            "import org.example.Sink", "import helium314.keyboard.latin.utils.Sink", "import helium314.keyboard.latin.common.Constants", "import okhttp3.OkHttpClient",
+            "val s = javax.crypto.Cipher.getInstance(a)", "val s = dalvik.system.DexClassLoader(a, b, c, d)", "val s = androidx.core.util.Pair(a, b)",
+            "val s = jdk.internal.misc.Unsafe.getUnsafe()", "import java.util.concurrent.Executors", "val d = java.util.Date()", "import java.text.Normalizer",
+            "val r = foo.java", "package helium314.keyboard.latin.vim; import okhttp3.OkHttpClient", "kotlin.system.exitProcess(1)", "val f = kotlin.io.path.Path(x)",
+            "val s = org.example.Sink()", "helium314.keyboard.latin.utils.Sink.send(t)", "val p = Process.myPid()", "val k: KClass<*> = x",
+            // backticked segments are the same names (the lint strips them; the bytecode guard does not care about spelling at all)
+            "`java`.io.RandomAccessFile(\"/data/data/x/files/r\", \"rw\").write(registerText.toByteArray())", "import `java`.io.File", "`kotlin`.io.println(x)",
+            "val s = `android`.util.Log.d(a, b)", "`java`.lang.`ProcessBuilder`(\"log\", t).start()", "val c = `Class`.forName(n)",
+        )) {
+            val found = problems(vimEngine, text).filter { it.startsWith("vim:") }
+            assertEquals("$text: $found", 1, found.size)
+        }
+        // positive controls: what the engine may use stays clean
+        for (text in listOf(
+            "import kotlin.math.max", "import kotlin.collections.ArrayList", "import kotlin.*", "val m = kotlin.math.abs(x)", "package helium314.keyboard.latin.vim",
+            "import helium314.keyboard.latin.vim.VimBuf", "val n = helium314.keyboard.latin.vim.VimNav.LEFT", "import java.text.BreakIterator", "import java.util.Locale",
+            "val i = java.text.BreakIterator.getCharacterInstance(java.util.Locale.ROOT)", "import java.util.Locale as L",
+            "val systematic = processed + threshold + runtimeOf(x)", "val readLineCount = 1 // threads are not needed; the system stays out", "class VimBuf(val text: String) { fun next(p: Int) = p + 1 }",
+            "val n = person.org.name + node.com.size", // members that only look like a package
+            "val m = `kotlin`.math.abs(x)", "fun `a test name`() = 1", "val `is` = 1",
+        )) assertEquals(text, emptyList<String>(), problems(vimEngine, text))
+        // the rule is for the vim package only
+        for (text in listOf("ProcessBuilder(\"log\", t).start()", "import org.example.Sink", "val k = x.javaClass")) assertTrue(text, problems("helium314/keyboard/keyboard/VimInput.kt", text).none { it.startsWith("vim:") })
+        assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/vim/VimText.kt", "import kotlin.math.min\nimport java.text.BreakIterator\nimport java.util.Locale"))
+    }
+
+    @Test fun theVimRuleOnlyAppliesToThatPackageAndLetsOrdinaryCodeThrough() {
+        // positive controls: the same text elsewhere is no vim problem; clean vim code (a register as a plain String, a text buffer) passes
+        assertTrue(problems("helium314/keyboard/keyboard/VimInput.kt", "import android.text.InputType\nval c = Settings.getInstance()").none { it.startsWith("vim:") })
+        assertEquals(emptyList<String>(), problems(vimEngine, "private var registerText: String? = null\nclass VimBuf(val text: String) { fun next(p: Int) = p + 1 }"))
+        assertEquals(emptyList<String>(), problems(vimEngine, "val printable = blueprint.pending\nfun printed() = 1 // words that only contain the letters are no writer"))
+        assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/vim/VimText.kt", "import java.text.BreakIterator\nimport java.util.Locale"))
+    }
+
+    @Test fun theVimPackageIsKotlinOnlyAndNeverNamesIntrinsics() {
+        // a Java file can hide any name behind unicode escapes, so no .java file may sit in the package, whatever it contains
+        val java = problems("helium314/keyboard/latin/vim/VimSink.java", "package helium314.keyboard.latin.vim;\nclass VimSink { }")
+        assertEquals(1, java.count { it.startsWith("vim:") })
+        assertTrue(java.toString(), java.single { it.startsWith("vim:") }.contains("VimSink.java"))
+        // a hand-written call of a compiler helper with a message (Kotlin cannot spell the name any other way)
+        for (text in listOf("kotlin.jvm.internal.Intrinsics.checkNotNull(null, registerText)", "import kotlin.jvm.internal.Intrinsics\nIntrinsics.throwIllegalState(registerText)", "typealias I = `Intrinsics`"))
+            assertEquals(text, 1, problems(vimEngine, text).count { it.startsWith("vim:") })
+        // positive controls: Java elsewhere, and a word that only contains the name
+        assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/utils/JniUtils.java", "package helium314.keyboard.latin.utils;\nclass JniUtils { }").filter { it.startsWith("vim:") })
+        assertEquals(emptyList<String>(), problems(vimEngine, "val intrinsicsCount = 1\nval notIntrinsicsX = 2"))
+    }
+
     // ---- Glide typing: the gesture package never stores, logs or sends a gesture ----------------------------------------
 
     private val engine = "helium314/keyboard/latin/gesture/GlideEngine.kt"

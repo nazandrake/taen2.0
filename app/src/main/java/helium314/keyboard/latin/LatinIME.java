@@ -737,6 +737,7 @@ public class LatinIME extends InputMethodService implements
         mClipboardHistoryManager.onDestroy();
         mDictionaryFacilitator.closeDictionaries();
         mSettings.onDestroy();
+        mKeyboardActionListener.onDestroy(); // the Vim layer's hook in the settings (which outlive the service) is removed
         if (foldableObserver != null)
             foldableObserver.unregister(this);
         unregisterReceiver(mRingerModeChangeReceiver);
@@ -882,6 +883,7 @@ public class LatinIME extends InputMethodService implements
 
     private void onStartInputInternal(EditorInfo editorInfo, boolean restarting) {
         super.onStartInput(editorInfo, restarting);
+        mKeyboardActionListener.onFieldStarted(); // an input (or the same one restarted) starts: the Vim layer carries nothing over (a session, a recording, a repeat)
         mClipboardHistoryManager.onStartInput(editorInfo); // a window without a text field gets no input view: its app still decides what a copy there may keep (P10)
         if (!restarting) mVoiceTyping.onFieldChange(); // another field: a recording of the old one is dropped
         mNextWord.onFieldChange(); // the model forgets the text it read
@@ -1081,6 +1083,7 @@ public class LatinIME extends InputMethodService implements
         super.onFinishInput();
         Log.i(TAG, "onFinishInput");
 
+        mKeyboardActionListener.onFieldFinished(); // a field that never showed the input view gets no onFinishInputView: its Vim session still ends here
         mDictionaryFacilitator.onFinishInput();
         final MainKeyboardView mainKeyboardView = mKeyboardSwitcher.getMainKeyboardView();
         if (mainKeyboardView != null) {

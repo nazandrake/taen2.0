@@ -23,6 +23,8 @@ import helium314.keyboard.settings.screens.ColorsScreen
 import helium314.keyboard.settings.screens.DebugScreen
 import helium314.keyboard.settings.screens.DictionaryScreen
 import helium314.keyboard.settings.screens.GestureTypingScreen
+import helium314.keyboard.settings.screens.HelpIndexScreen
+import helium314.keyboard.settings.screens.HelpPageScreen
 import helium314.keyboard.settings.screens.DownloadsScreen
 import helium314.keyboard.settings.screens.MediaScreen
 import helium314.keyboard.settings.screens.VoiceScreen
@@ -85,8 +87,19 @@ fun SettingsNavHost(
                 onClickVoice = { navController.navigate(SettingsDestination.Voice) },
                 onClickDownloads = { navController.navigate(SettingsDestination.Downloads) },
                 onClickMedia = { navController.navigate(SettingsDestination.Media) },
+                onClickHelp = { navController.navigate(SettingsDestination.Help) },
                 onClickEveryday = { navController.navigate(it) },
                 onClickBack = ::goBack,
+            )
+        }
+        composable(SettingsDestination.Help) {
+            HelpIndexScreen(onClickBack = ::goBack, onOpenPage = { navController.navigate(SettingsDestination.HelpPage + it) })
+        }
+        composable(SettingsDestination.HelpPage + "{page}") {
+            HelpPageScreen(
+                pageId = it.arguments?.getString("page").orEmpty(),
+                onClickBack = ::goBack,
+                onOpenPage = { page -> navController.navigate(SettingsDestination.HelpPage + page) },
             )
         }
         composable(SettingsDestination.Privacy) {
@@ -188,6 +201,8 @@ object SettingsDestination {
     const val Downloads = "downloads"
     const val Media = "media"
     const val Profiles = "profiles"
+    const val Help = "help"
+    const val HelpPage = "help/"
     val navTarget = MutableStateFlow(Settings)
 
     private val navScope = CoroutineScope(Dispatchers.Default)

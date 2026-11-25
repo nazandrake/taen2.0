@@ -136,6 +136,11 @@ class ShadowDictionaryFacilitatorImpl {
 class ShadowInputMethodService {
     companion object {
         var batchEdit = 0
+        /** Every call that changed the text of the fake field (commitText, setComposingText, deleteSurroundingText, a key that typed or deleted), in order. */
+        val textChanges = ArrayList<String>()
+        /** Run first by setSelection and by commitText: a test makes the field fail at that call (nothing changed yet). */
+        var beforeSetSelection: ((Int, Int) -> Unit)? = null
+        var beforeCommitText: ((CharSequence) -> Unit)? = null
         var text = ""
         var selectionStart = 0
         var selectionEnd = 0
@@ -156,6 +161,12 @@ class ShadowInputMethodService {
         /** Every getExtractedText call the keyboard made, and whether the fake field answers with its text. */
         var extractedTextCalls = 0
         var extractedTextWithText = false
+        /** The offset the fake field reports for the extracted text (0: the text is the whole field; otherwise it is a part of it). */
+        var extractedStartOffset = 0
+        /** Changes the text the fake field gives as extracted text (null: the whole text); the selection stays the field's own. An editor that cuts its answer short does this. */
+        var extractedTextTransform: ((String) -> String)? = null
+        /** How the fake field answers the text before and after the cursor for a reversed selection: false as reported (the text up to selectionStart, from selectionEnd), true as the platform editors do (up to the lower end, from the higher end). */
+        var cursorReadsOrdered = false
         /** How often the keyboard read the text of the field (before the cursor, after it, the selection or the extracted text). */
         var textReads = 0
         /** The context menu actions (select all) the keyboard asked the field to perform. */
@@ -182,6 +193,9 @@ class ShadowInputMethodService {
 
         fun reset() {
             batchEdit = 0
+            textChanges.clear()
+            beforeSetSelection = null
+            beforeCommitText = null
             text = ""
             selectionStart = 0
             selectionEnd = 0
@@ -199,6 +213,9 @@ class ShadowInputMethodService {
             textReads = 0
             extractedTextCalls = 0
             extractedTextWithText = false
+            extractedStartOffset = 0
+            extractedTextTransform = null
+            cursorReadsOrdered = false
             switchedToNextKeyboard = 0
             offersNextKeyboard = false
             systemSubtypes.clear()
@@ -240,18 +257,22 @@ class ShadowInputMethodService {
     private val ic = object : InputConnection {
         // pretty clear (though this may be slow depending on the editor)
         // bad return value here is likely the cause for that weird bug improved/fixed by fixIncorrectLength
-        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence { textReads++; return textBeforeCursor.take(p0) }
+        override fun getTextBeforeCursor(p0: Int, p1: Int): CharSequence { textReads++; return (if (cursorReadsOrdered) text.substring(0, minOf(selectionStart, selectionEnd)) else textBeforeCursor).take(p0) }
         // pretty clear (though this may be slow depending on the editor)
-        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence { textReads++; return textAfterCursor.take(p0) }
+        override fun getTextAfterCursor(p0: Int, p1: Int): CharSequence { textReads++; return (if (cursorReadsOrdered) text.substring(maxOf(selectionStart, selectionEnd)) else textAfterCursor).take(p0) }
         // pretty clear
         override fun getSelectedText(p0: Int): CharSequence? {
             textReads++
-            return if (selectionStart == selectionEnd) null else text.substring(selectionStart, selectionEnd)
+            return if (selectionStart == selectionEnd) null else text.substring(minOf(selectionStart, selectionEnd), maxOf(selectionStart, selectionEnd)) // as the platform editors: a reversed selection too
         }
         // inserts text at cursor (right?), and sets it as composing text
         // this REPLACES currently composing text (even if at a different position)
         // moves the cursor: positive means relative to composing text start, negative means relative to start
         override fun setComposingText(newText: CharSequence, cursor: Int): Boolean {
+            textChanges.add("setComposingText")
+            return composing(newText, cursor)
+        }
+        private fun composing(newText: CharSequence, cursor: Int): Boolean {
             // first remove the composing text if any
             if (composingStart != -1 && composingEnd != -1)
                 text = text.substring(0, composingStart) + text.substring(composingEnd)
@@ -288,7 +309,9 @@ class ShadowInputMethodService {
         }
         // as per documentation: "This behaves like calling setComposingText(text, newCursorPosition) then finishComposingText()"
         override fun commitText(p0: CharSequence, p1: Int): Boolean {
-            setComposingText(p0, p1)
+            beforeCommitText?.invoke(p0)
+            textChanges.add("commitText")
+            composing(p0, p1)
             finishComposingText()
             return true // whether we added the text
         }
@@ -311,6 +334,7 @@ class ShadowInputMethodService {
             return false
         }
         override fun setSelection(p0: Int, p1: Int): Boolean {
+            beforeSetSelection?.invoke(p0, p1)
             selectionStart = p0
             selectionEnd = p1
             return true
@@ -318,6 +342,7 @@ class ShadowInputMethodService {
         // delete beforeLength before cursor position, and afterLength after cursor position
         // chars, not codepoints or glyphs
         override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
+            textChanges.add("deleteSurroundingText")
             // delete only before or after selection
             text = textBeforeCursor.substring(0, textBeforeCursor.length - beforeLength) +
                 text.substring(selectionStart, selectionEnd) +
@@ -342,6 +367,12 @@ class ShadowInputMethodService {
             return true
         }
         override fun sendKeyEvent(p0: KeyEvent): Boolean {
+            val before = text
+            val answer = keyEvent(p0)
+            if (text != before) textChanges.add("sendKeyEvent ${p0.keyCode}")
+            return answer
+        }
+        private fun keyEvent(p0: KeyEvent): Boolean {
             if (p0.action != KeyEvent.ACTION_DOWN) return true // only change the text on key down, like RichInputConnection does
             keyDownCodes.add(p0.keyCode)
             if (p0.keyCode == KeyEvent.KEYCODE_DEL) {
@@ -375,8 +406,8 @@ class ShadowInputMethodService {
             extractedTextCalls++
             textReads++
             return ExtractedText().also {
-                if (extractedTextWithText) it.text = text
-                it.startOffset = 0
+                if (extractedTextWithText) it.text = extractedTextTransform?.invoke(text) ?: text
+                it.startOffset = extractedStartOffset
                 it.selectionStart = selectionStart
                 it.selectionEnd = selectionEnd
             }

@@ -53,6 +53,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 public final class Settings implements SharedPreferences.OnSharedPreferenceChangeListener {
@@ -95,6 +96,8 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_KEY_USE_PERSONALIZED_DICTS = "use_personalized_dicts";
     public static final String PREF_KEY_USE_DOUBLE_SPACE_PERIOD = "use_double_space_period";
     public static final String PREF_SMART_QUOTES = "smart_quotes";
+    public static final String PREF_VIM_MODE = "vim_mode"; // Vim Normal and Visual mode on the keyboard (off until turned on)
+    public static final String PREF_VIM_INDENT_TAB = "vim_indent_tab"; // Vim > and < indent with a tab (else four spaces)
     public static final String PREF_EMOJI_HOLD = "emoji_hold"; // the key that opens the emoji panel when held (comma, period, space, language, none)
     public static final String PREF_MEDIA_STARTER_PACK = "media_starter_pack"; // show the starter stickers of the APK in the picture panel (off until turned on)
     public static final String PREF_NEXTWORD_MODEL = "nextword_model"; // the downloaded next-word model orders the prediction strip (when one is installed and ready)
@@ -221,13 +224,32 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
 
     public static final String PREF_VERSION_CODE = "version_code";
     public static final String PREF_SETUP_GUIDE_DONE = "setup_guide_done"; // 1.1.0: the first-run guide was shown (skipped or finished); a wipe of the settings brings it back
-    public static final String PREF_SAVE_SUBTYPE_PER_APP = "save_subtype_per_app";
+    public static final String PREF_WHATS_NEW_SHOWN = "whats_new_shown"; // 2.0.3: the version code of the "What's new" box that was shown last (one int; a wipe of the settings shows it again after an update)
+    public static final String PREF_SAVE_SUBTYPE_PER_APP ="save_subtype_per_app";
     public static final String PREF_SAVED_APP_SUBTYPE_PREFIX = "saved_app_subtype_";
 
     private Context mContext;
     private SharedPreferences mPrefs;
     private SettingsValues mSettingsValues;
     private final ReentrantLock mSettingsValuesLock = new ReentrantLock();
+
+    /** A layer that must notice a reload of the settings (the privacy decision of the field is part of them). */
+    public interface ReloadHook {
+        /** [before] is null at the first load. Called on the thread that reloaded, after the new values are in place. */
+        void onReload(@Nullable SettingsValues before, @NonNull SettingsValues after);
+    }
+
+    private final ConcurrentHashMap<String, ReloadHook> mReloadHooks = new ConcurrentHashMap<>();
+
+    /** Registers [hook] (replacing an earlier one with the same [name]) to run after every reload of the settings. */
+    public void onReload(@NonNull final String name, @NonNull final ReloadHook hook) {
+        mReloadHooks.put(name, hook);
+    }
+
+    /** Removes the hook registered under [name]: a layer of a service that is destroyed must not be kept alive by the settings, which outlive it. */
+    public void removeReloadHook(@NonNull final String name) {
+        mReloadHooks.remove(name);
+    }
 
     // static cache for background images to avoid potentially slow reload on every settings reload
     private final static Drawable[] sCachedBackgroundImages = new Drawable[4];
@@ -319,15 +341,26 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
 
     public void loadSettings(final Context context, final Locale locale,
                              @NonNull final InputAttributes inputAttributes) {
+        final SettingsValues before;
+        final SettingsValues after;
         mSettingsValuesLock.lock();
         mContext = context;
         try {
+            before = mSettingsValues;
             final SharedPreferences prefs = mPrefs;
             Log.i(TAG, "loadSettings");
             mSettingsValues = RunInLocaleKt.runInLocale(context, locale,
                     ctx -> new SettingsValues(ctx, prefs, ctx.getResources(), inputAttributes));
+            after = mSettingsValues;
         } finally {
             mSettingsValuesLock.unlock();
+        }
+        for (final ReloadHook hook : mReloadHooks.values()) {
+            try {
+                hook.onReload(before, after);
+            } catch (final RuntimeException e) {
+                // a layer that fails to notice must not break the settings; each hook guards its own work
+            }
         }
     }
 

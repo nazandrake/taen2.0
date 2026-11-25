@@ -30,6 +30,16 @@ Checks before a pull request:
     make native-test    # when app/src/main/jni changes
     make leak-audit     # when the APK contents change
 
+## The manual
+
+The manual under Settings > Help is Markdown in `app/src/main/assets/manual/<language>/<page>.md`, one file for each page
+and language. The index is `ManualPages`. A settings entry is a heading with the key of the setting and no words of its own
+(`### {#vibrate_on}`): its title is the app's own string for that setting (`ManualTitles`), so it matches the screen in every
+language. `ManualCoverageTest` fails when a screen shows a key that has no entry, when an entry names a key that no screen
+shows, and when a stated default differs from `Defaults`. A Vim example (a fenced block of the language `example` with the
+sections Before, Keys and After) is run through the Vim engine by `ManualVimExamplesTest`. A new language needs every page
+and is added to `checkedLanguages` in the same change; `ManualNavigationTest` then compares its structure with English.
+
 ## Public check
 
 `scripts/public-check` is a deterministic check with no network access. It scans the files and file names

@@ -1,8 +1,12 @@
+import com.android.build.api.artifact.ScopedArtifact
 import com.android.build.api.artifact.SingleArtifact
 import com.android.build.api.variant.ApplicationVariant
 import com.android.build.api.variant.HostTestBuilder
+import com.android.build.api.variant.ScopedArtifacts
 import taen.ApkScan
 import taen.PrivacyCheck
+import taen.VimBytecodeCheck
+import taen.WhatsNewTask
 
 plugins {
     id("com.android.application")
@@ -18,8 +22,8 @@ android {
         applicationId = "io.github.nazandrake.taen"
         minSdk = 30
         targetSdk = 37
-        versionCode = 11
-        versionName = "2.0.2"
+        versionCode = 12
+        versionName = "2.0.3"
         ndk {
             abiFilters.clear()
             // only 64-bit ARM (the Pixel 8 Pro and the reference test phone). ONNX Runtime adds 24 to 41 MB per ABI; a 32-bit or x86 build
@@ -179,6 +183,20 @@ androidComponents.beforeVariants { builder ->
     if (builder.buildType == "runTests") builder.hostTests[HostTestBuilder.UNIT_TEST_TYPE]?.enable = true
 }
 
+// The "What's new" box: its text is the CHANGELOG.md entry of versionName, built into an asset (taen.WhatsNew, BUILDING.md). The shipped builds (release and
+// the audit copy of it) fail without an entry; the others write an empty asset, which the app reads as no box.
+androidComponents.onVariants { variant ->
+    val capitalized = variant.name.replaceFirstChar { it.uppercase() }
+    val whatsNew = tasks.register<WhatsNewTask>("generateWhatsNew$capitalized") {
+        description = "Writes the notes of the What's new box of ${variant.name} from CHANGELOG.md"
+        changelog.set(rootProject.layout.projectDirectory.file("CHANGELOG.md"))
+        versionName.set(android.defaultConfig.versionName ?: error("versionName is not set"))
+        required.set(variant.buildType == "release" || variant.buildType == "audit")
+        outputDir.set(layout.buildDirectory.dir("generated/whatsNew/${variant.name}"))
+    }
+    variant.sources.assets?.addGeneratedSourceDirectory(whatsNew, WhatsNewTask::outputDir)
+}
+
 androidComponents.onVariants { variant ->
     val capitalized = variant.name.replaceFirstChar { it.uppercase() }
     tasks.register<PrivacyCheck>("privacyCheck$capitalized") {
@@ -191,6 +209,18 @@ androidComponents.onVariants { variant ->
         variantName.set(variant.name)
     }
     if (variant.buildType == "release") { // the shipped build; the unminified variants still contain whole libraries
+        // the Vim package is checked on the class files of the Kotlin compiler AND of javac (before R8), by every reference it makes; a class of
+        // the package in any other compiled output of the program (AGP's complete class set: project, modules, libraries) fails the task
+        val vimBytecode = tasks.register<VimBytecodeCheck>("vimBytecode$capitalized") {
+            group = "verification"
+            description = "Checks that the compiled Vim package refers only to classes and members on privacy/vim-bytecode.allow"
+            classes.from(tasks.named("compile${capitalized}Kotlin").map { it.outputs.files })
+            classes.from(tasks.named("compile${capitalized}JavaWithJavac").map { it.outputs.files })
+            allowList.set(rootProject.layout.projectDirectory.file("privacy/vim-bytecode.allow"))
+            report.set(layout.buildDirectory.file("reports/vim-bytecode-${variant.name}.txt"))
+            variantName.set(variant.name)
+        }
+        variant.artifacts.forScope(ScopedArtifacts.Scope.ALL).use(vimBytecode).toGet(ScopedArtifact.CLASSES, VimBytecodeCheck::allJars, VimBytecodeCheck::allDirectories)
         tasks.register<ApkScan>("apkScan$capitalized") {
             group = "verification"
             description = "Scans the ${variant.name} APK for network, tracker and class-loader references and unlisted native libraries"
@@ -207,7 +237,8 @@ tasks.register("privacyCheck") {
     description = "Runs the privacy gate for every variant, then scans the release APK"
     dependsOn(provider { tasks.names.filter { it.startsWith("privacyCheck") && it != "privacyCheck" } })
     dependsOn("apkScanRelease")
+    dependsOn("vimBytecodeRelease")
 }
 
 // a release APK is never assembled without passing the gate
-tasks.matching { it.name == "assembleRelease" }.configureEach { dependsOn("privacyCheckRelease") }
+tasks.matching { it.name == "assembleRelease" }.configureEach { dependsOn("privacyCheckRelease", "vimBytecodeRelease") }

@@ -47,6 +47,7 @@ import helium314.keyboard.latin.LatinIME;
 import helium314.keyboard.latin.R;
 import helium314.keyboard.latin.RichInputMethodManager;
 import helium314.keyboard.latin.RichInputMethodSubtype;
+import helium314.keyboard.latin.common.ColorType;
 import helium314.keyboard.latin.settings.Settings;
 import helium314.keyboard.latin.settings.SettingsKt;
 import helium314.keyboard.latin.settings.SettingsValues;
@@ -76,6 +77,7 @@ public final class KeyboardSwitcher {
     private HorizontalScrollView mClipboardStripScrollView;
     private SuggestionStripView mSuggestionStripView;
     private FrameLayout mStripContainer;
+    private TextView mVimStatusView;
     private ClipboardHistoryView mClipboardHistoryView;
     private QuickPanelView mQuickPanelView; // 1.1.0: the quick settings panel, a child of the keyboard view wrapper
     private MediaPanelView mMediaPanelView; // the GIF and sticker panel, a child of the keyboard view wrapper
@@ -298,6 +300,27 @@ public final class KeyboardSwitcher {
 
     @Nullable public QuickPanelView getQuickPanelView() {
         return mQuickPanelView;
+    }
+
+    /** The Vim layer shows its Normal or Visual (and Visual Line) layout. */
+    public void showVimLayout(@NonNull KeyboardElement element) {
+        mState.showVim(element == KeyboardElement.VIM_VISUAL);
+    }
+
+    /** The Vim layer is done (an insert command, or a character is asked for): the typing keyboard. */
+    public void leaveVimLayout(int autoCapsFlags, @Nullable RecapitalizeMode recapitalizeMode) {
+        mState.leaveVim(autoCapsFlags, recapitalizeMode);
+    }
+
+    /** The mode line of the Vim layer (mode and pending count and operator), or null to hide it. */
+    public void setVimStatus(@Nullable String text) {
+        if (mVimStatusView == null) return;
+        if (text == null) {
+            mVimStatusView.setVisibility(View.GONE);
+            return;
+        }
+        mVimStatusView.setText(text);
+        mVimStatusView.setVisibility(View.VISIBLE);
     }
 
     public void toggleLayout(@NonNull LayoutDirective.Utility layout, int autoCapsFlags, @Nullable RecapitalizeMode recapitalizeMode) {
@@ -603,6 +626,9 @@ public final class KeyboardSwitcher {
         mClipboardStripScrollView = mCurrentInputView.findViewById(R.id.clipboard_strip_scroll_view);
         mSuggestionStripView = mCurrentInputView.findViewById(R.id.suggestion_strip_view);
         mStripContainer = mCurrentInputView.findViewById(R.id.strip_container);
+        mVimStatusView = mCurrentInputView.findViewById(R.id.vim_status);
+        mVimStatusView.setTextColor(Settings.getValues().mColors.get(ColorType.KEY_TEXT));
+        Settings.getValues().mColors.setBackground(mVimStatusView, ColorType.STRIP_BACKGROUND);
 
         prefs.registerOnSharedPreferenceChangeListener(mSuggestionStripView);
         prefs.registerOnSharedPreferenceChangeListener(mClipboardHistoryView);
@@ -682,6 +708,7 @@ public final class KeyboardSwitcher {
             if (DEBUG_ACTION) {
                 Log.d(TAG, "setEmojiKeyboard");
             }
+            setVimStatus(null);
             mMainKeyboardFrame.setVisibility(View.VISIBLE);
             // The visibility of {@link #mKeyboardView} must be aligned with {@link #MainKeyboardFrame}.
             // @see #getVisibleKeyboardView() and
@@ -702,6 +729,7 @@ public final class KeyboardSwitcher {
             if (DEBUG_ACTION) {
                 Log.d(TAG, "setClipboardKeyboard");
             }
+            setVimStatus(null);
             mMainKeyboardFrame.setVisibility(View.VISIBLE);
             // The visibility of {@link #mKeyboardView} must be aligned with {@link #MainKeyboardFrame}.
             // @see #getVisibleKeyboardView() and
@@ -724,6 +752,14 @@ public final class KeyboardSwitcher {
                 Log.d(TAG, "setNumpadKeyboard");
             }
             setKeyboard(KeyboardElement.NUMPAD, KeyboardSwitchState.OTHER);
+        }
+
+        @Override
+        public void setVimKeyboard(boolean visual) {
+            if (DEBUG_ACTION) {
+                Log.d(TAG, "setVimKeyboard");
+            }
+            setKeyboard(visual ? KeyboardElement.VIM_VISUAL : KeyboardElement.VIM_NORMAL, KeyboardSwitchState.OTHER);
         }
 
         @Override

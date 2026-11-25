@@ -102,6 +102,9 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         override fun commitText(text: CharSequence) = connection.commitText(text, 1)
     }, { SystemClock.uptimeMillis() }, { settings.current.mPrivacy.fieldEditing })
 
+    // the Vim layer: Normal and Visual mode (keys of its layouts never go through the typing path)
+    private val vim = VimInput(latinIME, inputLogic) { code -> onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false) }
+
     init {
         Privacy.onLock("navigation") {
             multiCursor.forgetAll()
@@ -168,6 +171,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         when (primaryCode) {
             KeyCode.TOGGLE_AUTOCORRECT -> return settings.toggleAutoCorrect()
             KeyCode.TOGGLE_INCOGNITO_MODE -> {
+                vim.captureChanged() // the Vim layer is not called while the user types: a switch to "no" in the middle of an insert must reach it
                 settings.toggleAlwaysIncognitoMode()
                 return
             }
@@ -179,14 +183,19 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
                 keyboardSwitcher.toggleQuickPanel()
                 return
             }
+            KeyCode.VIM_MODE -> return vim.escapeKey()
             KeyCode.SELECT_MODE -> return toggleSelectMode()
             KeyCode.NEXT_OCCURRENCE -> return addCursor { multiCursor.addNextOccurrence(it.first, it.second) }
             KeyCode.CARET_BELOW -> return addCursor { multiCursor.addCaretOnNextLine(it.first, it.second) }
             KeyCode.UNDO -> if (multiCursor.hasUndo()) multiCursor.undoLastEdit()?.let { return showNavigationResult(it) }
         }
-        if (multiCursor.isActive && typeIntoCursors(primaryCode)) return
         if (Settings.getValues().mIsLocked && KeyCode.isIsBlockedWhenLocked(primaryCode))
             return
+        if (vim.consumes(primaryCode, metaState and KeyEvent.META_CTRL_ON != 0)) { // after the lock block: no Vim key is used while the device is locked
+            if (metaState != 0) metaAfterCodeInput(primaryCode) // a Ctrl that was held for a Vim insert key is used up
+            return
+        }
+        if (multiCursor.isActive && typeIntoCursors(primaryCode)) return
         val mkv = keyboardSwitcher.mainKeyboardView
 
         // checking if the character is a combining accent
@@ -200,15 +209,17 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onTextInput(text: String?) {
+        if (vim.consumesText(text)) return // a character or a command line is being typed for the Vim layer: not into the field
         if (text != null && multiCursor.isActive) return showNavigationResult(multiCursor.type(text))
         latinIME.onTextInput(text)
     }
 
-    override fun onStartBatchInput() = latinIME.onStartBatchInput()
+    // a swipe while the Vim layer asks for a character or a command line would type a word into the field: it is dropped
+    override fun onStartBatchInput() { if (!vim.capturesTyping()) latinIME.onStartBatchInput() }
 
-    override fun onUpdateBatchInput(batchPointers: InputPointers?) = latinIME.onUpdateBatchInput(batchPointers)
+    override fun onUpdateBatchInput(batchPointers: InputPointers?) { if (!vim.capturesTyping()) latinIME.onUpdateBatchInput(batchPointers) }
 
-    override fun onEndBatchInput(batchPointers: InputPointers?) = latinIME.onEndBatchInput(batchPointers)
+    override fun onEndBatchInput(batchPointers: InputPointers?) { if (!vim.capturesTyping()) latinIME.onEndBatchInput(batchPointers) }
 
     override fun onCancelBatchInput() = latinIME.onCancelBatchInput()
 
@@ -289,7 +300,16 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         multiCursor.onSelectionChanged(newSelStart, newSelEnd)
     }
 
+    override fun onFieldStarted() {
+        vim.fieldStarted()
+    }
+
+    override fun onDestroy() {
+        vim.onDestroy()
+    }
+
     override fun onFieldFinished() {
+        vim.fieldFinished()
         multiCursor.forgetAll()
         spaceSelection.sticky = false
         shiftHeld = false

@@ -97,6 +97,7 @@ fun getCodeForToolbarKey(key: ToolbarKey) = Settings.getInstance().getCustomTool
     NEXT_OCCURRENCE -> KeyCode.NEXT_OCCURRENCE
     CARET_BELOW -> KeyCode.CARET_BELOW
     CLEAR_ALL -> KeyCode.CLEAR_ALL
+    VIM -> KeyCode.VIM_MODE
 }
 
 fun getCodeForToolbarKeyLongClick(key: ToolbarKey) = Settings.getInstance().getCustomToolbarLongpressCode(key) ?: when (key) {
@@ -122,7 +123,7 @@ fun getCodeForToolbarKeyLongClick(key: ToolbarKey) = Settings.getInstance().getC
 enum class ToolbarKey {
     VOICE, CLIPBOARD, NUMPAD, DPAD, UNDO, REDO, SETTINGS, SELECT_ALL, SELECT_WORD, COPY, CUT, PASTE, ONE_HANDED, FLOATING, SPLIT,
     INCOGNITO, AUTOCORRECT, CLEAR_CLIPBOARD, CLOSE_HISTORY, EMOJI, LEFT, RIGHT, UP, DOWN, WORD_LEFT, WORD_RIGHT,
-    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, QUICK_SETTINGS, MEDIA, SELECT_MODE, NEXT_OCCURRENCE, CARET_BELOW, CLEAR_ALL
+    PAGE_UP, PAGE_DOWN, FULL_LEFT, FULL_RIGHT, PAGE_START, PAGE_END, QUICK_SETTINGS, MEDIA, SELECT_MODE, NEXT_OCCURRENCE, CARET_BELOW, CLEAR_ALL, VIM
 }
 
 enum class ToolbarMode {

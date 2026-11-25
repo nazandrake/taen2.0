@@ -123,7 +123,9 @@ enum class KeyboardElement(val descriptionResId: Int) {
     EMOJI_EMOTICONS(R.string.spoken_description_emoji_category_emoticons),
     EMOJI_BOTTOM_ROW(R.string.spoken_description_emoji),
     CLIPBOARD(R.string.spoken_description_mode_clipboard),
-    CLIPBOARD_BOTTOM_ROW(R.string.spoken_description_mode_clipboard);
+    CLIPBOARD_BOTTOM_ROW(R.string.spoken_description_mode_clipboard),
+    VIM_NORMAL(R.string.vim_normal), // the Vim layouts (Normal; Visual and Visual Line): after the others, so that no element group of this enum contains them
+    VIM_VISUAL(R.string.vim_visual);
 
     val isAlphabet get() = this < SYMBOLS
     val isAlphaOrSymbol get() = this <= SYMBOLS_SHIFTED

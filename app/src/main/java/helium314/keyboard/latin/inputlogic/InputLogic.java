@@ -1812,9 +1812,17 @@ public final class InputLogic {
      *
      * @param settingsValues the current values of the settings.
      */
+    private boolean mVimActive;
+
+    /** While the Vim layer (Normal or Visual mode) is active no word under the cursor is resumed and no suggestion is shown. */
+    public void setVimActive(final boolean active) {
+        mVimActive = active;
+    }
+
     public void restartSuggestionsOnWordTouchedByCursor(final SettingsValues settingsValues,
             final String currentKeyboardScript) {
-        if (!settingsValues.mSpacingAndPunctuations.mCurrentLanguageHasSpaces
+        if (mVimActive
+                || !settingsValues.mSpacingAndPunctuations.mCurrentLanguageHasSpaces
                 // If no suggestions are requested, don't try restarting suggestions.
                 || !settingsValues.needsToLookupSuggestions()
                 // If we are currently in a batch input, we must not resume suggestions, or the result

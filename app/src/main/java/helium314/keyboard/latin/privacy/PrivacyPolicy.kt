@@ -32,12 +32,14 @@ object PrivacyPolicy {
      * @property noPersonalizedLearning the field asks for no personalized learning (any input class)
      * @property incognito nothing is learned, no clipboard entry or recent emoji is kept: password field, no-learning flag,
      * force-incognito, an app on the list, or a locked device
+     * @property locked the device or the screen is locked (the field is shown over the keyguard)
      */
     class Decision(
         val passwordField: Boolean,
         val noPersonalizedLearning: Boolean,
         val incognito: Boolean,
         val secureClipboard: Boolean = false,
+        val locked: Boolean = false,
     ) {
         val learn: Boolean get() = !incognito
         val storeClipboard: Boolean get() = !incognito
@@ -52,6 +54,11 @@ object PrivacyPolicy {
         val sensitiveCopy: Boolean get() = passwordField
         /** The space bar may select, and the whole field text may be read for several cursors: not in a password or incognito field. */
         val fieldEditing: Boolean get() = !passwordField && !incognito
+        /**
+         * The Vim layer (Normal and Visual mode: it reads and edits the field text) is not offered in a password field or while the device is
+         * locked (a field shown over the keyguard). Its register is filled only where [storeClipboard] holds.
+         */
+        val vimMode: Boolean get() = !passwordField && !locked
     }
 
     /** The field asks for no personalized learning. Read in every input class: a number or phone field can ask for it too. */
@@ -61,7 +68,7 @@ object PrivacyPolicy {
         val password = InputTypeUtils.isAnyPasswordInputType(input.inputType)
         val noLearning = noLearning(input.imeOptions)
         val listed = input.packageName != null && input.packageName in input.incognitoApps
-        return Decision(password, noLearning, password || noLearning || input.forceIncognito || listed || input.locked, input.secureClipboard)
+        return Decision(password, noLearning, password || noLearning || input.forceIncognito || listed || input.locked, input.secureClipboard, input.locked)
     }
 
     fun decide(

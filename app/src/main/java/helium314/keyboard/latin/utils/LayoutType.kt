@@ -8,7 +8,7 @@ import java.util.EnumMap
 
 enum class LayoutType {
     MAIN, SYMBOLS, MORE_SYMBOLS, FUNCTIONAL, NUMBER, NUMBER_ROW, NUMPAD,
-    NUMPAD_LANDSCAPE, DPAD, PHONE, PHONE_SYMBOLS, EMOJI_BOTTOM, CLIPBOARD_BOTTOM,
+    NUMPAD_LANDSCAPE, DPAD, PHONE, PHONE_SYMBOLS, EMOJI_BOTTOM, CLIPBOARD_BOTTOM, VIM_NORMAL, VIM_VISUAL,
 ;
     companion object {
         fun EnumMap<LayoutType, String>.toExtraValue() = map { it.key.name + Separators.KV + it.value }.joinToString(Separators.ENTRY)
@@ -38,6 +38,8 @@ enum class LayoutType {
             PHONE_SYMBOLS -> R.string.layout_phone_symbols
             EMOJI_BOTTOM -> R.string.layout_emoji_bottom_row
             CLIPBOARD_BOTTOM -> R.string.layout_clip_bottom_row
+            VIM_NORMAL -> R.string.layout_vim_normal
+            VIM_VISUAL -> R.string.layout_vim_visual
         }
 
         fun getMainLayoutFromExtraValue(extraValue: String): String? {

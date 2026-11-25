@@ -45,6 +45,7 @@ fun MainSettingsScreen(
     onClickVoice: () -> Unit,
     onClickDownloads: () -> Unit,
     onClickMedia: () -> Unit,
+    onClickHelp: () -> Unit,
     onClickEveryday: (String) -> Unit,
     onClickBack: () -> Unit,
 ) {
@@ -135,6 +136,12 @@ fun MainSettingsScreen(
                     icon = R.drawable.ic_settings_advanced
                 ) { NextScreenIcon() }
                 Preference(
+                    name = stringResource(R.string.help_title),
+                    description = stringResource(R.string.help_summary),
+                    onClick = onClickHelp,
+                    icon = R.drawable.ic_settings_about
+                ) { NextScreenIcon() }
+                Preference(
                     name = stringResource(R.string.settings_screen_about),
                     onClick = onClickAbout,
                     icon = R.drawable.ic_settings_about
@@ -150,7 +157,7 @@ private fun PreviewScreen() {
     initPreview(LocalContext.current)
     Theme(previewDark) {
         Surface {
-            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+            MainSettingsScreen({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
     }
 }

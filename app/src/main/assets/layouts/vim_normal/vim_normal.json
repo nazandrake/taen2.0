@@ -1,0 +1,61 @@
+[
+  [
+    {"label": ":", "groupId": -1},
+    {"label": "/", "groupId": -1},
+    {"label": "?", "groupId": -1},
+    {"label": "n", "popup": {"main": {"label": "*"}}},
+    {"label": "N", "popup": {"main": {"label": "#"}}},
+    {"label": ".", "groupId": -1},
+    {"label": "q", "popup": {"main": {"label": "m"}}},
+    {"label": "@", "groupId": -1, "popup": {"main": {"label": "\""}}},
+    {"label": "%", "groupId": -1, "popup": {"main": {"label": "'"}}},
+    {"label": "~", "groupId": -1, "popup": {"main": {"label": "`"}}}
+  ],
+  [
+    {"label": "1", "type": "numeric"},
+    {"label": "2", "type": "numeric"},
+    {"label": "3", "type": "numeric"},
+    {"label": "4", "type": "numeric"},
+    {"label": "5", "type": "numeric"},
+    {"label": "6", "type": "numeric"},
+    {"label": "7", "type": "numeric"},
+    {"label": "8", "type": "numeric"},
+    {"label": "9", "type": "numeric"},
+    {"label": "0", "type": "numeric"}
+  ],
+  [
+    {"label": "Esc", "type": "function", "code": 27},
+    {"label": "w", "popup": {"main": {"label": "W"}, "relevant": [{"label": "}"}, {"label": ")"}]}},
+    {"label": "e", "popup": {"main": {"label": "E"}}},
+    {"label": "r", "type": "function", "popup": {"main": {"label": "R"}}},
+    {"label": "t", "popup": {"main": {"label": "T"}}},
+    {"label": "y", "type": "function", "popup": {"main": {"label": "Y"}}},
+    {"label": "u", "popup": {"main": {"label": "U"}}},
+    {"label": "i", "popup": {"main": {"label": "I"}}},
+    {"label": "o", "popup": {"main": {"label": "O"}}},
+    {"label": "p", "type": "function", "popup": {"main": {"label": "P"}}}
+  ],
+  [
+    {"label": "a", "popup": {"main": {"label": "A"}}},
+    {"label": "s", "popup": {"main": {"label": "S"}}},
+    {"label": "d", "type": "function", "popup": {"main": {"label": "D"}}},
+    {"label": "f", "popup": {"main": {"label": "F"}}},
+    {"label": "g", "popup": {"main": {"label": "G"}}},
+    {"label": "h", "popup": {"main": {"label": "<"}}},
+    {"label": "j", "popup": {"main": {"label": "J"}}},
+    {"label": "k"},
+    {"label": "l", "popup": {"main": {"label": ">"}}},
+    {"label": ";", "groupId": -1}
+  ],
+  [
+    {"label": "^R", "type": "function", "code": 18, "popup": {"main": {"label": "^A", "code": 57345}, "relevant": [{"label": "^X", "code": 57346}]}},
+    {"label": "x", "type": "function", "popup": {"main": {"label": "X"}}},
+    {"label": "c", "type": "function", "popup": {"main": {"label": "C"}}},
+    {"label": "v", "popup": {"main": {"label": "V"}, "relevant": [{"label": "^V", "code": 57347}]}},
+    {"label": "b", "popup": {"main": {"label": "B"}, "relevant": [{"label": "{"}, {"label": "("}]}},
+    {"label": "^", "groupId": -1},
+    {"label": "$", "groupId": -1},
+    {"label": ",", "groupId": -1},
+    {"label": "ABC", "type": "function", "code": 105}
+  ]
+]

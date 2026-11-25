@@ -1,0 +1,144 @@
+# Allow list of the compiled Vim package (VimBytecode, task vimBytecodeRelease, part of privacyCheck and of assembleRelease).
+# SCOPE. The guard covers every class file of the package helium314/keyboard/latin/vim, whatever produced it: it scans the output of the Kotlin
+# compiler AND of javac, and it fails when a class of that package sits in any other compiled output of the program (a directory it did not
+# scan, a jar of a module or library). It also fails when a .java source file is in the package (Kotlin only there, SourceRules).
+# WHAT COUNTS. Every class and member that a class of the package refers to must be matched here; what is not matched is denied. That is every
+# class constant, every field and method reference (Name.member:descriptor), every type in a descriptor, and every CONSTANT_Utf8 entry that
+# reads as a type (L...; also inside generic signatures and annotations) or as an internal class name (a/b/C), whichever attribute holds it. So
+# an annotation, a signature, or a string constant that looks like a denied class is checked too (fail closed). An entry matches the name, its
+# members (Name.member, or Name.member:descriptor for one overload), its inner classes (Name$Inner) and, when it ends with / or ., everything
+# below it. The longest entry decides, deny wins a tie.
+# INHERITED MEMBERS. A call that names a class of the package but a member that the class does not declare (VimEx.Stop.getMessage) is followed up
+# through the superclass and the interfaces, class by class inside the package, to the first class outside it, and THAT member
+# (java/lang/Exception.getMessage:()Ljava/lang/String;) has to be on this list too. So the entry that allows the package never gives one of its
+# classes what Exception, Throwable or Object give it.
+# Read from the class files (before R8), so no spelling of the source (backticks, typealias, import alias, full name, an inlined library call,
+# unicode escapes in Java) changes the result. The package works on the text it is handed and has no file, network, log, process, thread,
+# clock, reflection, preference or Android class (P1, P11); a new need is added here on purpose, in review.
+# OUT OF SCOPE. Reflection cannot be reached: java/lang/Class members, java/lang/reflect, kotlin/reflect and ClassLoader are denied, so a name
+# cannot be turned into a class. Code outside the package is reachable only through the classes allowed below, none of which opens a file,
+# a socket, a process or a log.
+# MESSAGES. No exception class of java.lang is listed, except the message-less constructor of java.lang.Exception for one class of the package
+# (VimEx.Stop, which carries a notice, an enum, and is always caught inside the ex command line that threw it): error(x), check, require and throw
+# with a message (which inline to IllegalStateException and IllegalArgumentException) are refused, so field or register text cannot reach a crash
+# message and logcat through the package. The same holds for the Kotlin members that throw with a caller-supplied message (listed by name below)
+# and every kotlin/jvm/internal/Intrinsics member but the three the compiler emits.
+# BOUNDARY CATCH. The lists below cannot name every library member that puts its input in an exception message (Integer.parseInt, Enum.valueOf,
+# a cast, ...), so they are defence in depth. The one boundary is the adapter outside the package: GuardedVimEngine (keyboard package) runs every
+# call into the engine, and so everything the engine calls or runs, inside one catch of Throwable (an Error from a failing object initializer
+# carries the text in its cause too). Only a VirtualMachineError (out of memory, stack overflow) passes: it carries no caller text. What is
+# caught is dropped unread, never logged or kept, and nothing else the engine throws reaches the system crash handler and its log
+# (GuardedVimEngineTest, VimWiringTest). An edit is one text change (one commitText inside a batch edit), so a cursor placement that fails after
+# it leaves the edited text, Vim resets and says so; a failed change leaves the field as it was.
+# SIGNATURES. Generic signatures are read by the full JVM grammar (nested Outer.Inner segments map to Outer$Inner and both are checked, type
+# arguments, wildcards, type variables, arrays), so no spelling of a type hides its class. Two rules, by where the text comes from:
+#  - a constant pool entry that is not a plain string constant and starts as a type or signature (L..;, an array, a method signature, type
+#    parameters) must parse completely, else the guard FAILS and names the entry by its index, never by its text;
+#  - a plain string constant (named by a CONSTANT_String) is text: when it is not a complete signature, every slash-separated identifier token
+#    in it (java/io/File) is checked as a class name, so text with a slash in it needs its class name on this list.
+# THREAT MODEL. The guard stops field or register text from leaving the vim package through files, logs, stdout, processes, network, reflection or
+# crash messages, for mistakes in code written in good faith and for any field input. Deliberately hostile code merged into the repo is out of its
+# scope: code review covers that.
+
+# the package itself
+allow helium314/keyboard/latin/vim/
+
+# java.lang: value types, enums and what the Kotlin compiler's string concatenation and lambdas need
+allow java/lang/Object
+deny java/lang/Object.getClass
+deny java/lang/Object.wait
+deny java/lang/Object.notify
+deny java/lang/Object.notifyAll
+allow java/lang/Boolean
+allow java/lang/CharSequence
+allow java/lang/Character
+allow java/lang/Enum
+allow java/lang/Integer
+# Long: the type only (the compiled package names it in a few signatures, and calls no member of it: measured on the compiled classes). A member of it is
+# denied, because Long.getLong(String) reads a SYSTEM PROPERTY by name and Long.decode and the other parsers put their input in an exception message;
+# when the package needs one (Long.valueOf, longValue), add it here by name and descriptor, with the reason.
+allow java/lang/Long
+deny java/lang/Long.
+allow java/lang/Iterable
+allow java/lang/Math
+allow java/lang/NoSuchFieldError
+allow java/lang/Number
+allow java/lang/String
+allow java/lang/StringBuilder
+# Class is named by the compiler's enum code (Enum.valueOf(Class, String)); no member of it may be called (forName, getClassLoader, ...)
+allow java/lang/Class
+deny java/lang/Class.
+# the bootstrap methods of invokedynamic (lambdas and string templates) and the types of their signatures, nothing else of java.lang.invoke
+allow java/lang/invoke/CallSite
+deny java/lang/invoke/CallSite.
+allow java/lang/invoke/MethodHandle
+deny java/lang/invoke/MethodHandle.
+allow java/lang/invoke/MethodHandles$Lookup
+deny java/lang/invoke/MethodHandles$Lookup.
+allow java/lang/invoke/MethodType
+deny java/lang/invoke/MethodType.
+allow java/lang/invoke/LambdaMetafactory
+deny java/lang/invoke/LambdaMetafactory.
+allow java/lang/invoke/LambdaMetafactory.metafactory
+allow java/lang/invoke/StringConcatFactory
+deny java/lang/invoke/StringConcatFactory.
+allow java/lang/invoke/StringConcatFactory.makeConcatWithConstants
+
+# the one exception class of the package: VimEx.Stop extends it through the constructor without a message, so that no text can be in it; every other member
+# (getMessage, printStackTrace, initCause, the constructors with a message or a cause...) stays denied
+allow java/lang/Exception
+deny java/lang/Exception.
+allow java/lang/Exception.<init>:()V
+
+# collections, locale and character boundaries: computation on values only
+allow java/util/ArrayList
+# the maps of registers and marks (keys are register and mark names, values are text held in memory) and copyOf of the arrays of the pattern matcher
+allow java/util/HashMap
+allow java/util/Arrays
+allow java/util/Collection
+allow java/util/Iterator
+allow java/util/List
+allow java/util/Locale
+allow java/util/Map
+allow java/util/Set
+allow java/text/BreakIterator
+
+# the Kotlin runtime, except what does I/O, reads the system, runs threads or reflects
+allow kotlin/
+deny kotlin/io/
+deny kotlin/system/
+deny kotlin/concurrent/
+deny kotlin/reflect/
+
+# annotation types that the Kotlin compiler and the Compose plugin write on the classes (nullability, stability): they carry no code and
+# no member of them is called (measured on the compiled classes)
+allow org/jetbrains/annotations/NotNull
+allow org/jetbrains/annotations/Nullable
+allow androidx/compose/runtime/internal/StabilityInferred
+
+# kotlin/jvm/internal/Intrinsics: no member but the three that the Kotlin compiler emits for this package (measured on the compiled classes: a
+# comparison and the two null checks of parameters and of platform-type values, whose String is the parameter or expression name the compiler
+# writes as a constant). Every other member is denied, in particular each one that takes a message String (checkNotNull, checkNotNullParameter
+# overloads, throwIllegalState, throwIllegalArgument, throwUninitializedPropertyAccessException, throwAssert, checkHasClass, ...). The source
+# lint also refuses the name Intrinsics in the package, since Kotlin cannot spell a name any other way.
+deny kotlin/jvm/internal/Intrinsics.
+allow kotlin/jvm/internal/Intrinsics.areEqual:(Ljava/lang/Object;Ljava/lang/Object;)Z
+allow kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue:(Ljava/lang/Object;Ljava/lang/String;)V
+allow kotlin/jvm/internal/Intrinsics.checkNotNullParameter:(Ljava/lang/Object;Ljava/lang/String;)V
+
+# other kotlin members that throw with a caller-supplied message or print a stack: error, check, require, requireNotNull, checkNotNull
+# (PreconditionsKt), TODO(reason), the exceptions that take a message, stackTraceToString and printStackTrace (ExceptionsKt)
+deny kotlin/PreconditionsKt
+deny kotlin/PreconditionsKt__PreconditionsKt
+deny kotlin/PreconditionsKt__AssertionsKt
+deny kotlin/StandardKt.TODO
+deny kotlin/StandardKt__StandardKt.TODO
+deny kotlin/NotImplementedError
+deny kotlin/UninitializedPropertyAccessException
+deny kotlin/KotlinNothingValueException
+deny kotlin/KotlinNullPointerException
+deny kotlin/ExceptionsKt
+deny kotlin/ExceptionsKt__ExceptionsKt
+# the compiler throws NoWhenBranchMatchedException() for an exhaustive when; the constructor with a message is denied
+deny kotlin/NoWhenBranchMatchedException.
+allow kotlin/NoWhenBranchMatchedException.<init>:()V

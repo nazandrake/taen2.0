@@ -41,6 +41,8 @@ object Defaults {
         LayoutType.PHONE_SYMBOLS -> "phone_symbols"
         LayoutType.EMOJI_BOTTOM -> "emoji_bottom_row"
         LayoutType.CLIPBOARD_BOTTOM -> "clip_bottom_row"
+        LayoutType.VIM_NORMAL -> "vim_normal"
+        LayoutType.VIM_VISUAL -> "vim_visual"
     }
 
     private const val DEFAULT_SIZE_SCALE = 1.0f // 100%
@@ -77,6 +79,8 @@ object Defaults {
     const val PREF_KEY_USE_PERSONALIZED_DICTS = true
     const val PREF_KEY_USE_DOUBLE_SPACE_PERIOD = true
     const val PREF_SMART_QUOTES = true
+    const val PREF_VIM_MODE = false
+    const val PREF_VIM_INDENT_TAB = false
     const val PREF_VOICE_TYPING = true
     const val PREF_NEXTWORD_MODEL = true
     const val PREF_MEDIA_STARTER_PACK = false

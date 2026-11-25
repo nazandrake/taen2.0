@@ -566,7 +566,7 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
      * press, the row rebuilt).
      */
     fun updateFieldKeys() {
-        fieldKeys.forEach { pinnedKeys.removeView(it) }
+        fieldKeys.forEach { (it.parent as? ViewGroup)?.removeView(it) }
         fieldKeys.clear()
         hiddenByPolicy.forEach { it.isVisible = true }
         hiddenByPolicy.clear()
@@ -580,6 +580,17 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
                 hiddenByPolicy.add(view)
             }
             return
+        }
+        // the Vim Esc key: one visible key on the strip (and in the toolbar) while Vim mode is on and allowed in this field
+        if (settings.mVimMode && settings.mPrivacy.vimMode) {
+            for (group in listOf(pinnedKeys, toolbar)) {
+                if (group.findViewWithTag<View>(ToolbarKey.VIM) != null) continue
+                val button = createToolbarKey(context, ToolbarKey.VIM)
+                button.layoutParams = toolbarKeyLayoutParams
+                setupKey(button, settings.mColors)
+                group.addView(button, 0)
+                fieldKeys.add(button)
+            }
         }
         if (!FieldText.isNumericField(settings.mInputAttributes.mInputType)) return
         for (key in listOf(ToolbarKey.PASTE, ToolbarKey.SELECT_ALL, ToolbarKey.CLEAR_ALL)) {

@@ -4,7 +4,7 @@ Taen is an Android keyboard that works without any network access. It is a fork 
 [HeliBoard](https://github.com/HeliBorg/HeliBoard) 4.2, which comes from OpenBoard and the AOSP keyboard. The name is
 Bulgarian for "secret".
 
-The current version is 2.0.2. It needs Android 11 or newer on a 64-bit ARM phone.
+The current version is 2.0.3. It needs Android 11 or newer on a 64-bit ARM phone.
 
 ## Changes from HeliBoard
 
@@ -21,6 +21,11 @@ The current version is 2.0.2. It needs Android 11 or newer on a 64-bit ARM phone
 - The keyboard window is hidden from screenshots by default. Taen warns when an accessibility service can read what you type or
   when another app draws over the keyboard.
 - Glide typing uses an open-source engine instead of Google's closed library.
+- Optional Vim mode (Settings > Preferences, off by default): an Esc key on the suggestion strip opens a Normal layout with the
+  motions, operators, counts and text objects of Vim, Visual, Visual Line and Visual Block mode, `.`, macros, registers (`"+` is the
+  system clipboard), marks, search with `/ ? n N * #`, and a command line with ranges and :s :d :y :pu :m :t :j :normal :g :v. `i a I A o O`
+  or `cw` and similar commands bring the typing keyboard back. What it remembers stays in memory and is forgotten at the screen lock.
+  Not in password fields. The results of its commands are checked against the real Vim (21 000 cases).
 - No contacts access, no list of installed apps, no Android backup. Backups are an encrypted export protected by a passphrase.
 
 English and Bulgarian (phonetic and BDS) are enabled on a new install. Dictionaries for English and Bulgarian are
@@ -75,6 +80,8 @@ described in `SECURITY.md`; other contributions are covered in `CONTRIBUTING.md`
 - Some banking apps start only with a system keyboard, because their app shielding allows only the keyboards that came with the
   phone. This cannot be bypassed. The Switch keyboard tile in Quick Settings changes the keyboard quickly.
 - Moving between lines and using several cursors depend on the app; some web and custom editors ignore them.
+- Vim mode edits only when the app shares the whole text of the field (up to 20 000 characters); otherwise only the cursor motions
+  work, as cursor keys. Its columns count characters, not screen columns (a tab is one column).
 
 ## Credits
 
