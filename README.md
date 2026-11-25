@@ -4,7 +4,7 @@ Taen is an Android keyboard that works without any network access. It is a fork 
 [HeliBoard](https://github.com/HeliBorg/HeliBoard) 4.2, which comes from OpenBoard and the AOSP keyboard. The name is
 Bulgarian for "secret".
 
-The current version is 2.0.4. It needs Android 11 or newer on a 64-bit ARM phone.
+The current version is 2.0.5. It needs Android 11 or newer on a 64-bit ARM phone.
 
 ## Changes from HeliBoard
 

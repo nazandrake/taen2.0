@@ -53,6 +53,8 @@ object PrivacyPolicy {
          * clipboard is read only when it is tapped; never while the device or the screen is locked.
          */
         val pasteSuggestion: Boolean get() = !locked
+        /** The label over a pressed toolbar key (ToolbarKeyBubble) is shown: it holds no user text, only the fixed names of the keys; not while locked. */
+        val toolbarKeyNames: Boolean get() = !locked
         /** The strip shows its keys (the word suggestions of a password field are off anyway). */
         val suggestionStrip: Boolean get() = !passwordField || secureClipboard
         /** A copy made in this field is flagged EXTRA_IS_SENSITIVE: the system hides its preview and the keyboard never stores or shows it. */

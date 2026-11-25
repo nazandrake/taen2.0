@@ -164,6 +164,8 @@ public class SettingsValues {
     public final boolean mSuggestClipboardContent;
     /** The Paste chip after a copy (PasteChip): the setting, not the field; the chip asks {@link PrivacyPolicy.Decision#getPasteSuggestion} too. */
     public final boolean mSuggestPaste;
+    /** The label over a pressed toolbar key (ToolbarKeyBubble): the setting, not the field; the bubble asks {@link PrivacyPolicy.Decision#getToolbarKeyNames} too. */
+    public final boolean mShowToolbarKeyNames;
     public final boolean mIncognitoModeEnabled;
     /** What the keyboard may remember and show in this field (P9). The only source of the incognito, key preview and clipboard suggestion decisions. */
     @NonNull
@@ -275,6 +277,7 @@ public class SettingsValues {
         mSuggestPunctuation = prefs.getBoolean(Settings.PREF_SUGGEST_PUNCTUATION, Defaults.PREF_SUGGEST_PUNCTUATION);
         mSuggestClipboardContent = prefs.getBoolean(Settings.PREF_SUGGEST_CLIPBOARD_CONTENT, Defaults.PREF_SUGGEST_CLIPBOARD_CONTENT) && mPrivacy.getClipboardSuggestion();
         mSuggestPaste = prefs.getBoolean(Settings.PREF_SUGGEST_PASTE, Defaults.PREF_SUGGEST_PASTE);
+        mShowToolbarKeyNames = prefs.getBoolean(Settings.PREF_SHOW_TOOLBAR_KEY_NAMES, Defaults.PREF_SHOW_TOOLBAR_KEY_NAMES);
         mDoubleSpacePeriodTimeout = 1100; // ms
         mHasHardwareKeyboard = Settings.readHasHardwareKeyboard(res.getConfiguration());
         boolean isLandscape = mDisplayOrientation == Configuration.ORIENTATION_LANDSCAPE;

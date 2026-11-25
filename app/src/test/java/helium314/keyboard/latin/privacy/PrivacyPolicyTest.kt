@@ -41,6 +41,16 @@ class PrivacyPolicyTest {
         assertFalse(decide(inputType = text or InputType.TYPE_TEXT_VARIATION_PASSWORD, locked = true).pasteSuggestion, "a locked password field")
     }
 
+    /** the label over a pressed toolbar key holds only fixed key names, so every field kind may have it, a locked device may not. */
+    @Test fun theToolbarKeyLabelIsAllowedInEveryKindOfFieldExceptWhileLocked() {
+        assertTrue(decide().toolbarKeyNames, "a plain field")
+        assertTrue(decide(inputType = text or InputType.TYPE_TEXT_VARIATION_PASSWORD).toolbarKeyNames, "a password field")
+        assertTrue(decide(imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING).toolbarKeyNames, "a no-learning field")
+        assertTrue(decide(force = true).toolbarKeyNames, "force incognito")
+        assertFalse(decide(locked = true).toolbarKeyNames, "locked")
+        assertFalse(decide(inputType = text or InputType.TYPE_TEXT_VARIATION_PASSWORD, locked = true).toolbarKeyNames, "a locked password field")
+    }
+
     /** it gives a password field the strip keys and marks its copies, and nothing is remembered more. */
     @Test fun theClipboardSettingGivesAPasswordFieldItsStripKeys() {
         val pw = text or InputType.TYPE_TEXT_VARIATION_PASSWORD

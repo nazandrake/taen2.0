@@ -472,6 +472,14 @@
     <string name="toolbar_only_with_hw_keyboard">Показване само на лентата с инструменти с физическа клавиатура</string>
     <string name="toolbar_only_with_hw_keyboard_summary">Все още трябва да активирате показването на виртуална клавиатура в системните настройки</string>
     <string name="floating" tools:keep="@string/floating">Плаваща клавиатура</string>
+    <string name="toolbar_hold_format">%1$s · задръжте: %2$s</string>
+    <string name="toolbar_hold_repeat">Повтаряне</string>
+    <string name="toolbar_hold_custom">Свое действие</string>
+    <string name="toolbar_hold_talk">Говорете</string>
+    <string name="toolbar_hold_pin">Закачане към лентата</string>
+    <string name="toolbar_hold_unpin">Откачане от лентата</string>
+    <string name="show_toolbar_key_names">Показване на имената на клавишите от лентата</string>
+    <string name="show_toolbar_key_names_summary">Докато натискате клавиш от лентата с инструменти или закачен клавиш, малък надпис над него показва името му и какво прави дългото натискане. Нищо не се показва, докато устройството е заключено</string>
     <string name="clipboard_history_files">Добавяне на изображения и други файлове към историята на клипборда</string>
     <string name="clipboard_history_max_file_size">Ограничение за размера на клипборда</string>
     <string name="item_description">Описание: %s</string>

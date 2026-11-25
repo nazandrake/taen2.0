@@ -32,7 +32,9 @@ import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.FieldText
 import helium314.keyboard.latin.utils.ResourceUtils
+import helium314.keyboard.latin.utils.ToolbarHold
 import helium314.keyboard.latin.utils.ToolbarKey
+import helium314.keyboard.latin.utils.ToolbarKeyBubble
 import helium314.keyboard.latin.utils.createToolbarKey
 import helium314.keyboard.latin.utils.getEnabledClipboardToolbarKeys
 import helium314.keyboard.latin.utils.onClickToolbarKey
@@ -56,6 +58,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
     private lateinit var clipboardRecyclerView: ClipboardHistoryRecyclerView
     private lateinit var placeholderView: TextView
     private val toolbarKeys = mutableListOf<ImageButton>()
+    private val keyBubble = ToolbarKeyBubble()
     private lateinit var clipboardAdapter: ClipboardAdapter
 
     lateinit var keyboardActionListener: KeyboardActionListener
@@ -106,6 +109,7 @@ class ClipboardHistoryView @JvmOverloads constructor(
             clipboardStrip.addView(it)
             it.setOnClickListener(this@ClipboardHistoryView)
             it.setOnLongClickListener(this@ClipboardHistoryView)
+            keyBubble.attach(it, it.tag as ToolbarKey, { ToolbarHold.ACTION })
             colors.setColor(it, ColorType.TOOL_BAR_KEY)
             colors.setBackground(it, ColorType.STRIP_BACKGROUND)
         }

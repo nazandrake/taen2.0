@@ -45,6 +45,9 @@ Lets you change what a toolbar key sends: a key code of your own, for the key an
 ### {#quick_pin_toolbar_keys}
 A long press on a toolbar key pins it to the strip. This turns off the other long press actions of the keys that are not pinned. Shown only in the expandable mode. Default: off.
 
+### {#show_toolbar_key_names}
+While you press a toolbar key or a pinned key, a small label above it shows its name and, after "hold:", what a long press does, for example "Copy · hold: Cut". It goes away when you lift your finger, and the key works as before. The clipboard panel's toolbar has it too. The label holds only the names of the keys and is not shown while the device is locked. Shown unless the toolbar is hidden for good. Default: on.
+
 ## Behavior
 
 ### {#auto_show_toolbar}

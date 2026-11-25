@@ -29,7 +29,7 @@ import helium314.keyboard.latin.R
 import helium314.keyboard.latin.utils.ToolbarKey
 import helium314.keyboard.latin.utils.getCodeForToolbarKey
 import helium314.keyboard.latin.utils.getCodeForToolbarKeyLongClick
-import helium314.keyboard.latin.utils.getStringResourceOrName
+import helium314.keyboard.latin.utils.toolbarKeyName
 import helium314.keyboard.latin.utils.prefs
 import helium314.keyboard.latin.utils.readCustomKeyCodes
 import helium314.keyboard.latin.utils.writeCustomKeyCodes
@@ -66,7 +66,7 @@ fun ToolbarKeysCustomizer(
                         modifier = Modifier.clickable { showKeyCustomizer = it }.fillParentMaxWidth()
                     ) {
                         KeyboardIconsSet.instance.GetIconOrEmpty(it.name)
-                        Text(it.name.lowercase().getStringResourceOrName("", ctx))
+                        Text(toolbarKeyName(ctx, it))
                     }
                 }
             }
@@ -115,7 +115,7 @@ private fun ToolbarKeyCustomizer(
             keys.remove(key)
             writeCustomKeyCodes(prefs, keys)
         },
-        title = { Text(key.name.lowercase().getStringResourceOrName("", ctx)) },
+        title = { Text(toolbarKeyName(ctx, key)) },
         content = {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
