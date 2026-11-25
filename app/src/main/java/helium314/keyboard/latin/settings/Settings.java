@@ -246,6 +246,11 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
         mReloadHooks.put(name, hook);
     }
 
+    /** Removes the hook registered under [name]: a layer of a service that is destroyed must not be kept alive by the settings, which outlive it. */
+    public void removeReloadHook(@NonNull final String name) {
+        mReloadHooks.remove(name);
+    }
+
     // static cache for background images to avoid potentially slow reload on every settings reload
     private final static Drawable[] sCachedBackgroundImages = new Drawable[4];
 

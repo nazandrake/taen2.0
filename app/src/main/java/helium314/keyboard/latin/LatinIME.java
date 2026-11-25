@@ -737,6 +737,7 @@ public class LatinIME extends InputMethodService implements
         mClipboardHistoryManager.onDestroy();
         mDictionaryFacilitator.closeDictionaries();
         mSettings.onDestroy();
+        mKeyboardActionListener.onDestroy(); // the Vim layer's hook in the settings (which outlive the service) is removed
         if (foldableObserver != null)
             foldableObserver.unregister(this);
         unregisterReceiver(mRingerModeChangeReceiver);

@@ -917,6 +917,59 @@ class VimWiringTest {
         }
     }
 
+    @Test fun theModeLineIsClearedAtOnceWhenAFieldStartsWhereVimIsNotAvailable() = withKeyboard { ime ->
+        field(ime, "foo bar", 3)
+        press(ime, KeyCode.VIM_MODE)
+        assertEquals("NORMAL", vimStatus()) // positive control: the line shows in Normal mode
+        // straight into a password field, no key pressed in between
+        field(ime, "secret", 3, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        assertNull(vimStatus())
+        assertTrue(element!!.isAlphabet)
+        // and back: a plain field starts from typing again, and Esc brings the line back
+        field(ime, "foo bar", 3)
+        assertNull(vimStatus())
+        press(ime, KeyCode.VIM_MODE)
+        assertEquals("NORMAL", vimStatus())
+        // a field where Vim stays available keeps what the user sees (the line of a Visual selection is not dropped by a reload that changes nothing for Vim)
+        ime.prefs().edit().putBoolean(Settings.PREF_VIM_INDENT_TAB, true).commit()
+        assertEquals("NORMAL", vimStatus())
+    }
+
+    private fun recordingOf(ime: LatinIME): Char? {
+        val listener = ime.mKeyboardActionListener
+        val vim = listener.javaClass.getDeclaredField("vim").apply { isAccessible = true }.get(listener)
+        val engine = vim.javaClass.getDeclaredField("engine").apply { isAccessible = true }.get(vim)
+        return engine.javaClass.getMethod("getRecordingRegister").invoke(engine) as Char?
+    }
+
+    private fun reloadWithIncognito(ime: LatinIME) {
+        setIncognito(ime, true)
+        val now = Settings.getValues()
+        Settings.getInstance().loadSettings(ime, now.mLocale, now.mInputAttributes)
+    }
+
+    @Test fun aReloadOfTheSettingsAfterTheServiceIsDestroyedDoesNotReachIt() {
+        withKeyboard { ime -> // the control: while the service lives, the same reload drops the recording
+            field(ime, "foo bar", 3)
+            press(ime, KeyCode.VIM_MODE)
+            keys(ime, "qa")
+            assertEquals('a', recordingOf(ime))
+            reloadWithIncognito(ime)
+            assertNull(recordingOf(ime))
+            setIncognito(ime, false)
+        }
+        withKeyboard { ime ->
+            field(ime, "foo bar", 3)
+            press(ime, KeyCode.VIM_MODE)
+            keys(ime, "qa")
+            assertEquals('a', recordingOf(ime))
+            // the test shadow of the input method service has no Service shadow, so the last line of onDestroy (super.onDestroy) cannot run here
+            try { ime.onDestroy() } catch (_: ClassCastException) { }
+            reloadWithIncognito(ime)
+            assertEquals('a', recordingOf(ime), "the destroyed service was not told of the reload")
+        }
+    }
+
     @Test fun aReloadOfTheSettingsThatKeepsCaptureAllowedDropsNothing() = withKeyboard { ime ->
         // the control of the table: a preference that changes the settings (a reload) while capture is allowed before and after
         changeAndRecord(ime, before = { ime.prefs().edit().putBoolean(Settings.PREF_VIM_INDENT_TAB, true).commit() }, after = { ime.prefs().edit().putBoolean(Settings.PREF_VIM_INDENT_TAB, false).commit() })

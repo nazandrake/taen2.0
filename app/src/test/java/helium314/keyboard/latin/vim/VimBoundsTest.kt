@@ -194,6 +194,89 @@ class VimBoundsTest {
         assertEquals(emptyList(), r.field.editCalls)
     }
 
+    private val padText = "a\nbbb\nbbb\nbbb\n" + "z".repeat(19_966) // 19 980 characters: three lines of ten more would pass the window
+
+    @Test fun aBlockAppendWhoseOtherLinesAreRefusedWritesNoPaddingEither() {
+        val r = VimRig(padText, 0)
+        r.keys("<C-v>3jlA")
+        r.keys("XXXXXXXXXX")
+        val typed = r.text
+        assertEquals("a" + "XXXXXXXXXX" + padText.substring(1), typed) // what was typed stays
+        val out = r.engine.escape()
+        assertEquals(VimNotice.TOO_LONG, out.notice)
+        assertEquals(typed, r.text) // no blank is written in front of what was typed
+        assertEquals(emptyList(), r.field.editCalls)
+    }
+
+    @Test fun theBlockAppendThatFitsWritesThePaddingAndTheLinesAndTheLimitIsExact() {
+        // the controls of the refusals: 19 980 + 4 typed + 3 lines of 4 + one blank = 19 997, one change
+        val fits = VimRig(padText, 0)
+        fits.keys("<C-v>3jlAXXXX<Esc>")
+        assertEquals(19_997, fits.text.length)
+        assertEquals("a XXXX\nbbXXXXb\nbbXXXXb\nbbXXXXb\n" + "z".repeat(19_966), fits.text)
+        assertEquals(1, fits.field.editCalls.size)
+        // five typed make 20 001: the lines fit by themselves, the padding takes the total over, and nothing is written
+        val over = VimRig(padText, 0)
+        over.keys("<C-v>3jlAXXXXX")
+        val typed = over.text
+        over.field.calls.clear()
+        assertEquals(VimNotice.TOO_LONG, over.engine.escape().notice)
+        assertEquals(typed, over.text)
+        assertEquals(emptyList(), over.field.editCalls)
+    }
+
+    @Test fun aRefusedBlockInsertOrChangeWritesNothingAfterTheCommandThatMadeTheEdit() {
+        val c = VimRig("bbb\nbbb\nbbb\n" + "z".repeat(19_987), 0)
+        c.keys("<C-v>2jlc") // the delete of the block is the command's own change
+        c.keys("XXXX")
+        val typedC = c.text
+        c.field.calls.clear()
+        assertEquals(VimNotice.TOO_LONG, c.engine.escape().notice)
+        assertEquals(typedC, c.text)
+        assertEquals(emptyList(), c.field.editCalls)
+        val i = VimRig("bbb\nbbb\nbbb\n" + "z".repeat(19_980), 0)
+        i.keys("<C-v>2jIXXXX")
+        val typedI = i.text
+        i.field.calls.clear()
+        assertEquals(VimNotice.TOO_LONG, i.engine.escape().notice)
+        assertEquals(typedI, i.text)
+        assertEquals(emptyList(), i.field.editCalls)
+        // the control of both: the same keys with less typed are written, in one change
+        val ok = VimRig("bbb\nbbb\nbbb\n" + "z".repeat(19_987), 0)
+        ok.keys("<C-v>2jlcX")
+        ok.field.calls.clear()
+        assertNull(ok.engine.escape().notice)
+        assertEquals("Xb\nXb\nXb\n" + "z".repeat(19_987), ok.text)
+        assertEquals(1, ok.field.editCalls.size)
+    }
+
+    @Test fun aRefusedBlockAppendInAMacroOrADotRepeatOrANormalCommandWritesNothing() {
+        val keys = "\u0016" + "3jlAXXXXXXXXXX\u001b"
+        val m = VimRig(padText, 0)
+        m.engine.registers.store('m', Reg(keys, RegType.CHAR))
+        noChange(m, padText, m.send("@m"), VimNotice.PLAY_LIMIT)
+        val n = VimRig(padText, 0)
+        n.engine.registers.store('m', Reg(keys, RegType.CHAR))
+        noChange(n, padText, n.send(":norm @m\n"), VimNotice.PLAY_LIMIT)
+        val g = VimRig(padText, 0)
+        g.engine.registers.store('m', Reg(keys, RegType.CHAR))
+        noChange(g, padText, g.send(":g/^a/norm @m\n"), VimNotice.PLAY_LIMIT)
+        // the control: a macro that fits plays, as one change
+        val ok = VimRig(padText, 0)
+        ok.engine.registers.store('m', Reg("\u0016" + "3jlAXXXX\u001b", RegType.CHAR))
+        assertNull(ok.send("@m").notice)
+        assertEquals(19_997, ok.text.length)
+        assertEquals(1, ok.field.editCalls.size)
+        // "." repeats a block append on another short line and runs over the window: nothing is written
+        val d = VimRig("a\nbbb\nbbb\nbbb\nc\nddd\nddd\nddd\n" + "z".repeat(19_957), 0)
+        d.keys("<C-v>3jlAXX<Esc>")
+        assertEquals(19_994, d.text.length)
+        d.keys("5G")
+        val before = d.text
+        d.field.calls.clear()
+        noChange(d, before, d.send("."), VimNotice.PLAY_LIMIT)
+    }
+
     @Test fun aReadOnlyRegisterIsNotWrittenByAYankOrADeleteAndTheCommandDoesNothing() {
         for (keys in listOf("\".dd", "\".yy", "\":dw", "\"/yw", "\".x", "\"/D")) {
             val r = VimRig("a b\nc d", 0)

@@ -135,9 +135,23 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
         }
         // every reload of the settings carries the privacy decision of the field (force-incognito, the app list, the field's own flags): where capture is "no" before
         // or after it (or there was no decision before), what is being made is dropped; two reloads that both allow capture (a theme change) leave it alone
-        settings.onReload("vim") { before, after ->
+        // A field start that takes Vim away (a password field, after Normal mode in another field) clears the mode line and the engine at once, the same way
+        // the first key would have: the reset path of end().
+        settings.onReload(RELOAD_HOOK) { before, after ->
             if (before == null || !before.mPrivacy.storeClipboard || !after.mPrivacy.storeClipboard) engine.captureChanged()
+            if (before != null && before.mPrivacy.vimMode && !after.mPrivacy.vimMode) end()
         }
+    }
+
+    /** The service is destroyed: the settings, the preferences and the lock hooks outlive it, so what this layer put in the settings is taken out. */
+    fun onDestroy() {
+        settings.removeReloadHook(RELOAD_HOOK)
+        listener?.let { latinIME.prefs().unregisterOnSharedPreferenceChangeListener(it) }
+        listener = null
+    }
+
+    private companion object {
+        const val RELOAD_HOOK = "vim"
     }
 
     /** The Esc key of the typing keyboard (the toolbar key) and of the Vim layouts. */

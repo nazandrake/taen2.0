@@ -48,6 +48,23 @@ class ManualVimExamplesTest {
         assertNull(ManualExampleRunner.run(Block.Example("a\n|\nb", "dd", "a\n|b")), "an empty line is a valid place")
     }
 
+    /** The `example` fences written in a page text: an opening line is "```example" (a closing fence has no word after it). */
+    private fun fencesIn(text: String) = text.replace("\r\n", "\n").split("\n").count { it.startsWith("```") && it.substring(3).trim() == "example" }
+
+    @Test fun everyExampleFenceOfEveryPageAndLanguageIsShownAsAnExampleNeverAsPlainCode() {
+        var fences = 0
+        for (lang in ManualFiles.checkedLanguages) for (id in ManualFiles.ids(lang)) {
+            val written = fencesIn(ManualFiles.text(lang, id))
+            fences += written
+            assertEquals(written, ManualFiles.examples(ManualFiles.blocks(lang, id)).size, "$lang/$id: an example fence does not follow the format and shows as code")
+        }
+        assertTrue(fences >= 60, "positive control: $fences example fences were compared")
+        // the control of the comparison: a malformed fence is counted as written and not as an example
+        val bad = "```example\nBefore\none two\nKeys\ndw\nAfter\none |\n```"
+        assertEquals(1, fencesIn(bad))
+        assertEquals(0, ManualFiles.examples(ManualMarkdown.parse(bad)).size)
+    }
+
     @Test fun thePagesHaveTheirShareOfExamplesAndSixLessons() {
         fun count(page: String) = ManualFiles.examples(ManualFiles.blocks("en", page)).size
         assertTrue(count("vim-keys") >= 30, "vim-keys has ${count("vim-keys")}")

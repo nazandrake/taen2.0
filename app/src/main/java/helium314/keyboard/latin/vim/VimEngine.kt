@@ -1723,6 +1723,7 @@ class VimEngine(private val port: VimPort, private val rules: VimRules) {
      */
     private fun blockFollow(session: InsertSession, block: BlockInsert, typed: String, text: String): Follow? {
         val fill = if (typed.isEmpty() || '\n' in typed) null else blockFill(block, typed, text)
+        if (followRefused) return null // the other lines were refused: the padding is part of the same change, so nothing at all is written
         if (block.pad == 0) return fill
         val pad = " ".repeat(block.pad)
         val start = session.start // the typed text starts here, at the end of the first line, and the first line ends where it ends

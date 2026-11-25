@@ -304,6 +304,10 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
         vim.fieldStarted()
     }
 
+    override fun onDestroy() {
+        vim.onDestroy()
+    }
+
     override fun onFieldFinished() {
         vim.fieldFinished()
         multiCursor.forgetAll()
