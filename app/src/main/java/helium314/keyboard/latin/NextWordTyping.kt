@@ -23,6 +23,7 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 
 /**
  * The downloaded next-word model in the keyboard service: when the strip shows predictions and [NextWordGate.runs] allows it for this field, the text
@@ -44,7 +45,7 @@ class NextWordTyping(private val ime: LatinIME) {
     private val files by lazy { DownloadsStore(entries.values.toList(), { store.modelFile(it.id) }, { 0L }) }
     private val holders = ConcurrentHashMap<String, NextWordEngineHolder>() // made on the main thread, unloaded on the model thread
     private var readiness = HashMap<String, NextWordGate.Readiness>()
-    private val unloadAll = Runnable { worker.execute { holders.values.forEach { it.unload() } } }
+    private val unloadAll = Runnable { unloadOnWorker() }
 
     fun onCreate() {
         Privacy.onLock(LOCK_HOOK) { handler.post { onLock() } } // screen off, and the start of a self-destruct wipe
@@ -53,8 +54,17 @@ class NextWordTyping(private val ime: LatinIME) {
     fun onDestroy() {
         handler.removeCallbacks(unloadAll)
         assist.cancel(holders.values.toList())
-        worker.execute { holders.values.forEach { it.unload() } }
+        unloadOnWorker()
         worker.shutdown()
+    }
+
+    // The service can end while the process lives on: the lock hook of Privacy stays registered and a second onDestroy is possible. After the
+    // shut-down there is no thread and no loaded model left, so the unload is dropped.
+    private fun unloadOnWorker() {
+        try {
+            worker.execute { holders.values.forEach { it.unload() } }
+        } catch (_: RejectedExecutionException) {
+        }
     }
 
     /** Another field (or the window closed): a running step is dropped, the model forgets the text, and the installed models are looked at again. */

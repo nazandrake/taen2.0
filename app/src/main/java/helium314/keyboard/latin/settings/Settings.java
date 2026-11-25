@@ -317,6 +317,20 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
         }
     }
 
+    /**
+     * Reads the values again for the field that is open, as a changed preference does (onSharedPreferenceChanged). Used when the screen lock ends:
+     * a field that started while the lock flag was still set holds the locked (incognito) decision until another field starts.
+     */
+    public void reloadForCurrentField() {
+        mSettingsValuesLock.lock();
+        try {
+            if (mSettingsValues == null) return;
+            loadSettings(mContext, mSettingsValues.mLocale, mSettingsValues.mInputAttributes);
+        } finally {
+            mSettingsValuesLock.unlock();
+        }
+    }
+
     /** convenience function for the rare situations where we need to load settings but may not have a keyboard */
     public void loadSettings(final Context context) {
         if (mSettingsValues != null) return;
