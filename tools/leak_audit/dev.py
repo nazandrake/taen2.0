@@ -8,6 +8,7 @@ import time
 class Dev:
     def __init__(self, serial=None):
         self.serial = serial
+        self.over_wifi = False  # set by the audit once it knows the transport: a check that switches the phone's Wi-Fi off must not run then
         self.adb_cmd = ["adb"] + (["-s", serial] if serial else [])
 
     # ---- adb

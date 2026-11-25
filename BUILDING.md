@@ -267,8 +267,10 @@ on a phone for plaintext canaries (`--selftest` checks the scanner without a pho
 
 ```
 make leak-audit           # static checks of the release APK, then the planted-failure proofs; needs the release APK (make build)
-make leak-audit-device    # builds the audit APK, then the scripted session on the phone; needs adb (USB) and your signed release APK dist/taen-<version>-signed.apk from make sign (the audit never signs; a missing or unsigned file is refused before the phone is touched; --release-apk names another file); the screen is kept on during the session and the previous setting restored
+make leak-audit-device    # builds the audit APK, then the scripted session on the phone; needs adb and your signed release APK dist/taen-<version>-signed.apk from make sign (the audit never signs; a missing or unsigned file is refused before the phone is touched; --release-apk names another file); the screen is kept on during the session and the previous setting restored
 ```
+
+Over adb on Wi-Fi (the serial is host:port) the audit runs every check except the network ones: D1, T-D1 and D1r switch the phone's Wi-Fi off and on, which would end the session, so they are GAP with the reason "needs USB: switches Wi-Fi off". Over USB nothing is skipped. A release may pass with those GAPs only when static S1 (no INTERNET permission), S3 and S8 (no network code) PASS on the same APK (run `python3 tools/leak_audit static --apk dist/taen-<version>-signed.apk` into the same `--out` directory); the report header says so in one line. The audit switches the Wi-Fi on again however it ends. `make leak-audit-test` runs the tool's own tests.
 
 One report: `build/leak-audit/leak-audit-report.md` (raw results in `results.json` next to it). The exit status is 1 when any check FAILs; a
 GAP is a named check that could not be run. What is checked:
