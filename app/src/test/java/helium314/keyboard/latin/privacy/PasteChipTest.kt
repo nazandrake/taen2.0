@@ -9,8 +9,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * The Paste chip rule (P10): offered after a copy of text, in every field kind, not while locked; gone when used, after 60 s, and when the field
- * changes after it was shown. Time is injected; expected values come from the rule, not from the code.
+ * The Paste chip rule (P10): offered after a copy of text, in every field that asks within 60 s and every field kind, not while locked; gone when
+ * used, after 60 s, and when cleared (screen lock). A field change does not end it (copy in one app, paste in another). Time is injected; expected
+ * values come from the rule, not from the code.
  */
 class PasteChipTest {
     private var now = 1_000_000L
@@ -23,20 +24,12 @@ class PasteChipTest {
 
     private val plain = decide()
 
-    private var fieldCount = 0
-    private var field = FieldId("org.example.app", 0, text, 0)
-    /** Input starts in a field that is not the one before. */
-    private fun startOtherField() {
-        field = FieldId("org.example.app", ++fieldCount, text, 0)
-        chip.onFieldStart(field)
-    }
-
-    private fun copy(decision: PrivacyPolicy.Decision = plain, enabled: Boolean = true, hasText: Boolean = true) = chip.onCopy(enabled, decision, hasText)
-    /** The strip of a field that has the keyboard asks and, when the chip is there, says that it is shown. */
-    private fun visible(decision: PrivacyPolicy.Decision = plain, enabled: Boolean = true) =
-        chip.visible(enabled, decision).also { if (it) chip.markShown(field) }
-    /** Asking only: a layout of a strip that is not on screen. */
-    private fun peek(decision: PrivacyPolicy.Decision = plain, enabled: Boolean = true) = chip.visible(enabled, decision)
+    private var clipCount = 0L
+    /** A copy: every call is a new clip (its own time stamp) unless [clipTimestamp] says it is the clip that is already there. */
+    private fun copy(decision: PrivacyPolicy.Decision = plain, enabled: Boolean = true, hasText: Boolean = true, clipTimestamp: Long = ++clipCount) =
+        chip.onCopy(enabled, decision, hasText, clipTimestamp)
+    /** The strip of whatever field is current asks. */
+    private fun visible(decision: PrivacyPolicy.Decision = plain, enabled: Boolean = true) = chip.visible(enabled, decision)
 
     // ---- pass 1: the core ---------------------------------------------------------------------------------------------
 
@@ -131,56 +124,82 @@ class PasteChipTest {
         assertTrue(visible(), "a new copy brings it back")
     }
 
-    @Test fun aFieldChangeRemovesAChipThatWasShownButNotOneThatWasNot() {
+    /** Copy in one app, paste in another: the chip is the same in every field that asks within the minute, whatever the field kind. */
+    @Test fun itStaysForEveryFieldThatAsksWithinTheMinute() {
         copy()
-        startOtherField() // copied while no field was shown: the first field that opens still gets it
-        assertTrue(visible(), "the first field shows it")
-        startOtherField()
-        assertFalse(visible(), "the next field does not")
-        copy()
-        assertTrue(visible())
-        startOtherField()
-        assertFalse(visible())
-    }
-
-    @Test fun askingIsNotShowing() {
-        copy()
-        repeat(3) { assertTrue(peek(), "asked while the strip is not on screen") }
-        startOtherField()
-        assertTrue(visible(), "a chip that was only asked about is not taken away by the next field")
-        chip.markShown(field)
-        startOtherField()
-        assertFalse(peek(), "marked shown, then the field changed")
-        chip.markShown(field) // nothing is armed: marking changes nothing
-        assertFalse(peek())
-    }
-
-    @Test fun theSameFieldStartingAgainKeepsTheChip() {
-        copy()
-        assertTrue(visible(), "shown in the field")
-        repeat(3) { chip.onFieldStart(field) } // the system starts input in a field more than once
-        assertTrue(peek(), "the same field is no other field")
-        for (other in listOf(field.copy(packageName = "org.other"), field.copy(fieldId = 99), field.copy(inputType = password), field.copy(imeOptions = 5))) {
-            copy()
-            assertTrue(visible())
-            chip.onFieldStart(other)
-            assertFalse(peek(), "$other is another field")
+        val fields = listOf(plain, decide(inputType = password), decide(force = true), decide(inputType = InputType.TYPE_CLASS_NUMBER), plain)
+        var elapsed = 0L
+        for ((i, decision) in fields.withIndex()) {
+            assertTrue(visible(decision), "field $i, ${elapsed / 1000} s after the copy")
+            now += 10_000
+            elapsed += 10_000
         }
+        now += 9_999 // 59 999 ms after the copy
+        assertTrue(visible(), "1 ms before the minute is over, in one more field")
+        now += 1
+        assertFalse(visible(), "the minute is over: no field has it")
     }
 
-    @Test fun aNewCopyIsAFreshChipThatHasNotBeenShownYet() {
-        copy()
-        assertTrue(visible(), "shown for the first copy")
-        copy() // the second copy is made while no field shows the strip
-        startOtherField()
-        assertTrue(visible(), "the first field that opens after the second copy still gets its chip")
-    }
-
-    @Test fun aChipThatCouldNotBeShownHereStaysForTheNextField() {
+    @Test fun aDecisionOfOneFieldDoesNotUseUpTheChipForTheNext() {
         val locked = decide(locked = true)
         copy()
-        assertFalse(visible(locked), "not shown in the locked field")
-        startOtherField()
-        assertTrue(visible(plain), "it was never shown, so the field change does not remove it")
+        assertFalse(visible(locked), "not offered in the locked field")
+        assertTrue(visible(plain), "positive control: the next field has it")
+        assertFalse(visible(locked), "locked again")
+        assertTrue(visible(plain), "and unlocked again")
+    }
+
+    /** Measured on the reference phone: the system tells the listeners about the same clip again exactly 60 s after the copy (same time stamp). */
+    @Test fun theSameClipAnnouncedAgainIsNotAFreshCopy() {
+        copy(clipTimestamp = 777)
+        now += 59_999
+        assertTrue(visible())
+        now += 1
+        assertFalse(visible(), "the minute is over")
+        copy(clipTimestamp = 777) // the system's second notice of the clip of the same copy
+        assertFalse(visible(), "it does not bring the chip back")
+        assertEquals(0L, chip.remainingMillis())
+        copy(clipTimestamp = 778)
+        assertTrue(visible(), "positive control: a clip with another time stamp is a fresh copy")
+    }
+
+    @Test fun theSameClipAnnouncedAgainDoesNotRestartTheMinute() {
+        copy(clipTimestamp = 5)
+        now += 50_000
+        copy(clipTimestamp = 5)
+        assertEquals(10_000L, chip.remainingMillis(), "still counted from the first notice")
+        now += 10_000
+        assertFalse(visible())
+        chip.clear()
+        copy(clipTimestamp = 6)
+        now += 50_000
+        copy(clipTimestamp = 6)
+        copy(clipTimestamp = 7)
+        assertEquals(60_000L, chip.remainingMillis(), "positive control: another clip restarts it")
+    }
+
+    @Test fun aSecondNoticeOfAClipThatWasNotOfferedStaysNotOffered() {
+        copy(enabled = false, clipTimestamp = 9)
+        copy(enabled = true, clipTimestamp = 9)
+        assertFalse(visible(), "the clip was seen once, with the chip off: its second notice is not a copy")
+        copy(enabled = true, clipTimestamp = 10)
+        assertTrue(visible(), "positive control")
+    }
+
+    @Test fun aClipWithNoTimeStampIsAlwaysFresh() {
+        copy(clipTimestamp = 0)
+        now += 30_000
+        copy(clipTimestamp = 0)
+        assertEquals(60_000L, chip.remainingMillis())
+    }
+
+    @Test fun clearingEndsItForGood() {
+        copy()
+        assertTrue(visible())
+        chip.clear() // the screen locked
+        assertFalse(visible(), "gone after the lock")
+        assertEquals(0L, chip.remainingMillis())
+        copy()
+        assertTrue(visible(), "a copy after the lock brings it back")
     }
 }

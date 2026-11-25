@@ -3,8 +3,9 @@
 ## 2.0.4
 
 - New: after you copy text, a Paste button appears first on the suggestion strip, next to the word suggestions. Tap it to paste. It shows none of the
-  copied text, and goes away when you use it, after a minute, or in another field. It also works in password fields. Setting: "Suggest Paste after
-  copying" (Settings > Text correction, on by default). English and Bulgarian help included.
+  copied text, and goes away when you use it or after a minute. It stays when you open a field in another app, so you can copy in one app and paste in
+  another. It also works in password fields. Setting: "Suggest Paste after copying" (Settings > Text correction, on by default). English and
+  Bulgarian help included.
 
 Details of the Paste button:
 

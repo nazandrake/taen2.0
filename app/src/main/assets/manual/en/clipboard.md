@@ -34,7 +34,7 @@ With **Suggest clipboard content** (off by default) a recently copied text is of
 
 ## Paste button after copying
 
-With **Suggest Paste after copying** (on by default) a **Paste** button appears first on the strip when you copy text, next to the word suggestions. It shows no text, and Taen reads the clipboard only when you tap it, with the same paste as the paste key (so a number field takes what it accepts). It goes away when you use it, after a minute, when you move to another field, and when the screen locks. It also appears in password fields and for a clip marked sensitive, because it shows nothing; it never appears while the device is locked. It adds nothing to the history.
+With **Suggest Paste after copying** (on by default) a **Paste** button appears first on the strip when you copy text, next to the word suggestions. It shows no text, and Taen reads the clipboard only when you tap it, with the same paste as the paste key (so a number field takes what it accepts). It goes away when you use it, 60 seconds after the copy, when the clipboard no longer holds text, and when the screen locks. It stays when you open a field in another app, so you can copy in one app and paste in another; a new copy starts the minute again. It also appears in password fields and for a clip marked sensitive, because it shows nothing; it never appears while the device is locked. It adds nothing to the history.
 
 ## Vim mode
 

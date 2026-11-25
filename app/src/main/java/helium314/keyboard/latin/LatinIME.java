@@ -924,7 +924,6 @@ public class LatinIME extends InputMethodService implements
         SettingsValues currentSettingsValues = mSettings.getCurrent();
         boolean inputTypeChanged = !currentSettingsValues.isSameInputType(editorInfo);
         boolean isDifferentTextField = !restarting || inputTypeChanged;
-        mClipboardHistoryManager.onFieldStart(editorInfo); // a Paste chip that was shown in another field does not follow
 
         // we want to reload the settings before calling updateKeyboardTheme, because updateKeyboardTheme reads SettingsValues.mToolbarMode
         if (isDifferentTextField || !currentSettingsValues.hasSameOrientation(getResources().getConfiguration())) {
@@ -936,10 +935,8 @@ public class LatinIME extends InputMethodService implements
         switcher.updateKeyboardTheme(mDisplayContext);
         MainKeyboardView mainKeyboardView = switcher.getMainKeyboardView();
         currentSettingsValues = mSettings.getCurrent(); // settingsValues may have been reloaded
-        if (hasSuggestionStripView()) {
+        if (hasSuggestionStripView())
             mSuggestionStripView.updateFieldKeys(); // paste, select all and clear all on the strip of a number, phone or date field
-            mClipboardHistoryManager.onPasteChipShown(editorInfo); // this field has the keyboard: a Paste chip on its strip is shown
-        }
 
         if (editorInfo == null) {
             Log.e(TAG, "Null EditorInfo in onStartInputView()");
@@ -1676,11 +1673,10 @@ public class LatinIME extends InputMethodService implements
         mClipboardHistoryManager.onPasteChipUsed();
     }
 
-    /** Lays the strip's keys out again when the chip appears or goes (only while the strip is on screen: a chip that was not shown is not "shown"). */
+    /** Lays the strip's keys out again when the chip appears or goes (only while the strip is on screen). */
     public void refreshPasteChip() {
         if (!hasSuggestionStripView() || !isInputViewShown()) return;
         mSuggestionStripView.updateFieldKeys();
-        mClipboardHistoryManager.onPasteChipShown(getCurrentInputEditorInfo());
     }
 
     /**

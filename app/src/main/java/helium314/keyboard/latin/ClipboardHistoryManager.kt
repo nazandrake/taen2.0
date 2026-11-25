@@ -26,7 +26,6 @@ import helium314.keyboard.latin.common.Constants
 import helium314.keyboard.latin.database.ClipboardDao
 import helium314.keyboard.latin.databinding.ClipboardSuggestionBinding
 import helium314.keyboard.latin.privacy.ClipboardCapture
-import helium314.keyboard.latin.privacy.FieldId
 import helium314.keyboard.latin.privacy.PasteChip
 import helium314.keyboard.latin.privacy.PrivacyPolicy
 import helium314.keyboard.latin.settings.SettingsValues
@@ -116,7 +115,7 @@ class ClipboardHistoryManager(
      */
     private fun armPasteChip() {
         val hasText = clipboardManager.primaryClipDescription?.hasMimeType("text/*") == true
-        pasteChip.onCopy(latinIME.mSettings.current.mSuggestPaste, privacyDecision(), hasText)
+        pasteChip.onCopy(latinIME.mSettings.current.mSuggestPaste, privacyDecision(), hasText, clipboardManager.primaryClipDescription?.timestamp ?: 0L)
         handler.removeCallbacks(pasteChipExpiry)
         if (pasteChip.remainingMillis() > 0) handler.postDelayed(pasteChipExpiry, pasteChip.remainingMillis())
         latinIME.refreshPasteChip()
@@ -128,24 +127,9 @@ class ClipboardHistoryManager(
         return pasteChip.visible(current.mSuggestPaste, current.mPrivacy)
     }
 
-    /** The strip of a field that has the keyboard was laid out: a chip on it is now shown, and a field change takes it away. */
-    fun onPasteChipShown(editorInfo: EditorInfo?) {
-        val field = fieldId(editorInfo) ?: return
-        if (pasteChipVisible()) pasteChip.markShown(field)
-    }
-
-    /** The field of [e], or null for a window that has no text field (an empty editor, inputType 0): it is no field to show a chip in or to leave. */
-    private fun fieldId(e: EditorInfo?): FieldId? =
-        if (e == null || e.inputType == InputType.TYPE_NULL) null else FieldId(e.packageName, e.fieldId, e.inputType, e.imeOptions)
-
     fun onPasteChipUsed() {
         pasteChip.onUsed()
         handler.removeCallbacks(pasteChipExpiry)
-    }
-
-    /** Input starts in a field: a chip that was shown in another one stays behind (the same field starting again keeps it). */
-    fun onFieldStart(editorInfo: EditorInfo?) {
-        pasteChip.onFieldStart(fieldId(editorInfo) ?: return)
     }
 
     /** The screen went off: no chip is offered across the lock. */

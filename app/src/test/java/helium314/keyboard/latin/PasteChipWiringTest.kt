@@ -39,9 +39,9 @@ import kotlin.test.assertTrue
 
 /**
  * The Paste chip through the running keyboard: a copy puts it first on the strip's pinned row, next to the word suggestions, with a label and no
- * text of the clip; a tap pastes through the paste key's own code; it goes after use, 60 s, a field change, a screen lock, and is not there when the
- * setting is off or the device is locked; password and incognito fields have it. Remove the wiring (the clip listener, the strip's row, the
- * field-change hook, the screen-off hook) and a test here fails.
+ * text of the clip; a tap pastes through the paste key's own code; it follows to any field (also of another app) that starts within 60 s of the copy
+ * and goes after use, 60 s, a screen lock, and is not there when the setting is off or the device is locked; password and incognito fields have it.
+ * Remove the wiring (the clip listener, the strip's row, the screen-off hook) and a test here fails.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(shadows = [ShadowLocaleManagerCompat::class, ShadowInputMethodManager2::class, ShadowInputMethodService::class, ShadowFacilitator2::class])
@@ -77,7 +77,7 @@ class PasteChipWiringTest {
     private var lastField: EditorInfo? = null
 
     /** Input starts in a new field (its own EditorInfo.fieldId), unless [sameField] says the field of the last call starts again. */
-    private fun startField(ime: LatinIME, inputType: Int = text, content: String = "", sameField: Boolean = false) {
+    private fun startField(ime: LatinIME, inputType: Int = text, content: String = "", sameField: Boolean = false, packageName: String = "org.example.app") {
         val id = if (sameField) lastField!!.fieldId else ++fieldCount
         ShadowInputMethodService.currentFieldId = id
         ShadowInputMethodService.currentInputType = inputType
@@ -89,6 +89,7 @@ class PasteChipWiringTest {
         val ei = EditorInfo().apply {
             this.inputType = inputType
             fieldId = id
+            this.packageName = packageName
             initialSelStart = content.length
             initialSelEnd = content.length
         }
@@ -109,7 +110,9 @@ class PasteChipWiringTest {
         else pinnedViews(ime).filterIsInstance<TextView>()
     private fun chip(ime: LatinIME) = chips(ime).single()
 
+    /** A copy. The clipboard gives the clip its time stamp (the shadow takes the uptime), so a copy comes 1 ms after the one before, as two copies do. */
     private fun copyText(ime: LatinIME, content: String = clip, sensitive: Boolean = false) {
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
         val data = ClipData.newPlainText("t", content)
         if (sensitive) data.description.extras = PersistableBundle().apply { putBoolean(ClipboardManagerCompat.EXTRA_IS_SENSITIVE, true) }
         (ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(data)
@@ -188,23 +191,39 @@ class PasteChipWiringTest {
         assertEquals(emptyList(), chips(ime), "and it does not come back in the next field")
     }
 
-    @Test fun aChipThatWasShownDoesNotFollowToAnotherField() = withKeyboard { ime ->
+    /** The main use: copy in one app, then open a field of another app (or another field of the same one) within the minute. */
+    @Test fun aChipThatWasShownFollowsToAnotherFieldAndAnotherApp() = withKeyboard { ime ->
         copyWithoutKeyboardThenOpen(ime)
         assertEquals(1, chips(ime).size, "positive control: shown in the first field")
-        startField(ime, text, "b")
-        assertEquals(emptyList(), chips(ime))
+        startField(ime, text, "b", packageName = "org.other.app")
+        assertEquals(1, chips(ime).size, "another field of another app, within the minute")
+        startField(ime, password, "c", packageName = "org.third.app")
+        assertEquals(1, chips(ime).size, "and a password field of a third app")
+        startField(ime, text, "d", packageName = "org.third.app")
+        assertEquals(1, chips(ime).size, "and another field of the same app")
     }
 
-    /** found on the phone: the strip lays its keys out also while the keyboard is hidden (the app has no field); that is not "shown in a field". */
-    @Test fun aStripLayoutWhileTheKeyboardIsHiddenDoesNotUseUpTheChip() = withKeyboard { ime ->
-        startField(ime)
-        ShadowInputMethodService.inputViewShown = false
-        copyText(ime)
-        strip(ime).setSuggestions(SuggestedWords.getEmptyInstance(), false) // a layout of the hidden strip
-        ime.setNeutralSuggestionStrip()
-        ShadowInputMethodService.inputViewShown = true
-        startField(ime, text)
-        assertEquals(1, chips(ime).size, "the first field that opens still gets the chip")
+    @Test fun aChipThatFollowedToAnotherFieldStillGoesAfterSixtySecondsFromTheCopy() = withKeyboard { ime ->
+        copyWithoutKeyboardThenOpen(ime)
+        val looper = shadowOf(Looper.getMainLooper())
+        looper.idleFor(Duration.ofMillis(40_000))
+        startField(ime, text, "b", packageName = "org.other.app")
+        assertEquals(1, chips(ime).size, "40 s after the copy, in another field")
+        looper.idleFor(Duration.ofMillis(19_000))
+        assertEquals(1, chips(ime).size, "59 s after the copy")
+        looper.idleFor(Duration.ofMillis(1_000))
+        assertEquals(emptyList(), chips(ime), "60 s after the copy: the view in that field is removed")
+        startField(ime, text, "c", packageName = "org.third.app")
+        assertEquals(emptyList(), chips(ime), "and a field that opens after the minute has none")
+    }
+
+    @Test fun aChipUsedInOneFieldIsNotInTheNextAppEither() = withKeyboard { ime ->
+        copyWithoutKeyboardThenOpen(ime)
+        startField(ime, text, "b", packageName = "org.other.app")
+        chip(ime).performClick()
+        assertEquals("b$clip", ShadowInputMethodService.text, "positive control: the chip in the second app pasted after its \"b\"")
+        startField(ime, text, "c", packageName = "org.third.app")
+        assertEquals(emptyList(), chips(ime))
     }
 
     @Test fun aRestartOfTheSameFieldKeepsTheChip() = withKeyboard { ime ->
@@ -215,47 +234,23 @@ class PasteChipWiringTest {
         assertEquals(1, chips(ime).size)
     }
 
-    /** found on the phone: a window that opens starts input in its field twice within a moment, both times as a new start (restarting = false). */
-    @Test fun theSameFieldStartingTwiceAsANewStartKeepsTheChip() = withKeyboard { ime ->
+    /** A window that opens starts input in its field twice within a moment, both times as a new start (restarting = false), and an empty editor may come first. */
+    @Test fun repeatedStartsAndEmptyEditorsKeepTheChip() = withKeyboard { ime ->
         copyWithoutKeyboardThenOpen(ime)
         assertEquals(1, chips(ime).size, "positive control: shown at the first start")
         startField(ime, text, sameField = true)
         assertEquals(1, chips(ime).size, "the second start of the same field")
-        startField(ime, text, sameField = true)
-        assertEquals(1, chips(ime).size, "and a third")
-        startField(ime, text)
-        assertEquals(emptyList(), chips(ime), "another field takes it away")
+        startField(ime, 0) // the empty editor of a window
+        startField(ime, text, "b", packageName = "org.other.app")
+        assertEquals(1, chips(ime).size, "the field that follows an empty editor")
     }
 
-    /** found on the phone: a window opens with an empty editor (inputType 0) before its field: that is no field to show the chip in or to leave. */
-    @Test fun anEmptyEditorStartingBeforeTheFieldDoesNotUseUpTheChip() = withKeyboard { ime ->
-        startField(ime)
-        ShadowInputMethodService.inputViewShown = false
-        copyText(ime)
-        ShadowInputMethodService.inputViewShown = true
-        startField(ime, 0) // the empty editor of the window
-        startField(ime, text) // its field
-        assertEquals(1, chips(ime).size, "the field has the chip")
-    }
-
-    @Test fun anEmptyEditorBetweenTwoStartsOfAFieldIsNotAFieldChange() = withKeyboard { ime ->
-        copyWithoutKeyboardThenOpen(ime)
-        val field = lastField!!
-        assertEquals(1, chips(ime).size, "positive control: shown in the field")
-        startField(ime, 0)
-        ShadowInputMethodService.currentFieldId = field.fieldId
-        ShadowInputMethodService.currentInputType = field.inputType
-        ime.mHandler.onStartInput(field, false)
-        ime.mHandler.onStartInputView(field, false)
-        assertEquals(1, chips(ime).size, "the same field again after the empty editor")
-    }
-
-    @Test fun aCopyMadeWhileAFieldIsOpenShowsTheChipThereAtOnce() = withKeyboard { ime ->
+    @Test fun aCopyMadeWhileAFieldIsOpenShowsTheChipThereAtOnceAndInTheNextField() = withKeyboard { ime ->
         startField(ime)
         copyText(ime)
         assertEquals(1, chips(ime).size)
-        startField(ime, text) // a field change after it was shown
-        assertEquals(emptyList(), chips(ime))
+        startField(ime, text) // a field change within the minute
+        assertEquals(1, chips(ime).size)
     }
 
     @Test fun aNewCopyReplacesTheClipAndRestartsTheMinute() = withKeyboard { ime ->
@@ -265,8 +260,58 @@ class PasteChipWiringTest {
         copyText(ime, "second")
         looper.idleFor(Duration.ofMillis(50_000))
         assertEquals(1, chips(ime).size, "100 s after the first copy: the second one's minute is running")
+        startField(ime, text, "b", packageName = "org.other.app")
+        assertEquals(1, chips(ime).size, "also in the next app")
         chip(ime).performClick()
-        assertEquals("second", ShadowInputMethodService.text)
+        assertEquals("bsecond", ShadowInputMethodService.text, "the second clip, after the \"b\" of the field")
+    }
+
+    @Test fun aNewCopyAfterTheMinuteBringsTheChipBack() = withKeyboard { ime ->
+        copyWithoutKeyboardThenOpen(ime)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(61_000))
+        assertEquals(emptyList(), chips(ime), "positive control: the first minute is over")
+        copyText(ime, "second")
+        startField(ime, text, "b", packageName = "org.other.app")
+        assertEquals(1, chips(ime).size)
+    }
+
+    /** Measured on the reference phone: the system announces the clip of a copy a second time exactly 60 s later, with the same time stamp. */
+    @Test fun theSystemAnnouncingTheSameClipAgainDoesNotKeepOrBringBackTheChip() = withKeyboard { ime ->
+        val looper = shadowOf(Looper.getMainLooper())
+        startField(ime)
+        copyText(ime)
+        assertEquals(1, chips(ime).size, "positive control: the copy shows the chip")
+        looper.idleFor(Duration.ofMillis(59_990))
+        ime.clipboardHistoryManager.onPrimaryClipChanged() // the system's second notice of the same clip, just before the minute ends
+        looper.idleFor(Duration.ofMillis(10))
+        assertEquals(emptyList(), chips(ime), "60 s after the copy the chip is gone, the second notice did not start another minute")
+        ime.clipboardHistoryManager.onPrimaryClipChanged() // and once more after the minute
+        startField(ime, text, "b", packageName = "org.other.app")
+        assertEquals(emptyList(), chips(ime), "not a fresh copy: no chip in the next field either")
+        copyText(ime)
+        assertEquals(1, chips(ime).size, "positive control: a new clip is a copy")
+    }
+
+    @Test fun aSecondNoticeOfTheSameClipKeepsTheTimeOfTheCopy() = withKeyboard { ime ->
+        val looper = shadowOf(Looper.getMainLooper())
+        startField(ime)
+        copyText(ime)
+        looper.idleFor(Duration.ofMillis(40_000))
+        ime.clipboardHistoryManager.onPrimaryClipChanged()
+        looper.idleFor(Duration.ofMillis(19_000))
+        assertEquals(1, chips(ime).size, "59 s after the copy")
+        looper.idleFor(Duration.ofMillis(1_000))
+        assertEquals(emptyList(), chips(ime), "60 s after the copy, not 100 s")
+    }
+
+    @Test fun aClipboardChangedToAnImageTakesTheChipFromTheNextField() = withKeyboard { ime ->
+        copyWithoutKeyboardThenOpen(ime)
+        assertEquals(1, chips(ime).size, "positive control")
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1)) // a later copy has a later time stamp
+        (ime.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+            .setPrimaryClip(ClipData("img", arrayOf("image/png"), ClipData.Item(android.net.Uri.parse("content://example/1"))))
+        startField(ime, text, "b", packageName = "org.other.app")
+        assertEquals(emptyList(), chips(ime))
     }
 
     @Test fun thePasswordAndIncognitoFieldsHaveTheChipAndItPastes() = withKeyboard { ime ->
@@ -357,7 +402,7 @@ class PasteChipWiringTest {
         keyguard.setKeyguardLocked(false)
         keyguard.setIsDeviceLocked(false)
         startField(ime)
-        assertEquals(1, chips(ime).size, "it was never shown, so the unlocked field still gets it")
+        assertEquals(1, chips(ime).size, "the lock was only in the field's decision: the unlocked field still gets it within the minute")
     }
 
     @Test fun theScreenOffEndsTheChip() = withKeyboard { ime ->
@@ -371,6 +416,8 @@ class PasteChipWiringTest {
         ime.mHandler.onStartInput(ei, true)
         ime.mHandler.onStartInputView(ei, true)
         assertEquals(emptyList(), chips(ime), "the lock ended the chip; the unlock does not bring it back")
+        startField(ime, text, "b", packageName = "org.other.app")
+        assertEquals(emptyList(), chips(ime), "and not in a field of another app within the minute either")
     }
 
     @Test fun anImageClipGetsNoChip() = withKeyboard { ime ->

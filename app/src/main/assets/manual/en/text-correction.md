@@ -92,7 +92,7 @@ The list of marks that are suggested, separated by spaces. Shown only when punct
 Offers a recently copied text as a suggestion. A clip marked sensitive is never offered. Default: off. See [Clipboard](page:clipboard).
 
 ### {#suggest_paste}
-After you copy text, a Paste button appears first on the strip, next to the word suggestions. It shows no text. Tap it to paste, like the paste key. It goes away when you use it, after a minute, or when you move to another field. It also appears in password fields, because it shows nothing and the clipboard is read only when you tap it; it never appears while the device is locked. Default: on. See [Clipboard](page:clipboard).
+After you copy text, a Paste button appears first on the strip, next to the word suggestions. It shows no text. Tap it to paste, like the paste key. It goes away when you use it, after a minute, or when the screen locks; it stays when you open a field in another app, so you can copy in one app and paste in another. It also appears in password fields, because it shows nothing and the clipboard is read only when you tap it; it never appears while the device is locked. Default: on. See [Clipboard](page:clipboard).
 
 ### {#add_to_personal_dictionary}
 Lets words that you type often move into your personal dictionary, where they stay. Shown only when personalized suggestions are on. Default: off.
