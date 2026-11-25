@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.4
+
+- New: after you copy text, a Paste button appears first on the suggestion strip, next to the word suggestions. Tap it to paste. It shows none of the
+  copied text, and goes away when you use it, after a minute, or in another field. It also works in password fields. Setting: "Suggest Paste after
+  copying" (Settings > Text correction, on by default). English and Bulgarian help included.
+
+Details of the Paste button:
+
+- The button is offered after a copy of text made while Taen is running. It is not offered while the device or the screen is locked, and a lock removes it.
+  Taen reads the clipboard only when you tap the button, with the same paste as the paste key (a number field takes what it accepts). Nothing of the
+  clip is stored or logged, and the button adds nothing to the clipboard history. A clip marked sensitive gets the button too, because it shows no text.
+- "Clipboard keys in password fields" still decides the clipboard history keys and panel there; the Paste button has its own setting.
+
 ## 2.0.3
 
 - New: Vim mode (Settings > Preferences, off by default). An Esc key on the suggestion strip opens Normal mode, with motions, operators, text

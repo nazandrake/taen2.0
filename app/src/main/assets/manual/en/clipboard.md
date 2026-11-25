@@ -32,6 +32,10 @@ A **number field** takes the first number of the pasted text, read with its sepa
 
 With **Suggest clipboard content** (off by default) a recently copied text is offered on the strip. A clip marked sensitive, from Taen or from another app, is never offered, not even as stars.
 
+## Paste button after copying
+
+With **Suggest Paste after copying** (on by default) a **Paste** button appears first on the strip when you copy text, next to the word suggestions. It shows no text, and Taen reads the clipboard only when you tap it, with the same paste as the paste key (so a number field takes what it accepts). It goes away when you use it, after a minute, when you move to another field, and when the screen locks. It also appears in password fields and for a clip marked sensitive, because it shows nothing; it never appears while the device is locked. It adds nothing to the history.
+
 ## Vim mode
 
 In Vim mode the `"+` register is the system clipboard: `"+y` copies and `"+p` pastes through the same code as the copy and paste keys ([Registers, macros, search and the command line](page:vim-power)).

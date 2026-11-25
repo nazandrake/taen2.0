@@ -194,7 +194,10 @@ public class LatinIME extends InputMethodService implements
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-            if (Intent.ACTION_SCREEN_OFF.equals(action)) ScreenLockPolicy.onScreenOff(context);
+            if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                mClipboardHistoryManager.onScreenOff(); // no Paste chip across a lock
+                ScreenLockPolicy.onScreenOff(context);
+            }
             else if (Intent.ACTION_USER_PRESENT.equals(action)) ScreenLockPolicy.onUserPresent(context);
             else if (Intent.ACTION_SCREEN_ON.equals(action)) ScreenLockPolicy.onScreenOn(context);
         }
@@ -921,6 +924,7 @@ public class LatinIME extends InputMethodService implements
         SettingsValues currentSettingsValues = mSettings.getCurrent();
         boolean inputTypeChanged = !currentSettingsValues.isSameInputType(editorInfo);
         boolean isDifferentTextField = !restarting || inputTypeChanged;
+        mClipboardHistoryManager.onFieldStart(editorInfo); // a Paste chip that was shown in another field does not follow
 
         // we want to reload the settings before calling updateKeyboardTheme, because updateKeyboardTheme reads SettingsValues.mToolbarMode
         if (isDifferentTextField || !currentSettingsValues.hasSameOrientation(getResources().getConfiguration())) {
@@ -932,8 +936,10 @@ public class LatinIME extends InputMethodService implements
         switcher.updateKeyboardTheme(mDisplayContext);
         MainKeyboardView mainKeyboardView = switcher.getMainKeyboardView();
         currentSettingsValues = mSettings.getCurrent(); // settingsValues may have been reloaded
-        if (hasSuggestionStripView())
+        if (hasSuggestionStripView()) {
             mSuggestionStripView.updateFieldKeys(); // paste, select all and clear all on the strip of a number, phone or date field
+            mClipboardHistoryManager.onPasteChipShown(editorInfo); // this field has the keyboard: a Paste chip on its strip is shown
+        }
 
         if (editorInfo == null) {
             Log.e(TAG, "Null EditorInfo in onStartInputView()");
@@ -1657,6 +1663,24 @@ public class LatinIME extends InputMethodService implements
                 mKeyboardSwitcher.getCurrentKeyboardScript(),
                 mHandler);
         updateStateAfterInputTransaction(completeInputTransaction);
+    }
+
+    // Implementation of {@link SuggestionStripView.Listener}: the Paste chip (PasteChip, owned by the clipboard manager).
+    @Override
+    public boolean pasteChipVisible() {
+        return mClipboardHistoryManager.pasteChipVisible();
+    }
+
+    @Override
+    public void onPasteChipUsed() {
+        mClipboardHistoryManager.onPasteChipUsed();
+    }
+
+    /** Lays the strip's keys out again when the chip appears or goes (only while the strip is on screen: a chip that was not shown is not "shown"). */
+    public void refreshPasteChip() {
+        if (!hasSuggestionStripView() || !isInputViewShown()) return;
+        mSuggestionStripView.updateFieldKeys();
+        mClipboardHistoryManager.onPasteChipShown(getCurrentInputEditorInfo());
     }
 
     /**

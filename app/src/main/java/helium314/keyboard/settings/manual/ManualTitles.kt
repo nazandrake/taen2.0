@@ -134,6 +134,7 @@ object ManualTitles {
         Settings.PREF_PUNCTUATION_SUGGESTIONS to ManualTitle(R.string.custom_punctuation_suggestions),
         Settings.PREF_CENTER_SUGGESTION_TEXT_TO_ENTER to ManualTitle(R.string.center_suggestion_text_to_enter),
         Settings.PREF_SUGGEST_CLIPBOARD_CONTENT to ManualTitle(R.string.suggest_clipboard_content),
+        Settings.PREF_SUGGEST_PASTE to ManualTitle(R.string.suggest_paste),
         Settings.PREF_SUGGEST_EMOJIS to ManualTitle(R.string.suggest_emojis),
         Settings.PREF_INLINE_EMOJI_SEARCH to ManualTitle(R.string.inline_emoji_search),
         Settings.PREF_ADD_TO_PERSONAL_DICTIONARY to ManualTitle(R.string.add_to_personal_dictionary),

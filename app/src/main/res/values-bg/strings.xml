@@ -154,6 +154,8 @@
     <string name="clipboard_history_retention_time">Време за запазване на историята</string>
     <string name="suggest_clipboard_content">Предложете съдържание на клипборда</string>
     <string name="suggest_clipboard_content_summary">Показване на наскоро копирано съдържание на клипборда като предложение</string>
+    <string name="suggest_paste">Предлагане на Постави след копиране</string>
+    <string name="suggest_paste_summary">Показва бутон Постави на лентата с предложения, след като копирате текст. Не показва нищо от текста. Изчезва след минута, след употреба или в друго поле</string>
     <string name="gesture_fast_typing_cooldown_instant">Винаги започвайте веднага</string>
     <string name="autospace_after_punctuation_summary">Автоматично вмъкване на интервал след препинателни знаци, когато пишете нова дума</string>
     <string name="show_popup_keys_title">Покажи повече букви с диакритични знаци в изскачащ прозорец</string>

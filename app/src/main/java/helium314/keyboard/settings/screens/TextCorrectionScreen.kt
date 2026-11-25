@@ -87,6 +87,7 @@ fun TextCorrectionScreen(
         if (prefs.getBoolean(Settings.PREF_SUGGEST_PUNCTUATION, Defaults.PREF_SUGGEST_PUNCTUATION))
             Settings.PREF_PUNCTUATION_SUGGESTIONS else null,
         Settings.PREF_SUGGEST_CLIPBOARD_CONTENT,
+        Settings.PREF_SUGGEST_PASTE,
         if (prefs.getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS))
             Settings.PREF_ADD_TO_PERSONAL_DICTIONARY else null,
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
@@ -242,6 +243,11 @@ fun createCorrectionSettings(context: Context) = listOf(
         R.string.suggest_clipboard_content, R.string.suggest_clipboard_content_summary
     ) {
         SwitchPreference(it, Defaults.PREF_SUGGEST_CLIPBOARD_CONTENT)
+    },
+    Setting(context, Settings.PREF_SUGGEST_PASTE,
+        R.string.suggest_paste, R.string.suggest_paste_summary
+    ) {
+        SwitchPreference(it, Defaults.PREF_SUGGEST_PASTE)
     },
     Setting(
         context, Settings.PREF_SUGGEST_EMOJIS, R.string.suggest_emojis, R.string.suggest_emojis_summary
