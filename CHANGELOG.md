@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.5
+
+- New: while you press a key on the toolbar or a pinned key, a small label above it shows the key's name and what a long press does, for example "Copy ·
+  hold: Cut". It goes away when you lift your finger; the keys work as before. It is also in the clipboard panel's toolbar. Setting: "Show toolbar key
+  names" (Settings > Toolbar, on by default). English and Bulgarian help included.
+
+Details of the key labels:
+
+- The names are the ones the keys already had (their accessibility names and their names in the toolbar settings). The label is part of the keyboard's own
+  window, like the preview of a letter key; it adds no window, permission or storage. It holds only the fixed names of the keys, never text you typed or
+  copied, and it is not shown while the device or the screen is locked. With "Pin toolbar key on long press" on, a key in the open toolbar says that a
+  long press pins or unpins it.
+
 ## 2.0.4
 
 - New: after you copy text, a Paste button appears first on the suggestion strip, next to the word suggestions. Tap it to paste. It shows none of the

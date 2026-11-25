@@ -29,7 +29,7 @@ fun createToolbarKey(context: Context, key: ToolbarKey): ImageButton {
     val button = ImageButton(context, null, R.attr.suggestionWordStyle)
     button.scaleType = ImageView.ScaleType.CENTER
     button.tag = key
-    button.contentDescription = key.name.lowercase().getStringResourceOrName("", context)
+    button.contentDescription = toolbarKeyName(context, key)
     setToolbarButtonActivatedState(button)
     button.setImageDrawable(KeyboardIconsSet.instance.getNewDrawable(key.name, context))
     return button

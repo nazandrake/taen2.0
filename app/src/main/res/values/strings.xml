@@ -516,6 +516,16 @@
     <string name="close_history" tools:keep="@string/close_history">Close clipboard history</string>
     <string name="emoji" tools:keep="@string/emoji">Emoji</string>
     <string name="floating" tools:keep="@string/floating">Floating Keyboard</string>
+    <!-- Label above a pressed toolbar key: its name, then what a long press does (1: name, 2: long press action) -->
+    <string name="toolbar_hold_format">%1$s · hold: %2$s</string>
+    <string name="toolbar_hold_repeat">Repeat</string>
+    <string name="toolbar_hold_custom">Custom action</string>
+    <string name="toolbar_hold_talk">Speak</string>
+    <string name="toolbar_hold_pin">Pin to the strip</string>
+    <string name="toolbar_hold_unpin">Unpin from the strip</string>
+    <!-- Title and description of the setting to show the name of a toolbar key while it is pressed -->
+    <string name="show_toolbar_key_names">Show toolbar key names</string>
+    <string name="show_toolbar_key_names_summary">While you press a toolbar key or a pinned key, a small label above it shows its name and what a long press does. Nothing is shown while the device is locked</string>
     <!-- Title of the setting to set clipboard toolbar keys -->
     <string name="clipboard_toolbar_keys">Select clipboard toolbar keys</string>
     <!-- Title of the setting to set pinned toolbar keys -->

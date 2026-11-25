@@ -147,6 +147,7 @@ object ManualTitles {
         Settings.PREF_CLIPBOARD_TOOLBAR_KEYS to ManualTitle(R.string.clipboard_toolbar_keys),
         Settings.PREF_TOOLBAR_CUSTOM_KEY_CODES to ManualTitle(R.string.customize_toolbar_key_codes),
         Settings.PREF_QUICK_PIN_TOOLBAR_KEYS to ManualTitle(R.string.quick_pin_toolbar_keys),
+        Settings.PREF_SHOW_TOOLBAR_KEY_NAMES to ManualTitle(R.string.show_toolbar_key_names),
         Settings.PREF_AUTO_SHOW_TOOLBAR to ManualTitle(R.string.auto_show_toolbar),
         Settings.PREF_AUTO_HIDE_TOOLBAR to ManualTitle(R.string.auto_hide_toolbar),
         Settings.PREF_SHOW_ONLY_TOOLBAR_WITH_HARDWARE_KEYBOARD to ManualTitle(R.string.toolbar_only_with_hw_keyboard),

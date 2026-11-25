@@ -47,7 +47,9 @@ import helium314.keyboard.latin.settings.DebugSettings
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.FieldText
+import helium314.keyboard.latin.utils.ToolbarHold
 import helium314.keyboard.latin.utils.ToolbarKey
+import helium314.keyboard.latin.utils.ToolbarKeyBubble
 import helium314.keyboard.latin.voice.VoiceSession
 import helium314.keyboard.latin.utils.ToolbarMode
 import helium314.keyboard.latin.utils.addPinnedKey
@@ -146,6 +148,8 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private val hiddenByPolicy = ArrayList<View>()
     /** The Paste chip: the first view of the pinned row while [Listener.pasteChipVisible] says so (see [updateFieldKeys]). */
     private var pasteChipView: TextView? = null
+    /** The label over a pressed toolbar key (names and long press actions). */
+    private val keyBubble = ToolbarKeyBubble()
 
     init {
         val colors = Settings.getValues().mColors
@@ -399,24 +403,40 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
 
     // actually private stuff
 
+    /** The key the user pinned to the pinned row (the keys of a number field are not the user's pins). */
+    private fun userPinnedView(tag: ToolbarKey) =
+        (0 until pinnedKeys.childCount).map { pinnedKeys.getChildAt(it) }.firstOrNull { it.tag == tag && it !in fieldKeys }
+
+    /** What a long press on [view] does: the one place that decides it, for the long press itself and for the label over the key (ToolbarKeyBubble). */
+    private fun longPressOf(view: View): ToolbarHold {
+        val tag = view.tag as? ToolbarKey ?: return ToolbarHold.NONE
+        return when {
+            tag == ToolbarKey.VOICE -> ToolbarHold.VOICE
+            !Settings.getValues().mQuickPinToolbarKeys || view.parent === pinnedKeys -> ToolbarHold.ACTION
+            view.parent === toolbar -> if (userPinnedView(tag) == null) ToolbarHold.PIN else ToolbarHold.UNPIN
+            else -> ToolbarHold.NONE
+        }
+    }
+
     private fun onLongClickToolbarKey(view: View) {
         val tag = view.tag as? ToolbarKey ?: return
-        if (!Settings.getValues().mQuickPinToolbarKeys || view.parent === pinnedKeys) {
-            onLongClickToolbarKey(view) { code, isRepeat -> listener.onCodeInput(code, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, isRepeat) }
-        } else if (view.parent === toolbar) {
-            AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS)
-            // the keys of a number field are not the user's pins: only a key the user pinned is unpinned
-            val pinnedKeyView = (0 until pinnedKeys.childCount).map { pinnedKeys.getChildAt(it) }.firstOrNull { it.tag == tag && it !in fieldKeys }
-            if (pinnedKeyView == null) {
-                addKeyToPinnedKeys(tag)
-                toolbar.findViewWithTag<View>(tag).background = enabledToolKeyBackground
-                addPinnedKey(context.prefs(), tag)
-            } else {
-                removePinnedKey(context.prefs(), tag)
-                toolbar.findViewWithTag<View>(tag).background = defaultToolbarBackground.constantState?.newDrawable(resources)
-                pinnedKeys.removeView(pinnedKeyView)
+        when (val hold = longPressOf(view)) {
+            ToolbarHold.ACTION ->
+                onLongClickToolbarKey(view) { code, isRepeat -> listener.onCodeInput(code, Constants.SUGGESTION_STRIP_COORDINATE, Constants.SUGGESTION_STRIP_COORDINATE, isRepeat) }
+            ToolbarHold.PIN, ToolbarHold.UNPIN -> {
+                AudioAndHapticFeedbackManager.getInstance().performHapticFeedback(this, HapticEvent.KEY_LONG_PRESS)
+                if (hold == ToolbarHold.PIN) {
+                    addKeyToPinnedKeys(tag)
+                    toolbar.findViewWithTag<View>(tag).background = enabledToolKeyBackground
+                    addPinnedKey(context.prefs(), tag)
+                } else {
+                    removePinnedKey(context.prefs(), tag)
+                    toolbar.findViewWithTag<View>(tag).background = defaultToolbarBackground.constantState?.newDrawable(resources)
+                    pinnedKeys.removeView(userPinnedView(tag))
+                }
+                updateFieldKeys()
             }
-            updateFieldKeys()
+            else -> {}
         }
     }
 
@@ -696,10 +716,10 @@ class SuggestionStripView(context: Context, attrs: AttributeSet?, defStyle: Int)
     private fun setupKey(view: ImageButton, colors: Colors) {
         view.setOnClickListener(this)
         view.setOnLongClickListener(this)
-        if (view.tag == ToolbarKey.VOICE)
-            view.setOnTouchListener { _, event -> // never consumes: the click and the long click still work
-                if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) listener.onVoiceHold(false)
-                false
+        val key = view.tag as? ToolbarKey
+        if (key != null) // never consumes: the click and the long click still work
+            keyBubble.attach(view, key, { longPressOf(view) }) { event ->
+                if (key == ToolbarKey.VOICE && (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL)) listener.onVoiceHold(false)
             }
         (view.layoutParams as LinearLayout.LayoutParams).weight = 1f
         colors.setColor(view, ColorType.TOOL_BAR_KEY)
