@@ -30,6 +30,12 @@ class OfflinePolishDefaultsTest {
         assertTrue(Defaults.PREF_AUTO_CORRECTION)
     }
 
+    @Test fun theToolbarClosesWhenSuggestionsAppear() {
+        // the toolbar (chevron key) replaces the suggestion strip; without this it stays open after a toolbar key and no word shows until the chevron is tapped again
+        assertTrue(Defaults.PREF_AUTO_HIDE_TOOLBAR)
+        assertFalse(Defaults.PREF_AUTO_SHOW_TOOLBAR) // control: it does not open by itself
+    }
+
     @Test fun autospaceAfterTypedPunctuationStaysOptIn() {
         // "example.net" typed in a normal field would become "example. net": the option exists, the default stays off
         assertFalse(Defaults.PREF_AUTOSPACE_AFTER_PUNCTUATION)
