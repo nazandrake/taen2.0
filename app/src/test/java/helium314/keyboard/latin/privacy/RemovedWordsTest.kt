@@ -41,9 +41,23 @@ class RemovedWordsTest {
     private class Legacy(var words: List<String>?) : LegacyRemovedWords {
         var present = true
         var deletes = 0
+        /** False: the file stays when it is deleted (a read-only folder, a busy file system). */
+        var deletable = true
         override fun exists() = present
         override fun read() = words
-        override fun delete(): Boolean { deletes++; present = false; return true }
+        override fun delete(): Boolean { deletes++; if (deletable) present = false; return !present }
+    }
+
+    @Test fun forgetReportsAPlainFileThatCouldNotBeDeleted() {
+        val legacy = Legacy(listOf(canary))
+        val words = RemovedWords(storage())
+        assertTrue(words.add(cyrillic))
+        legacy.present = true
+        legacy.deletable = false
+        val withPlain = RemovedWords(storage(legacy))
+        assertFalse(withPlain.forget()) // "Learned data deleted" must not be shown while the plain file is there
+        assertTrue(legacy.present)
+        assertEquals(1, legacy.deletes)
     }
 
     @Test fun thePlainFileOfAnEarlierVersionIsMovedInAndThenDeleted() {
@@ -182,6 +196,41 @@ class RemovedWordsTest {
         assertEquals(emptySet(), words.all())
         assertFalse(storeFile.exists())
         assertFalse(legacy.present)
+    }
+
+    @Test fun forgetReportsAFailureOfEitherDeleteAndTheStillPresentPlainFileIsMovedAndDeletedAtTheNextLoad() {
+        // positive control: both deletes work
+        assertTrue(RemovedWords(storage(Legacy(listOf(canary)))).forget())
+        // the encrypted file cannot be deleted (here: a folder with content stands in its place)
+        storeFile.mkdirs()
+        File(storeFile, "keep").writeText("x")
+        val plain = Legacy(listOf(canary))
+        assertFalse(RemovedWords(storage(plain)).forget())
+        assertEquals(1, plain.deletes) // the plain file was still tried
+        assertFalse(plain.present)
+        File(storeFile, "keep").delete()
+        storeFile.delete()
+        // the plain file cannot be deleted: forget fails, the file is retried when the words are next loaded (the next start)
+        val stuck = Legacy(listOf(canary))
+        stuck.deletable = false
+        assertFalse(RemovedWords(storage(stuck)).forget())
+        assertTrue(stuck.present)
+        stuck.deletable = true
+        assertEquals(setOf(canary), RemovedWords(storage(stuck)).all()) // moved into the store ...
+        assertFalse(stuck.present) // ... and the plain file is gone
+        assertEquals(2, stuck.deletes)
+    }
+
+    @Test fun plainLinesOverTheWordLimitAreDroppedBeforeThePlainFileIsDeleted() {
+        // pinned behaviour: a line longer than a dictionary word (48 characters) is no word; it is not moved and goes with the plain file
+        val atLimit = "y".repeat(RemovedWords.MAX_WORD_LENGTH)
+        val over = "z".repeat(RemovedWords.MAX_WORD_LENGTH + 1)
+        val legacy = Legacy(listOf(atLimit, over, canary))
+        assertEquals(setOf(atLimit, canary), storage(legacy).load())
+        assertEquals(1, legacy.deletes)
+        assertFalse(legacy.present)
+        assertEquals(setOf(atLimit, canary), storage().load()) // what the store holds is what was kept
+        assertEquals(emptyList(), filesContaining(dir, over))
     }
 
     @Test fun theSuggestionPathNeverWaitsAndLoadsInTheBackgroundButNotWhileLocked() {

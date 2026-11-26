@@ -23,7 +23,7 @@ With **Learn from my typing** on (Settings > Privacy, the default), Taen learns 
 - decay: a word you stop using drops out of the suggestions in time.
 - are **not learned** in password fields, in fields that ask for no personalized learning, in apps on your incognito list, while incognito mode is on, and while the device or screen is locked. A word that is your trigger word for self-destruct is never learned either.
 - are not used as suggestions in an incognito field either.
-- can be seen and removed one by one under Settings > Privacy > **Learned words**, and all deleted with **Forget learned data** ([Privacy settings](page:privacy-settings)). A word you remove there, or a dictionary word you remove with the bin icon of a suggestion, is kept on an encrypted list of removed words so that it is not suggested again; you can restore it there.
+- can be seen and removed one by one under Settings > Privacy > **Learned words**, and all deleted with **Forget learned data** ([Privacy settings](page:privacy-settings)). A word you remove there, or a dictionary word you remove with the bin icon of a suggestion, is kept on an encrypted list of removed words (while the phone is locked it is only hidden until the keyboard restarts) so that it is not suggested again; you can restore it there.
 
 **Add words to personal dictionary** is a separate opt-in. It lets words that you have typed often move into the personal dictionary, where they stay.
 

@@ -2,12 +2,14 @@
 
 ## 2.0.6
 
-- New: Settings > Privacy > Learning. "Learn from my typing" (on by default) switches learning on and off; it was "Personalized suggestions" in Text
-  correction.
+- Renamed: "Personalized suggestions" (Text correction) is now "Learn from my typing" and sits in Settings > Privacy > Learning. It is still on by
+  default and still switches learning on and off.
 - New: "Learned words" shows the words Taen has learned, per language. Remove a word, and restore it from the removed words.
-- New: "Forget learned data" deletes the learned and the removed words of every language at once. Your personal dictionary is kept; "Clear personal
-  dictionary" empties it.
+- New: "Forget learned data" deletes the learned and the removed words of every language at once. Your personal dictionary is kept; the new "Clear
+  personal dictionary" empties it.
 - The words you remove from the suggestions are now stored encrypted, like the learned words. The plain list of earlier versions is moved in.
+- Stricter when something cannot be read: if Taen cannot read its settings or its list of apps without learning (a storage or key error), it treats every
+  field as private and learns nothing until it can read them again; a lock state that cannot be read counts as locked.
 
 Details of the learning controls:
 

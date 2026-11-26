@@ -57,6 +57,8 @@ class RemovedWordsStorage(private val store: () -> SecureStore?, private val leg
         }
         val old = legacy?.takeIf { it.exists() } ?: return stored
         val oldWords = try { old.read() } catch (_: Exception) { null } ?: return stored // unreadable or too large: kept, tried at the next load
+        // a line that is no acceptable word (over 48 characters, longer than any dictionary word) is dropped with the plain file: it could not
+        // be suggested or removed anyway, and the plain file must not stay for it. Nothing about it is logged, not even a count (P11).
         val acceptable = oldWords.filter(RemovedWords::acceptable)
         val merged = LinkedHashSet(stored).apply { addAll(acceptable) }
         if (merged.size > RemovedWords.MAX_WORDS) return stored // the plain file would not fit: it stays, nothing is lost
@@ -70,12 +72,16 @@ class RemovedWordsStorage(private val store: () -> SecureStore?, private val leg
         return write(s, words)
     }
 
-    /** Deletes the stored words and the plain file of an earlier version; false (nothing deleted) while the store is unavailable. */
+    /**
+     * Deletes the stored words and the plain file of an earlier version. False (nothing deleted) while the store is unavailable, and false when
+     * the store or the plain file is still there afterwards (both are tried): "Forget learned data" then says it failed. A plain file that is
+     * still there is moved in and deleted again by the next [load].
+     */
     fun delete(): Boolean {
         val s = store() ?: return false
-        s.delete()
-        legacy?.takeIf { it.exists() }?.delete()
-        return true
+        val storeGone = s.delete()
+        val plainGone = legacy?.takeIf { it.exists() }?.delete() ?: true
+        return storeGone && plainGone
     }
 
     private fun write(s: SecureStore, words: Set<String>): Boolean = try {
