@@ -312,6 +312,9 @@ def log_check(run, text, spoken_words):
     hits = [w for w in spoken_words if re.search(r"(?<![\w])%s(?![\w])" % re.escape(w.lower()), low)]
     ort = [l for l in text.splitlines() if re.search(r"onnxruntime|\bort\b|OrtApis|ORT_", l, re.I) and run.pkg in l]
     problems = ["spoken word in logcat: %s" % w for w in hits] + ["ONNX Runtime log line: %s" % l[:140] for l in ort[:3]]
+    ended = getattr(run, "log_ended", None)
+    if ended and not problems:  # a clean search of a part of the session says nothing about the rest: a gap, never a pass (a hit in the part is still a FAIL)
+        return Result("V7", "logcat holds none of the spoken words and no ONNX Runtime line", GAP, "not the whole session: " + ended)
     return verdict("V7", "logcat holds none of the spoken words and no ONNX Runtime line", problems,
                    "%d distinctive spoken words searched in %d log lines, none found; no ONNX Runtime line of the app" % (len(spoken_words), len(text.splitlines())))
 

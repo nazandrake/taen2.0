@@ -144,11 +144,11 @@ def network_control(run):
 # ------------------------------------------------------------------ logs and dumps
 
 def log_check(run, text, label="D2"):
-    if run.log_ended:  # a scan of a part of the session says nothing about the rest: name the gap, do not pass it
-        return Result(label, "logcat has no canary (typed text, clipboard, passphrase, trigger word)", GAP, "not the whole session: " + run.log_ended), text
     hits, scanned = dc.scan_log(text, CANARIES)
     activity = len([1 for l in text.splitlines() if run.pkg in l])
     problems = ["canary %s (%s) in logcat: %s" % (k, CANARIES[k], v[0]) for k, v in hits.items()]
+    if run.log_ended and not problems:  # a clean scan of a part of the session says nothing about the rest: name the gap, do not pass it (a hit in the part is still a FAIL)
+        return Result(label, "logcat has no canary (typed text, clipboard, passphrase, trigger word)", GAP, "not the whole session: " + run.log_ended), text
     if activity == 0:
         problems.append("logcat holds no line that mentions %s: the capture may have missed the session" % run.pkg)
     return verdict(label, "logcat has no canary (typed text, clipboard, passphrase, trigger word)", problems,
@@ -345,7 +345,7 @@ def privacy_status_texts(run, lines):
     return texts
 
 
-OVERLAY_TRIES = 8  # starts of the overlay window; Android marks about one window in four trusted, so eight in a row are about 1 in 65000
+OVERLAY_TRIES = 8  # starts of the overlay window; Android marks about 30% of them trusted (measured), so eight in a row are about 1 in 15000
 OVERLAY_POLLS = 6  # looks at `dumpsys input` (1 s apart) for the window of one start
 
 
@@ -423,7 +423,17 @@ def a11y_and_overlay(run):
     ev = [l for l in helper_log(run)[mark3:] if "a11y" in l and ("abc" in l or "xyz" in l or "\u2022" in l)]
     out.append(Result("D7i", "What an enabled reading service sees of typing (limitation, PRIVACY.md 'What a keyboard cannot protect against')", INFO,
                       "%d event line(s) with typed text from the helper's log" % len(ev), [l[-150:] for l in ev[:8]]))
-    # overlay: first without an overlay (control), then with the helper's touch-through window over the keyboard
+    out += overlay_warning_checks(run, overlay_needle)
+    d.sh("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0")
+    d.sh("am force-stop %s" % HELPER)
+    return out
+
+
+def overlay_warning_checks(run, overlay_needle):
+    """D7o: first without an overlay (control), then with the helper's touch-through window over the keyboard. A warning without any overlay is a FAIL
+    of its own row (D7o-c) even when no untrusted overlay could be had and D7o itself is a GAP."""
+    d = run.dev
+    out = []
     d.sh("appops set %s SYSTEM_ALERT_WINDOW allow" % HELPER)
     run.field("normal")
     time.sleep(3)  # the first tap right after a uiautomator dump can be lost: wait, then tap three times
@@ -439,6 +449,8 @@ def a11y_and_overlay(run):
         out.append(Result("D7o", "Overlay warning: a tap on a keyboard covered by another window shows the warning, a tap without an overlay does not", GAP,
                           "not run: Android marked the helper's overlay window trusted (or showed none) in all %d starts; a touch under a trusted window carries no obscured flag, so there is nothing to warn about" % OVERLAY_TRIES,
                           ["control (no overlay): %s" % none[:1]]))
+        out.append(verdict("D7o-c", "Overlay warning control: a tap on the keyboard with no overlay shows no warning", ["overlay warning without any overlay (control): %s" % none[:1]] if none else [],
+                           "three taps on the keyboard with no overlay window: no warning toast"))
     else:
         mark5 = len(helper_log(run))
         for _ in range(3):
@@ -457,8 +469,6 @@ def a11y_and_overlay(run):
         out.append(verdict("D7o", "Overlay warning: a tap on a keyboard covered by another window shows the warning, a tap without an overlay does not", problems,
                            "overlay over a keyboard corner (300x150 px, an untrusted window, start %d): toast %r; without the overlay: no toast" % (starts, seen2[0].split("text=")[-1][:70] if seen2 else None),
                            ["with overlay: %s" % [l[-120:] for l in seen2[:1]], "control (no overlay): %s" % none[:1]]))
-    d.sh("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0")
-    d.sh("am force-stop %s" % HELPER)
     return out
 
 
