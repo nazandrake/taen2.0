@@ -5,7 +5,8 @@
   python3 tools/leak_audit device  [--serial S] [--out DIR]    scripted session on a phone       (make leak-audit-device)
 
 All sections go to one report, DIR/leak-audit-report.md (DIR/results.json holds the raw results). The exit status is 1 when any
-check FAILs (a GAP is a named check that could not be run and does not change the status)."""
+check FAILs, and when the network checks are GAPs over adb on Wi-Fi and the release "may pass" rule is not met (the report line says why);
+any other GAP is a named check that could not be run and does not change the status."""
 import argparse
 import os
 import sys
@@ -56,6 +57,9 @@ def main(argv):
     for r in results:
         print(r)
     print("report: " + os.path.join(args.out, "leak-audit-report.md"))
+    if store.release_may_pass() is False:  # network GAPs over Wi-Fi without the static proof on the same APK
+        print("the release may NOT pass: " + store.network_gap_line())
+        return 1
     return 1 if any(r.status == FAIL for r in results) else 0
 
 

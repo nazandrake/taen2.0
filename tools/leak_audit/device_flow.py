@@ -73,20 +73,58 @@ def network_check(run, base_all, final_all, pkgs, label="D1"):
         details.append("%s uid %s: rx/tx bytes before %s after %s" % (pkg, uid, b, f))
         if f != (0, 0) or b != (0, 0):
             problems.append("%s (uid %s) has network traffic: before %s after %s" % (pkg, uid, b, f))
-        status = ""
-        for pid in d.sh("pidof %s" % pkg).split():
-            status = d.sh("cat /proc/%s/status" % pid)
-            problems += ["%s pid %s: %s" % (pkg, pid, p) for p in dc.check_no_inet_group(status)]
-            details.append("%s pid %s Groups: %s" % (pkg, pid, sorted(dc.gids_of(status) or [])))
-    rx = [r for r in d.sh("cat /proc/net/tcp /proc/net/tcp6 /proc/net/udp /proc/net/udp6").splitlines()]
-    for pkg in pkgs:
-        rows = dc.socket_rows_for_uid("\n".join(rx), netstats.uid_of(d, pkg))
-        if rows:
-            problems.append("%s owns %d socket row(s) in /proc/net/*" % (pkg, len(rows)))
-    details.append("/proc/net/{tcp,tcp6,udp,udp6}: %d rows readable, none owned by the Taen uid(s)" % len(rx))
+    p, det = process_socket_problems(run, pkgs)
+    problems += p
+    details += det
     details.append("no root: tcpdump and iptables counters are not available; per-UID platform counters, process groups and /proc/net rows are the evidence (positive control below)")
     return verdict(label, "No network: per-UID traffic zero across the session, no inet group, no socket rows", problems,
                    "traffic 0 bytes for %s over the whole session; the processes lack group 3003 (inet), so socket() is refused by the kernel" % ", ".join(pkgs), details)
+
+
+PROC_NET = "cat /proc/net/tcp /proc/net/tcp6 /proc/net/udp /proc/net/udp6"
+
+
+def process_socket_problems(run, pkgs):
+    """The processes of [pkgs] hold no inet group (so the kernel refuses socket()) and own no row of /proc/net/{tcp,tcp6,udp,udp6}. Reads only: nothing
+    is switched off, so it also runs over adb on Wi-Fi. A package with no running process is a problem (the check would see nothing)."""
+    d = run.dev
+    problems, details = [], []
+    for pkg in pkgs:
+        pids = d.sh("pidof %s" % pkg).split()
+        if not pids:
+            problems.append("%s has no running process: its groups cannot be read" % pkg)
+        for pid in pids:
+            status = d.sh("cat /proc/%s/status" % pid)
+            problems += ["%s pid %s: %s" % (pkg, pid, p) for p in dc.check_no_inet_group(status)]
+            details.append("%s pid %s Groups: %s" % (pkg, pid, sorted(dc.gids_of(status) or [])))
+    rx = d.sh(PROC_NET).splitlines()
+    for pkg in pkgs:
+        uid = netstats.uid_of(d, pkg)
+        if uid is None:  # no uid, no rows to match: the check would pass for the wrong reason
+            problems.append("%s: its uid cannot be read, so its socket rows cannot be told apart" % pkg)
+            continue
+        rows = dc.socket_rows_for_uid("\n".join(rx), uid)
+        if rows:
+            problems.append("%s owns %d socket row(s) in /proc/net/*" % (pkg, len(rows)))
+    details.append("/proc/net/{tcp,tcp6,udp,udp6}: %d rows readable, none owned by the Taen uid(s)" % len(rx))
+    return problems, details
+
+
+def process_network_check(run, pkgs, label="D1s"):
+    """D1s/D1sr: the process half of D1 (inet group, socket rows), which needs no Wi-Fi toggle; over Wi-Fi it runs while the counters (D1) are a GAP."""
+    problems, details = process_socket_problems(run, pkgs)
+    return verdict(label, "No inet group, no socket rows", problems,
+                   "%s: no process holds group 3003 (inet), so socket() is refused by the kernel; no socket row in /proc/net" % ", ".join(pkgs), details)
+
+
+def process_network_control(run):
+    """T-D1s: the same two readers flag the shell: it holds the inet group, and over adb on Wi-Fi adbd (uid 2000) owns the TCP socket of the session."""
+    d = run.dev
+    grp = dc.check_no_inet_group(d.sh("cat /proc/self/status"))
+    rows = dc.socket_rows_for_uid(d.sh(PROC_NET), 2000)
+    ok = bool(grp) and bool(rows)
+    return Result("T-D1s", "D1s can fail: the same group test flags the shell, the same row reader finds the socket of the adb session", PASS if ok else FAIL,
+                  "group test on the shell: %s; socket rows of uid 2000: %d" % ("flagged (holds 3003)" if grp else "NOT FLAGGED", len(rows)))
 
 
 def network_control(run):

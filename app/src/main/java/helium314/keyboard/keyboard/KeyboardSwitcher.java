@@ -561,6 +561,11 @@ public final class KeyboardSwitcher {
 
     public FrameLayout getStripContainer() { return mStripContainer; }
 
+    /** The keyboard service ends: views that registered a lock hook remove it (the hook would keep the service in memory). */
+    public void onServiceDestroyed() {
+        if (mMediaPanelView != null) mMediaPanelView.release();
+    }
+
     public void deallocateMemory() {
         if (mKeyboardView != null) {
             mKeyboardView.cancelAllOngoingEvents();

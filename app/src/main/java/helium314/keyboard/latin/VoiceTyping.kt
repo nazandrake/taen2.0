@@ -36,11 +36,14 @@ class VoiceTyping(private val ime: LatinIME) : VoiceController.Host {
     }
     private val unloadEngine = Runnable { if (controller.state == VoiceSession.State.IDLE) engines.unload() }
 
+    private val lockHook: () -> Unit = { handler.post { cancel() } }
+
     fun onCreate() {
-        Privacy.onLock(LOCK_HOOK) { handler.post { cancel() } } // screen off, and the start of a self-destruct wipe
+        Privacy.onLock(LOCK_HOOK, lockHook) // screen off, and the start of a self-destruct wipe
     }
 
     fun onDestroy() {
+        Privacy.removeOnLock(LOCK_HOOK, lockHook) // the hook holds this service: it ends with it
         handler.removeCallbacks(unloadEngine)
         cancel()
         engines.unload()

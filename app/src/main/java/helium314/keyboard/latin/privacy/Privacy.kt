@@ -95,6 +95,15 @@ object Privacy {
     /** Registers [hook] (replacing an earlier one with the same [name]) to wipe an in-memory copy when the tier locks. */
     fun onLock(name: String, hook: () -> Unit) { lockHooks[name] = hook }
 
+    /**
+     * Removes the lock hook [name] if it is still [hook] (the service that registered it ends). A hook that a newer object registered under the same
+     * name stays.
+     */
+    fun removeOnLock(name: String, hook: () -> Unit) { lockHooks.remove(name, hook) }
+
+    /** The names of the registered lock hooks (tests). */
+    internal fun lockHookNames(): Set<String> = lockHooks.keys.toSet()
+
     /** Test seam: runs after the memory copies were wiped and before the data key is forgotten (the window of an edit that races the lock). */
     @Volatile internal var duringLockForTest: (() -> Unit)? = null
 

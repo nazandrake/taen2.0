@@ -46,6 +46,11 @@ class Store:
             json.dump(self.data, f, indent=1, ensure_ascii=False)
         self.report()
 
+    def release_may_pass(self):
+        """None when the network checks ran (no GAP over Wi-Fi); else whether the static proof holds (see network_gap_line)."""
+        line = self.network_gap_line()
+        return None if line is None else "may pass" in line and "may NOT pass" not in line
+
     def network_gap_line(self):
         """One line for the report when the network checks were GAPs over adb on Wi-Fi: a release may pass with them only when the static checks
         S1 (no INTERNET permission), S3 and S8 (no network code) PASS on the same APK (same sha256) as the device session's release APK. None when they ran."""

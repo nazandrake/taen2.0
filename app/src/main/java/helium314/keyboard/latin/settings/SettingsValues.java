@@ -30,6 +30,7 @@ import helium314.keyboard.latin.PunctuationSuggestions;
 import helium314.keyboard.latin.R;
 import helium314.keyboard.latin.RichInputMethodManager;
 import helium314.keyboard.latin.common.Colors;
+import helium314.keyboard.latin.privacy.EncryptedPrefs;
 import helium314.keyboard.latin.privacy.OverlayMode;
 import helium314.keyboard.latin.privacy.Privacy;
 import helium314.keyboard.latin.privacy.PrivacyPolicy;
@@ -194,12 +195,16 @@ public class SettingsValues {
     /** The one place that feeds {@link PrivacyPolicy} with the settings; also used for a window that starts no input view (ClipboardHistoryManager). */
     public static PrivacyPolicy.Decision decidePrivacy(final Context context, final SharedPreferences prefs,
             final InputAttributes inputAttributes, final boolean deviceLocked) {
+        // the per-app list is in the credential-encrypted preferences. When they cannot be read (a Keystore or store error; also while locked, when
+        // everything is incognito anyway) the list is unknown: every app counts as listed (fail closed)
+        final SharedPreferences ce = KtxKt.protectedPrefs(context);
+        final boolean appListReadable = !(ce instanceof EncryptedPrefs) || ((EncryptedPrefs) ce).isAvailable();
         return PrivacyPolicy.INSTANCE.decide(inputAttributes.mInputType, inputAttributes.mImeOptions, inputAttributes.mTargetApplicationPackageName,
                 prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE),
-                // the per-app list is in the credential-encrypted preferences (empty while locked, when everything is incognito anyway)
-                PrivacyPolicy.INSTANCE.parseApps(KtxKt.protectedPrefs(context).getString(Settings.PREF_INCOGNITO_APPS, Defaults.PREF_INCOGNITO_APPS)),
+                PrivacyPolicy.INSTANCE.parseApps(ce.getString(Settings.PREF_INCOGNITO_APPS, Defaults.PREF_INCOGNITO_APPS)),
                 deviceLocked || Privacy.INSTANCE.isLocked(),
-                prefs.getBoolean(Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, Defaults.PREF_CLIPBOARD_IN_SECURE_FIELDS));
+                prefs.getBoolean(Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, Defaults.PREF_CLIPBOARD_IN_SECURE_FIELDS),
+                appListReadable);
     }
 
     public SettingsValues(final Context context, final SharedPreferences prefs, final Resources res,

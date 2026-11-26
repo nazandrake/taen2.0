@@ -24,6 +24,13 @@ def over_wifi(serial):
     return serial in ("", "unknown") or ":" in serial or "._adb-tls-connect." in serial
 
 
+def transport_kind(serial):
+    """What results.json and the report say about the adb transport: its kind only, never the serial or the address of the phone."""
+    if over_wifi(serial):
+        return "Wi-Fi: D1, T-D1 and D1r are GAP (%s); the process and socket checks D1s, T-D1s and D1sr ran" % NEEDS_USB
+    return "USB cable"
+
+
 def network_gap(ident, title):
     """The network checks switch the phone's Wi-Fi off and on (netstats.read), which ends an adb session over Wi-Fi. Over Wi-Fi they are not run."""
     return Result(ident, title, GAP, NEEDS_USB, [
@@ -148,7 +155,7 @@ def run_all(root, args):
     audit_apk = args.audit_apk or os.path.join(root, "app", "build", "outputs", "apk", "audit", "Taen_%s-audit.apk" % ver)
     run.meta = {"model": d.sh("getprop ro.product.model").strip(), "android": d.sh("getprop ro.build.version.release").strip(),
                 "build type": d.sh("getprop ro.build.type").strip(), "root": "no (adb shell uid 2000)", "audit apk": audit_apk,
-                "adb transport": "Wi-Fi (%s): D1, T-D1 and D1r are GAP, %s" % (serial, NEEDS_USB) if d.over_wifi else "USB (%s)" % serial}
+                "adb transport": transport_kind(serial)}
     # the screen stays on for the whole session: steps without a touch for longer than the screen timeout (the clipboard copies, the wait for the
     # end of the self-destruct test mode) would otherwise run on a sleeping phone, where no field has focus, nothing is on screen and a capture is black
     stay_on = d.sh("settings get global stay_on_while_plugged_in").strip()
@@ -300,6 +307,9 @@ def flow(run, audit_apk, release_apk):
     if d.over_wifi:
         run.add(network_gap("D1", "Network (audit twin)"))
         run.add(network_gap("T-D1", "network control"))
+        # the inet group of the process and its socket rows switch nothing off: they run over Wi-Fi too (over USB D1 holds them)
+        run.step("D1s", "No inet group, no socket rows (audit twin)", lambda: fl.process_network_check(run, [run.pkg]))
+        run.step("T-D1s", "process and socket control", lambda: fl.process_network_control(run))
     else:
         final1 = netstats.read(d)
         run.step("D1", "Network (audit twin)", lambda: [fl.network_check(run, base1, final1, [run.pkg])])
@@ -445,6 +455,7 @@ def release_session(run, release_apk):
     run.add(Result("D3r", "Data at rest (release)", GAP, "not run: the release build is not debuggable, so run-as cannot read its data directory without root; the audit twin carries the same code (D3, D13b)"))
     if d.over_wifi:
         run.add(network_gap("D1r", "Network (release)"))
+        run.step("D1sr", "No inet group, no socket rows (release)", lambda: fl.process_network_check(run, [pkg], label="D1sr"))
     else:
         final2 = netstats.read(d)
         run.step("D1r", "Network (release)", lambda: [fl.network_check(run, base2, final2, [pkg], label="D1r")])

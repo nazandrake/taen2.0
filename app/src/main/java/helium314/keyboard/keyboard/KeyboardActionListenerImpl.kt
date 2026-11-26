@@ -39,6 +39,8 @@ import helium314.keyboard.latin.utils.SubtypeSettings
 import helium314.keyboard.latin.utils.prefs
 import kotlin.math.abs
 
+private const val NAVIGATION_LOCK_HOOK = "navigation"
+
 class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inputLogic: InputLogic) : KeyboardActionListener {
 
     private val connection = inputLogic.mConnection
@@ -105,11 +107,13 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     // the Vim layer: Normal and Visual mode (keys of its layouts never go through the typing path)
     private val vim = VimInput(latinIME, inputLogic) { code -> onCodeInput(code, Constants.NOT_A_COORDINATE, Constants.NOT_A_COORDINATE, false) }
 
+    private val navigationLockHook: () -> Unit = {
+        multiCursor.forgetAll()
+        spaceSelection.sticky = false
+    }
+
     init {
-        Privacy.onLock("navigation") {
-            multiCursor.forgetAll()
-            spaceSelection.sticky = false
-        }
+        Privacy.onLock(NAVIGATION_LOCK_HOOK, navigationLockHook)
     }
 
     override fun onPressKey(primaryCode: Int, repeatCount: Int, pointerCount: Int, hapticEvent: HapticEvent) {
@@ -305,6 +309,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
     }
 
     override fun onDestroy() {
+        Privacy.removeOnLock(NAVIGATION_LOCK_HOOK, navigationLockHook) // the hook holds the service: it ends with it
         vim.onDestroy()
     }
 

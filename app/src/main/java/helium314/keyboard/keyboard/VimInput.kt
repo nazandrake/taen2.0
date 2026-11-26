@@ -128,11 +128,14 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
 
     private var listener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
+    // everything the layer remembers is forgotten at the screen lock and at a wipe (Privacy.beginWipe runs these hooks too)
+    private val lockHook: () -> Unit = {
+        engine.clearMemory()
+        leave() // Vim is not available while the device is locked (PrivacyPolicy): no Vim layout is left on the screen
+    }
+
     init {
-        Privacy.onLock("vim") { // everything the layer remembers is forgotten at the screen lock and at a wipe (Privacy.beginWipe runs these hooks too)
-            engine.clearMemory()
-            leave() // Vim is not available while the device is locked (PrivacyPolicy): no Vim layout is left on the screen
-        }
+        Privacy.onLock(LOCK_HOOK, lockHook)
         // every reload of the settings carries the privacy decision of the field (force-incognito, the app list, the field's own flags): where capture is "no" before
         // or after it (or there was no decision before), what is being made is dropped; two reloads that both allow capture (a theme change) leave it alone
         // A field start that takes Vim away (a password field, after Normal mode in another field) clears the mode line and the engine at once, the same way
@@ -145,6 +148,7 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
 
     /** The service is destroyed: the settings, the preferences and the lock hooks outlive it, so what this layer put in the settings is taken out. */
     fun onDestroy() {
+        Privacy.removeOnLock(LOCK_HOOK, lockHook) // the hook holds the service: it ends with it
         settings.removeReloadHook(RELOAD_HOOK)
         listener?.let { latinIME.prefs().unregisterOnSharedPreferenceChangeListener(it) }
         listener = null
@@ -152,6 +156,7 @@ class VimInput(private val latinIME: LatinIME, private val inputLogic: InputLogi
 
     private companion object {
         const val RELOAD_HOOK = "vim"
+        const val LOCK_HOOK = "vim"
     }
 
     /** The Esc key of the typing keyboard (the toolbar key) and of the Vim layouts. */
