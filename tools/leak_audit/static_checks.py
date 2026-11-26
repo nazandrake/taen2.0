@@ -189,7 +189,7 @@ FILE_WRITER_PATTERNS = (
 # privacyCheck, which scans the sources). Whether any of these ever writes plaintext user data is the device scan (D3), not this list.
 FILE_WRITER_ALLOWED = {
     "Ljava/io/FileOutputStream;.<init>": "the encrypted stores (SecureStore, FileSet, wipers: ciphertext only, P7), file copies the user starts (dictionary, layout, theme import), "
-                                         "kotlin File.writeText for the plain blacklist (main-dictionary words only, documented) and custom layouts, Compose RectList debug dump and "
+                                         "kotlin File.writeText for custom layouts, Compose RectList debug dump and "
                                          "the baseline-profile installer (code profile, no user data)",
     "Ljava/nio/file/Files;.move": "atomic rename of a hash-verified voice model file into place (VoiceModelStore: public model data, not user data); R8 may name any class as the caller",
     "Ljava/io/File;.renameTo": "atomic replace of an encrypted store; moves of the legacy plain files into the encrypted stores (LegacyMigration); imports",

@@ -59,7 +59,9 @@ object SourceRules {
         // x.flush() / x().flush() / x\n.flush() on anything named like a dictionary (dict, mDictionary, getBinaryDictionary())
         Regex("""[Dd]ict\w*\s*(\(\s*\))?\s*\.\s*flush\s*\(""")) + SourceRule("\"UserHistoryDictionary", "P7: the old readable learned-word file (only the legacy mover, the delete-all routine and the wipe name it)",
         setOf("helium314/keyboard/latin/personalization/UserHistoryDictionary.java", "helium314/keyboard/latin/personalization/PersonalizationHelper.java",
-            "helium314/keyboard/latin/privacy/Wiper.kt")) // the wipe deletes a leftover of that file too (FileWiper)
+            "helium314/keyboard/latin/privacy/Wiper.kt")) + // the wipe deletes a leftover of that file too (FileWiper)
+        SourceRule("\"blacklists", "P7: the plain removed-word files of an earlier version (files/blacklists): only Privacy.kt names them, to move them into the encrypted store blacklist_<tag>",
+            setOf("helium314/keyboard/latin/privacy/Privacy.kt"))
 
     // a zip is only built or read inside the encrypted export payload (ExportBundle), never as a plain file
     private val exportRules = listOf("ZipOutputStream", "ZipInputStream").map {
@@ -68,9 +70,9 @@ object SourceRules {
     }
 
     // User data must reach a file only through the encrypted stores (SecureStore). These classes write other files, none of
-    // which holds typed text: imported layouts/fonts/blacklists (ExportService), the layout editor, the converter of imported
-    // word lists (DictIO, Ver2DictEncoder, FileUtils copy), and the plain blacklist of main-dictionary words the user removed
-    // (DictionaryFacilitatorImpl: a known gap listed in PRIVACY.md). Diagnostics are not an owner: the app keeps no log, crash
+    // which holds typed text: imported layouts and fonts (ExportService), the layout editor, the converter of imported
+    // word lists (DictIO, Ver2DictEncoder, FileUtils copy). The words the user removed from the suggestions are an encrypted
+    // store (Privacy.removedWords), so DictionaryFacilitatorImpl is no owner. Diagnostics are not an owner: the app keeps no log, crash
     // report or other diagnostic file (P11).
     private val fileWriterOwners = setOf(
         "helium314/keyboard/latin/privacy/SecureStore.kt",
@@ -79,7 +81,6 @@ object SourceRules {
         "helium314/keyboard/latin/makedict/DictIO.kt",
         "helium314/keyboard/latin/makedict/Ver2DictEncoder.java",
         "helium314/keyboard/latin/common/FileUtils.java",
-        "helium314/keyboard/latin/DictionaryFacilitatorImpl.kt",
         "helium314/keyboard/latin/voice/VoiceModelStore.kt", // the public voice model files, not user data (P20)
         "helium314/keyboard/latin/downloads/PinnedInstaller.kt", // the public pinned files of Settings > Downloads (a dictionary), staged as .part and renamed after the hash matched
         "helium314/keyboard/latin/downloads/ModelFiles.kt", // the speed result of a next-word model on this phone: two numbers, nothing typed

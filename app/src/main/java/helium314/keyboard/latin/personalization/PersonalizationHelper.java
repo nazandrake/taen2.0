@@ -100,6 +100,33 @@ public class PersonalizationHelper {
         }
     }
 
+    /**
+     * Forget learned data: every running learned-word dictionary drops its words from memory and its store, and the caller waits for that (at most
+     * [timeoutMillis] in total). The dictionaries stay attached to the keyboard and learn again from now on. False when one did not finish in time.
+     */
+    public static boolean clearAllAndWait(final long timeoutMillis) {
+        final java.util.ArrayList<UserHistoryDictionary> dicts = new java.util.ArrayList<>();
+        synchronized (sLangUserHistoryDictCache) {
+            for (final SoftReference<UserHistoryDictionary> ref : sLangUserHistoryDictCache.values()) {
+                final UserHistoryDictionary dict = ref == null ? null : ref.get();
+                if (dict != null) dicts.add(dict);
+            }
+        }
+        final long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+        boolean all = true;
+        for (final UserHistoryDictionary dict : dicts) {
+            final long left = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(Math.max(0, deadline - System.nanoTime()));
+            all &= dict.clearAndWait(left);
+        }
+        return all;
+    }
+
+    /** Deletes the readable learned-word files of earlier versions (they are moved into the stores when read; this is for those that never were). */
+    public static void deleteLegacyFiles(final Context context) {
+        final File filesDir = context.getFilesDir();
+        if (filesDir != null) FileUtils.deleteFilteredFiles(filesDir, new DictFilter(UserHistoryDictionary.NAME));
+    }
+
     public static void removeAllUserHistoryDictionaries(final Context context) {
         synchronized (sLangUserHistoryDictCache) {
             for (final ConcurrentHashMap.Entry<String, SoftReference<UserHistoryDictionary>> entry

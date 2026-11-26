@@ -240,10 +240,9 @@ private fun restoreBackup(ctx: Context, file: ByteArray, passphrase: CharArray) 
 
 private fun isExportedFile(path: String) = backupFilePatterns.any { path.matches(it) }
 
-// Files that are exported besides the preferences, the personal dictionary and the learned words (those are
-// encrypted stores). The learned-word dictionaries are no longer files.
+// Files that are exported besides the preferences, the personal dictionary, the learned words and the removed words (those are
+// encrypted stores). The learned-word dictionaries and the removed-word lists are no longer files.
 private val backupFilePatterns by lazy { listOf(
-    "blacklists${File.separator}.*\\.txt".toRegex(),
     "layouts${File.separator}.*${LayoutUtilsCustom.CUSTOM_LAYOUT_PREFIX}+\\..{0,4}".toRegex(), // can't expect a period at the end, as this would break restoring older backups
     "dicts${File.separator}.*${File.separator}.*user\\.dict".toRegex(),
     "custom_font".toRegex(),

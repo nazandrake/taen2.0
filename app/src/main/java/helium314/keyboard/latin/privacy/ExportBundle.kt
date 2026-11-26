@@ -25,6 +25,8 @@ class ExportParts(
     val media: MediaVault.Snapshot? = null,
     /** Set by the export: the pictures were left out because they are larger than [ExportService.MEDIA_EXPORT_BYTES] (the result says so). */
     val mediaExcluded: Boolean = false,
+    /** The words removed from the suggestions, by language tag. */
+    val removedWords: Map<String, Set<String>> = emptyMap(),
 )
 
 /**
@@ -43,6 +45,9 @@ object ExportBundle {
     private const val PROTECTED = "protected/"
     private const val MEDIA = "media/"
     private const val MEDIA_INDEX = "media/index"
+    private const val REMOVED = "removed/"
+    // an export of an earlier version carries the removed words as the plain files files/blacklists/<tag>.txt: they are read into [ExportParts.removedWords]
+    private const val LEGACY_REMOVED = "${FILES}blacklists/"
     private val MEDIA_ID = Regex("[0-9a-f]{16}")
     const val MAX_TOTAL_BYTES = 128L * 1024 * 1024
     const val MAX_ENTRIES = 4096
@@ -61,6 +66,7 @@ object ExportBundle {
             parts.prefsCe?.let { put(PREFS_CE, PrefsCodec.encode(it)) }
             parts.personal?.let { put(PERSONAL, PersonalDictionaryCodec.encode(it)) }
             parts.learned.forEach { (tag, bytes) -> put("$LEARNED$tag.bin", bytes) }
+            parts.removedWords.forEach { (tag, words) -> put("$REMOVED$tag.bin", RemovedWordsCodec.encode(words)) }
             parts.files.forEach { (path, bytes) -> put(FILES + path, bytes) }
             parts.protectedFiles.forEach { (path, bytes) -> put(PROTECTED + path, bytes) }
             parts.media?.let { m ->
@@ -76,6 +82,7 @@ object ExportBundle {
         (parts.prefsDe?.let { PrefsCodec.encode(it).size } ?: 0).toLong() + (parts.prefsCe?.let { PrefsCodec.encode(it).size } ?: 0) +
             (parts.personal?.let { PersonalDictionaryCodec.encode(it).size } ?: 0) +
             parts.learned.values.sumOf { it.size.toLong() } + parts.files.values.sumOf { it.size.toLong() } + parts.protectedFiles.values.sumOf { it.size.toLong() } +
+            parts.removedWords.values.sumOf { RemovedWordsCodec.encode(it).size.toLong() } +
             (parts.media?.let { m -> m.index.size + m.items.values.sumOf { it.size.toLong() } } ?: 0L)
 
     fun unpack(bytes: ByteArray, maxTotalBytes: Long = MAX_TOTAL_BYTES, maxEntries: Int = MAX_ENTRIES): ExportParts {
@@ -83,6 +90,8 @@ object ExportBundle {
         var prefsCe: Map<String, Any>? = null
         var personal: List<PersonalWord>? = null
         val learned = HashMap<String, ByteArray>()
+        val removed = HashMap<String, Set<String>>()
+        val legacyRemoved = HashMap<String, Set<String>>()
         val files = HashMap<String, ByteArray>()
         val protectedFiles = HashMap<String, ByteArray>()
         var mediaIndex: ByteArray? = null
@@ -114,6 +123,16 @@ object ExportBundle {
                                 if (!name.endsWith(".bin") || !TAG.matches(tag)) throw ExportException("bad entry name")
                                 learned[tag] = data
                             }
+                            name.startsWith(REMOVED) -> {
+                                val tag = name.removePrefix(REMOVED).removeSuffix(".bin")
+                                if (!name.endsWith(".bin") || !TAG.matches(tag)) throw ExportException("bad entry name")
+                                removed[tag] = RemovedWordsCodec.decode(data)
+                            }
+                            name.startsWith(LEGACY_REMOVED) -> {
+                                val tag = name.removePrefix(LEGACY_REMOVED).removeSuffix(".txt")
+                                if (!name.endsWith(".txt") || !TAG.matches(tag)) throw ExportException("bad entry name")
+                                legacyRemoved[tag] = String(data, Charsets.UTF_8).lines().filter(RemovedWords::acceptable).take(RemovedWords.MAX_WORDS).toSet()
+                            }
                             name.startsWith(FILES) -> files[safePath(name.removePrefix(FILES))] = data
                             name.startsWith(PROTECTED) -> protectedFiles[safePath(name.removePrefix(PROTECTED))] = data
                             name == MEDIA_INDEX -> mediaIndex = data
@@ -138,7 +157,9 @@ object ExportBundle {
         if (mediaIndex == null && mediaItems.isNotEmpty()) throw ExportException("pictures without a list")
         val media = mediaIndex?.let { MediaVault.Snapshot(it, mediaItems) }
         if (media != null && !MediaVault.validate(media)) throw ExportException("damaged pictures")
-        return ExportParts(prefsDe, prefsCe, personal, learned, files, protectedFiles, media)
+        // the words of an earlier export's plain files join those of the store (an export has one or the other)
+        for ((tag, words) in legacyRemoved) removed[tag] = LinkedHashSet(removed[tag].orEmpty()).apply { addAll(words) }.take(RemovedWords.MAX_WORDS).toSet()
+        return ExportParts(prefsDe, prefsCe, personal, learned, files, protectedFiles, media, removedWords = removed)
     }
 
     private fun readLimited(zip: ZipInputStream, remaining: Long): ByteArray {

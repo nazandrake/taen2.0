@@ -233,6 +233,106 @@ abstract public class ExpandableBinaryDictionary extends Dictionary {
         return false;
     }
 
+    // the learned-words list of the settings: at most this many words are listed, and a word walk of more steps than that is not trusted to end
+    private static final int MAX_LISTED_WORDS = 50_000;
+
+    /** The in-memory dictionary is what the storage holds (the hold of the lock is the caller's). */
+    private boolean isTruthLocked() {
+        return mBinaryDictionary != null && !mNeedsToRecreate && (!usesStorage() || (mStorageReady && isStorageAvailable()));
+    }
+
+    /** Loads the stored words if needed and waits for that until [deadlineNanos]; false when it is not loaded by then or the storage is closed. */
+    private boolean awaitLoaded(final long deadlineNanos) throws InterruptedException {
+        while (true) {
+            reloadDictionaryIfRequired();
+            if (!isReloadRequired() && !mIsReloading.get()) return true;
+            if (usesStorage() && !isStorageAvailable()) return false;
+            if (System.nanoTime() > deadlineNanos) return false;
+            Thread.sleep(20);
+        }
+    }
+
+    /**
+     * Every word of the dictionary with its use count, for the learned-words list of the settings. Loads the stored words first and waits for that
+     * at most [timeoutMillis] (not on the main thread). Null, and nothing listed, when the dictionary is not the truth now: storage closed (locked,
+     * an import), not loaded in time, waiting to be recreated, the lock not given in time, or a word walk that does not end.
+     */
+    @Nullable
+    public java.util.List<ListedWord> listWords(final long timeoutMillis) {
+        final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+        boolean lockAcquired = false;
+        try {
+            if (!awaitLoaded(deadline)) return null;
+            lockAcquired = mLock.readLock().tryLock(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+            if (!lockAcquired || !isTruthLocked()) return null;
+            final ArrayList<ListedWord> words = new ArrayList<>();
+            int token = 0;
+            int steps = 0;
+            do {
+                if (++steps > MAX_LISTED_WORDS) return null;
+                final BinaryDictionary.GetNextWordPropertyResult result = mBinaryDictionary.getNextWordProperty(token);
+                final WordProperty property = result.mWordProperty;
+                if (property == null) break;
+                if (!property.mIsBeginningOfSentence && property.mWord != null && !property.mWord.isEmpty())
+                    words.add(new ListedWord(property.mWord, property.mProbabilityInfo == null ? 0 : property.mProbabilityInfo.mCount));
+                token = result.mNextToken;
+            } while (token != 0);
+            return words;
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } finally {
+            if (lockAcquired) mLock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Removes [word] (the learned-words list of the settings) and saves the dictionary at once, after a garbage collection, so that the stored copy
+     * no longer holds it. Waits at most [timeoutMillis]. False when nothing was changed: storage closed, not loaded in time, or the save failed.
+     */
+    public boolean removeWordAndSave(final String word, final long timeoutMillis) {
+        final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+        final AtomicBoolean saved = new AtomicBoolean(false);
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        try {
+            if (!awaitLoaded(deadline)) return false;
+            asyncExecuteTaskWithWriteLock(() -> {
+                try {
+                    if (!isTruthLocked() || !isWritable()) return;
+                    mDirty = true;
+                    mBinaryDictionary.removeUnigramEntry(word);
+                    flushToStorageLocked(true /* withGC: the stored copy keeps no trace of the word */);
+                    saved.set(!mDirty);
+                } finally {
+                    done.countDown();
+                }
+            });
+            done.await(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return saved.get();
+    }
+
+    /** [clear] that waits at most [timeoutMillis] until the words are gone from memory and the store (Forget learned data). */
+    public boolean clearAndWait(final long timeoutMillis) {
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        asyncExecuteTaskWithWriteLock(() -> {
+            try {
+                removeBinaryDictionaryLocked();
+                createOnMemoryBinaryDictionaryLocked();
+            } finally {
+                done.countDown();
+            }
+        });
+        try {
+            return done.await(timeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
     private static void asyncExecuteTaskWithLock(final Lock lock, final Runnable task) {
         ExecutorUtils.getBackgroundExecutor(ExecutorUtils.KEYBOARD).execute(() -> {
             lock.lock();

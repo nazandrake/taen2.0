@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 package helium314.keyboard.settings.screens
 
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
@@ -40,7 +42,14 @@ import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.BackButton
 import helium314.keyboard.latin.utils.protectedPrefs
+import helium314.keyboard.latin.personalization.LearnedWords
+import helium314.keyboard.latin.utils.NextScreenIcon
 import helium314.keyboard.settings.PinPad
+import helium314.keyboard.settings.Setting
+import helium314.keyboard.settings.SettingsActivity
+import helium314.keyboard.settings.SettingsDestination
+import helium314.keyboard.settings.SettingsWithoutKey
+import helium314.keyboard.settings.dialogs.ConfirmationDialog
 import helium314.keyboard.settings.dialogs.ListPickerDialog
 import helium314.keyboard.settings.dialogs.TextInputDialog
 import helium314.keyboard.settings.preferences.Preference
@@ -63,6 +72,7 @@ fun PrivacyScreen(onClickBack: () -> Unit, onClickSelfDestruct: () -> Unit) {
                 navigationIcon = { BackButton { onClickBack() } },
             )
             Column(Modifier.verticalScroll(rememberScrollState())) {
+                LearningSection()
                 IncognitoSection()
                 ScreenSection()
                 ClipboardSection()
@@ -71,6 +81,75 @@ fun PrivacyScreen(onClickBack: () -> Unit, onClickSelfDestruct: () -> Unit) {
                 StatusSection()
             }
         }
+    }
+}
+
+/**
+ * What the keyboard learns from typing: the switch (the one key SettingsValues reads; turning it off asks first and deletes the learned words), the
+ * list of learned and removed words, and the two delete actions. The settings are behind the app lock and kept off screenshots (SettingsActivity, SecureWindow).
+ */
+@Composable
+private fun LearningSection() {
+    PreferenceCategory(stringResource(R.string.privacy_category_learning))
+    for (key in listOf(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, SettingsWithoutKey.LEARNED_WORDS, SettingsWithoutKey.FORGET_LEARNED_DATA,
+        SettingsWithoutKey.CLEAR_PERSONAL_DICTIONARY))
+        SettingsActivity.settingsContainer[key]?.Preference()
+}
+
+/** The settings of the Learning section, registered in SettingsContainer so that the search finds them. */
+fun createPrivacySettings(context: Context) = listOf(
+    Setting(context, Settings.PREF_KEY_USE_PERSONALIZED_DICTS,
+        R.string.use_personalized_dicts, R.string.use_personalized_dicts_summary
+    ) { setting ->
+        var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
+        SwitchPreference(setting, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS,
+            allowCheckedChange = {
+                showConfirmDialog = !it
+                it
+            }
+        )
+        if (showConfirmDialog) {
+            val prefs = LocalContext.current.prefs()
+            ConfirmationDialog(
+                onDismissRequest = { showConfirmDialog = false },
+                onConfirmed = {
+                    prefs.edit { putBoolean(setting.key, false) } // the keyboard deletes the learned words when it reads the setting
+                },
+                content = { Text(stringResource(R.string.disable_personalized_dicts_message)) }
+            )
+        }
+    },
+    Setting(context, SettingsWithoutKey.LEARNED_WORDS, R.string.learned_words_title, R.string.learned_words_summary) {
+        Preference(name = it.title, description = it.description, onClick = { SettingsDestination.navigateTo(SettingsDestination.LearnedWords) }) { NextScreenIcon() }
+    },
+    Setting(context, SettingsWithoutKey.FORGET_LEARNED_DATA, R.string.forget_learned_title, R.string.forget_learned_summary) { setting ->
+        DeleteAction(setting, stringResource(R.string.forget_learned_confirm), stringResource(R.string.forget_learned_done),
+            stringResource(R.string.forget_learned_failed)) { ctx -> LearnedWords.forgetAll(ctx) }
+    },
+    Setting(context, SettingsWithoutKey.CLEAR_PERSONAL_DICTIONARY, R.string.clear_personal_title, R.string.clear_personal_summary) { setting ->
+        DeleteAction(setting, stringResource(R.string.clear_personal_confirm), stringResource(R.string.clear_personal_done),
+            stringResource(R.string.clear_personal_failed)) { ctx -> !Privacy.isLocked && Privacy.personalDictionary(ctx)?.replaceAll(emptyList()) == true }
+    },
+)
+
+/** A row that deletes something after a confirmation; [delete] runs off the main thread and says whether everything was deleted. */
+@Composable
+private fun DeleteAction(setting: Setting, confirm: String, done: String, failed: String, delete: (Context) -> Boolean) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var showConfirm by rememberSaveable { mutableStateOf(false) }
+    Preference(name = setting.title, description = setting.description, onClick = { showConfirm = true })
+    if (showConfirm) {
+        ConfirmationDialog(
+            onDismissRequest = { showConfirm = false },
+            onConfirmed = {
+                scope.launch {
+                    val ok = withContext(Dispatchers.IO) { delete(ctx) }
+                    Toast.makeText(ctx, if (ok) done else failed, Toast.LENGTH_LONG).show()
+                }
+            },
+            content = { Text(confirm) },
+        )
     }
 }
 
