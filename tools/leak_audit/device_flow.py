@@ -144,6 +144,8 @@ def network_control(run):
 # ------------------------------------------------------------------ logs and dumps
 
 def log_check(run, text, label="D2"):
+    if run.log_ended:  # a scan of a part of the session says nothing about the rest: name the gap, do not pass it
+        return Result(label, "logcat has no canary (typed text, clipboard, passphrase, trigger word)", GAP, "not the whole session: " + run.log_ended), text
     hits, scanned = dc.scan_log(text, CANARIES)
     activity = len([1 for l in text.splitlines() if run.pkg in l])
     problems = ["canary %s (%s) in logcat: %s" % (k, CANARIES[k], v[0]) for k, v in hits.items()]
@@ -320,6 +322,59 @@ def toasts_since(run, mark, needle):
     return [l for l in helper_log(run)[mark:] if "class=android.widget.Toast" in l and needle in l]
 
 
+STATUS_SCROLLS = 4  # a bound: the Status section is the last on the screen and has three lines (PrivacyScreen.kt), so one swipe of 800 px shows them
+
+
+def privacy_status_texts(run, lines):
+    """The texts on the Privacy screen at its Status section. `lines` are the status lines the caller needs (substrings).
+    The "Status" heading stops near the bottom edge after the scroll and the lines under it can still be off screen, where a dump does not list
+    them: scroll on until one of `lines` is shown, or the list ends / the tries are used up (the last dump is returned, so a missing line is
+    a FAIL with the real screen as its evidence)."""
+    d = run.dev
+    run.settings_home()
+    run.open_section("Privacy")
+    time.sleep(1)
+    run.scroll_to("Status", tries=6)
+    texts = d.texts()
+    for _ in range(STATUS_SCROLLS):
+        if any(line in t for line in lines for t in texts):
+            break
+        d.scroll_down()
+        time.sleep(0.9)  # let the list stop moving: a dump during a fling shows the rows of the previous position
+        texts = d.texts()
+    return texts
+
+
+OVERLAY_TRIES = 8  # starts of the overlay window; Android marks about one window in four trusted, so eight in a row are about 1 in 65000
+OVERLAY_POLLS = 6  # looks at `dumpsys input` (1 s apart) for the window of one start
+
+
+def overlay_trust(dump):
+    """"trusted", "untrusted" or "absent" for the helper's overlay window in `dumpsys input`. Android decides it when the window is created: a trusted
+    overlay does not set the obscured flag of the touches under it, so the keyboard has nothing to warn about. Any trusted helper window counts as trusted."""
+    found = re.findall(r"Sys2038:%s[^\n]*?trustedOverlay=(\w+)" % re.escape(HELPER), dump)
+    if not found:
+        return "absent"
+    return "trusted" if "true" in found else "untrusted"
+
+
+def add_untrusted_overlay(run):
+    """Starts the helper with its overlay window until Android shows it as an untrusted one (the check taps under it); returns the number of starts
+    it took, or None when no start gave one."""
+    for start in range(1, OVERLAY_TRIES + 1):
+        run.field("normal", overlay=True)
+        time.sleep(1)
+        state = "absent"
+        for _ in range(OVERLAY_POLLS):
+            state = overlay_trust(run.dev.sh("dumpsys input"))
+            if state != "absent":
+                break
+            time.sleep(1)
+        if state == "untrusted":
+            return start
+    return None
+
+
 def a11y_and_overlay(run):
     """UiAutomation (uiautomator dumps) cannot see toasts, so the helper's own accessibility service reports them; its events are the evidence."""
     d = run.dev
@@ -329,16 +384,9 @@ def a11y_and_overlay(run):
     some_prefix = strings_value(run.root, "privacy_status_a11y_some").split("%")[0]
     none_line = strings_value(run.root, "privacy_status_a11y_none")
 
-    def privacy_status():
-        run.settings_home()
-        run.open_section("Privacy")
-        time.sleep(1)
-        run.scroll_to("Status", tries=6)
-        return d.texts()
-
     d.sh("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0")
     time.sleep(2)
-    base_status = privacy_status()
+    base_status = privacy_status_texts(run, (none_line, some_prefix))
     base_ok = any(none_line in t for t in base_status) and not any(some_prefix in t for t in base_status)
     out.append(Result("T-D7", "D7 can fail: with no accessibility service on the status line says none and does not list a service", PASS if base_ok else FAIL,
                       "status none line shown: %s; service line shown: %s" % (any(none_line in t for t in base_status), any(some_prefix in t for t in base_status))))
@@ -354,7 +402,7 @@ def a11y_and_overlay(run):
     run.field("normal")
     time.sleep(5)
     again = toasts_since(run, mark2, a11y_needle)
-    status = privacy_status()
+    status = privacy_status_texts(run, (none_line, some_prefix))
     status_some = [t for t in status if some_prefix in t]
     problems = []
     if not seen:
@@ -385,26 +433,30 @@ def a11y_and_overlay(run):
         time.sleep(1.5)
     time.sleep(3)
     none = toasts_since(run, mark4, overlay_needle)
-    run.field("normal", overlay=True)
-    time.sleep(1)
+    starts = add_untrusted_overlay(run)
     time.sleep(3)
-    mark5 = len(helper_log(run))
-    for _ in range(3):
-        d.tap(900, 1660)  # outside the overlay's corner
-        time.sleep(1.5)
-    time.sleep(3)
-    seen2 = toasts_since(run, mark5, overlay_needle)
-    added = any("overlay added" in l for l in helper_log(run))
-    problems = []
-    if none:
-        problems.append("overlay warning without any overlay (control)")
-    if not added:
-        problems.append("the helper's overlay window was not added (appop?)")
-    if not seen2:
-        problems.append("no overlay warning toast after a tap on the covered keyboard")
-    out.append(verdict("D7o", "Overlay warning: a tap on a keyboard covered by another window shows the warning, a tap without an overlay does not", problems,
-                       "overlay over a keyboard corner (300x150 px): toast %r; without the overlay: no toast" % (seen2[0].split("text=")[-1][:70] if seen2 else None),
-                       ["with overlay: %s" % [l[-120:] for l in seen2[:1]], "control (no overlay): %s" % none[:1]]))
+    if starts is None:
+        out.append(Result("D7o", "Overlay warning: a tap on a keyboard covered by another window shows the warning, a tap without an overlay does not", GAP,
+                          "not run: Android marked the helper's overlay window trusted (or showed none) in all %d starts; a touch under a trusted window carries no obscured flag, so there is nothing to warn about" % OVERLAY_TRIES,
+                          ["control (no overlay): %s" % none[:1]]))
+    else:
+        mark5 = len(helper_log(run))
+        for _ in range(3):
+            d.tap(900, 1660)  # outside the overlay's corner
+            time.sleep(1.5)
+        time.sleep(3)
+        seen2 = toasts_since(run, mark5, overlay_needle)
+        added = any("overlay added" in l for l in helper_log(run))
+        problems = []
+        if none:
+            problems.append("overlay warning without any overlay (control)")
+        if not added:
+            problems.append("the helper's overlay window was not added (appop?)")
+        if not seen2:
+            problems.append("no overlay warning toast after a tap on the covered keyboard")
+        out.append(verdict("D7o", "Overlay warning: a tap on a keyboard covered by another window shows the warning, a tap without an overlay does not", problems,
+                           "overlay over a keyboard corner (300x150 px, an untrusted window, start %d): toast %r; without the overlay: no toast" % (starts, seen2[0].split("text=")[-1][:70] if seen2 else None),
+                           ["with overlay: %s" % [l[-120:] for l in seen2[:1]], "control (no overlay): %s" % none[:1]]))
     d.sh("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0")
     d.sh("am force-stop %s" % HELPER)
     return out
