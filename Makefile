@@ -8,7 +8,7 @@ ENGINE   := $(shell command -v podman 2>/dev/null || command -v docker 2>/dev/nu
 IMAGE    ?= taen-build:local
 GRADLE_CACHE ?= $(HOME)/.cache/taen-gradle
 
-.PHONY: help build debug test test-build-scripts test-sign keystore-pass check fetch-voice-model voice-smoke nextword-eval leak-audit leak-audit-device native-test native-test-tsan native-test-asan offline-build verify-repro keygen sign hooks container container-build container-verify-repro clean
+.PHONY: help build debug test test-build-scripts test-sign keystore-pass check fetch-voice-model voice-smoke nextword-eval leak-audit leak-audit-test leak-audit-device native-test native-test-tsan native-test-asan offline-build verify-repro keygen sign hooks container container-build container-verify-repro clean
 
 help:
 	@echo "build         unsigned release APK -> dist/taen-$(VERSION)-unsigned.apk (runs privacyCheck first)"
@@ -20,6 +20,7 @@ help:
 	@echo "voice-smoke   the Kotlin voice engine on the host with the real model and the FLEURS samples (needs fetch-voice-model and tools/voice/prepare_samples.py)"
 	@echo "nextword-eval the next-word models on the held-out text on the host (fetches the pinned models, about 750 MB) -> EVAL lines"
 	@echo "leak-audit   static leak checks of the release APK + planted-failure proofs -> build/leak-audit/leak-audit-report.md"
+	@echo "leak-audit-test  unit tests of the audit tool itself (no phone), including the Wi-Fi adb rules"
 	@echo "leak-audit-device  scripted session on the phone (adb, audit build and release build) -> same report; about 25 minutes"
 	@echo "native-test   host build of the native dictionary core + serialization test (g++, no Android needed)"
 	@echo "native-test-tsan / native-test-asan  the same test built with ThreadSanitizer / AddressSanitizer"
@@ -77,6 +78,9 @@ leak-audit:
 	-./gradlew --stop
 	python3 tools/leak_audit static
 	python3 tools/leak_audit selftest
+
+leak-audit-test:
+	python3 -m unittest discover -s tools/leak_audit -p "test_*.py"
 
 leak-audit-device:
 	$(GRADLE) :app:assembleAudit

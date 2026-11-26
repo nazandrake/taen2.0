@@ -13,9 +13,22 @@ import helper_build
 import netstats
 import selftest
 from device_run import CANARIES, HELPER, HELPER_ACTIVITY, ORIGINAL_IME, Run, version_name
-from model import FAIL, GAP, INFO, PASS, Result, verdict
+from model import FAIL, GAP, INFO, NEEDS_USB, PASS, Result, verdict
 
 TEST_MODE_SECONDS = 15 * 60
+
+
+def over_wifi(serial):
+    """True for an adb transport over the network: host:port or a wireless-debugging name (adb-<serial>._adb-tls-connect._tcp). A USB serial has neither.
+    An unknown transport counts as Wi-Fi: the restrictive reading, nothing is switched off."""
+    return serial in ("", "unknown") or ":" in serial or "._adb-tls-connect." in serial
+
+
+def network_gap(ident, title):
+    """The network checks switch the phone's Wi-Fi off and on (netstats.read), which ends an adb session over Wi-Fi. Over Wi-Fi they are not run."""
+    return Result(ident, title, GAP, NEEDS_USB, [
+        "the phone is on adb over Wi-Fi: this check switches its Wi-Fi off and on so that the platform persists the per-UID counters, and that ends the adb session",
+        "the static checks S1 (no INTERNET permission) and S3/S8 (no network code) cover the same invariant; the report header says whether they passed for this APK"])
 
 
 def export_backup(run):
@@ -130,29 +143,50 @@ def run_all(root, args):
     if not d.present():
         return [Result("D0", "Phone on adb", GAP, "no phone found: every device check is unrun")], {}
     serial = d.adb("get-serialno").stdout.decode().strip()
-    if ":" in serial:  # adb over Wi-Fi (host:port)
-        return [Result("D0", "Phone on USB adb", GAP, "the phone is connected over Wi-Fi (%s): the network check (D1) switches the phone's Wi-Fi off and on, which ends that connection "
-                       "and leaves the phone in the audit's state; connect it by USB and run again: every device check is unrun" % serial)], {}
+    d.over_wifi = over_wifi(serial)  # adb over Wi-Fi: the checks that switch the phone's Wi-Fi off are GAPs (network_gap), nothing else changes
     ver = version_name(root)
     audit_apk = args.audit_apk or os.path.join(root, "app", "build", "outputs", "apk", "audit", "Taen_%s-audit.apk" % ver)
     run.meta = {"model": d.sh("getprop ro.product.model").strip(), "android": d.sh("getprop ro.build.version.release").strip(),
-                "build type": d.sh("getprop ro.build.type").strip(), "root": "no (adb shell uid 2000)", "audit apk": audit_apk}
+                "build type": d.sh("getprop ro.build.type").strip(), "root": "no (adb shell uid 2000)", "audit apk": audit_apk,
+                "adb transport": "Wi-Fi (%s): D1, T-D1 and D1r are GAP, %s" % (serial, NEEDS_USB) if d.over_wifi else "USB (%s)" % serial}
     # the screen stays on for the whole session: steps without a touch for longer than the screen timeout (the clipboard copies, the wait for the
     # end of the self-destruct test mode) would otherwise run on a sleeping phone, where no field has focus, nothing is on screen and a capture is black
     stay_on = d.sh("settings get global stay_on_while_plugged_in").strip()
+    wifi_on = d.sh("settings get global wifi_on").strip()
+    adb_on = d.sh("settings get global adb_enabled").strip()
     run.meta["stay on while plugged in, before"] = stay_on
-    d.sh("settings put global stay_on_while_plugged_in 7")
+    run.meta["wifi_on, adb_enabled before"] = "%s, %s" % (wifi_on, adb_on)
+    errors = []
+
+    def restore(fn):  # every step runs, whatever happened before it
+        try:
+            fn()
+        except Exception as e:  # noqa: BLE001
+            errors.append("%s: %s" % (type(e).__name__, str(e)[:100]))
+
+    def restore_connection():  # first: it is the one the session depends on
+        if wifi_on == "1":
+            d.sh("svc wifi enable")
+        elif wifi_on == "0" and not d.over_wifi:
+            d.sh("svc wifi disable")
+        if adb_on == "1" and d.sh("settings get global adb_enabled").strip() != "1":
+            d.sh("settings put global adb_enabled 1")
+
     try:
+        d.sh("settings put global stay_on_while_plugged_in 7")
         flow(run, audit_apk, release_apk)
     finally:
-        d.sh("settings put global stay_on_while_plugged_in %s" % (stay_on if stay_on.isdigit() else "0"))
-        d.sh("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0")
-        d.sh("ime set " + (run.meta.get("default keyboard before") or ORIGINAL_IME))
-        d.sh("pm uninstall %s; pm uninstall io.github.nazandrake.taen.audit" % HELPER)
-        if run.log_proc:
-            run.stop_logcat()
-        d.sleep_screen()
-        run.meta["default keyboard after the audit"] = d.sh("settings get secure default_input_method").strip()
+        restore(restore_connection)
+        restore(lambda: d.sh("settings put global stay_on_while_plugged_in %s" % (stay_on if stay_on.isdigit() else "0")))
+        restore(lambda: d.sh("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0"))
+        restore(lambda: d.sh("ime set " + (run.meta.get("default keyboard before") or ORIGINAL_IME)))
+        restore(lambda: d.sh("pm uninstall %s; pm uninstall io.github.nazandrake.taen.audit" % HELPER))
+        restore(lambda: run.stop_logcat() if run.log_proc else None)
+        restore(d.sleep_screen)
+        restore(lambda: run.meta.update({"default keyboard after the audit": d.sh("settings get secure default_input_method").strip(),
+                                         "wifi_on, adb_enabled after": "%s, %s" % (d.sh("settings get global wifi_on").strip(), d.sh("settings get global adb_enabled").strip())}))
+        if errors:
+            run.meta["restore errors"] = "; ".join(errors)
     return run.results, run.meta
 
 
@@ -177,7 +211,7 @@ def flow(run, audit_apk, release_apk):
     run.enable_ime(run.pkg)
     run.start_logcat()
     run.meta["audit apk sha256"] = __import__("static_run").sha256(audit_apk)
-    base1 = netstats.read(d)
+    base1 = None if d.over_wifi else netstats.read(d)
     run.step("D15", "Default languages and language key", lambda: fl.language_key_check(run))
     run.step("D0c", "Setup: trigger word", run.setup_trigger_word)
 
@@ -263,9 +297,13 @@ def flow(run, audit_apk, release_apk):
     else:
         run.step("D13b", "Real wipe by the trigger word", lambda: _real_wipe(run, session))
     # network, logs
-    final1 = netstats.read(d)
-    run.step("D1", "Network (audit twin)", lambda: [fl.network_check(run, base1, final1, [run.pkg])])
-    run.step("T-D1", "network control", lambda: fl.network_control(run))
+    if d.over_wifi:
+        run.add(network_gap("D1", "Network (audit twin)"))
+        run.add(network_gap("T-D1", "network control"))
+    else:
+        final1 = netstats.read(d)
+        run.step("D1", "Network (audit twin)", lambda: [fl.network_check(run, base1, final1, [run.pkg])])
+        run.step("T-D1", "network control", lambda: fl.network_control(run))
     log = run.stop_logcat()
     run.step("D2", "logcat (audit twin)", lambda: _log_steps(run, log, voice.get("words", ())))
     # ---------------------------------------------------------------- release build: reduced session
@@ -385,7 +423,7 @@ def release_session(run, release_apk):
     run.install(release_apk, pkg)
     run.enable_ime(pkg)
     run.start_logcat()
-    base2 = netstats.read(d)
+    base2 = None if d.over_wifi else netstats.read(d)
 
     def type_en():
         run.field("normal")
@@ -405,8 +443,11 @@ def release_session(run, release_apk):
     run.step("D4r", "Backup (release)", lambda: _release_label(fl.backup_check(run, pkg, False), "D4r"))
     run.step("D5r", "Screen capture (release)", lambda: _release_label(fl.screen_check(run), "D5r"))
     run.add(Result("D3r", "Data at rest (release)", GAP, "not run: the release build is not debuggable, so run-as cannot read its data directory without root; the audit twin carries the same code (D3, D13b)"))
-    final2 = netstats.read(d)
-    run.step("D1r", "Network (release)", lambda: [fl.network_check(run, base2, final2, [pkg], label="D1r")])
+    if d.over_wifi:
+        run.add(network_gap("D1r", "Network (release)"))
+    else:
+        final2 = netstats.read(d)
+        run.step("D1r", "Network (release)", lambda: [fl.network_check(run, base2, final2, [pkg], label="D1r")])
     log = run.stop_logcat()
     run.step("D2r", "logcat (release)", lambda: [fl.log_check(run, log, "D2r")[0]])
 

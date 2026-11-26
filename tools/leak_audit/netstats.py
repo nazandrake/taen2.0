@@ -3,6 +3,8 @@ a change of the network interfaces forces: toggling Wi-Fi does that, so every re
 import re
 import time
 
+from model import NEEDS_USB
+
 IDENT = re.compile(r"ident=\[.*\] uid=(-?\d+) set=(\w+) tag=(0x[0-9a-f]+)")
 BUCKET = re.compile(r"st=\d+ rb=(\d+) rp=(\d+) tb=(\d+) tp=(\d+)")
 
@@ -31,11 +33,16 @@ def parse(text):
 
 
 def read(dev, poll=True):
-    """Forces a poll (Wi-Fi off and on, waits for the network) and returns {uid: (rx, tx)}."""
+    """Forces a poll (Wi-Fi off and on, waits for the network) and returns {uid: (rx, tx)}. The only code that switches the phone's Wi-Fi off:
+    over adb on Wi-Fi it refuses (that would end the session), and the Wi-Fi is switched on again however the switch-off ends."""
     if poll:
-        dev.sh("svc wifi disable")
-        time.sleep(3)
-        dev.sh("svc wifi enable")
+        if dev.over_wifi:
+            raise RuntimeError(NEEDS_USB)
+        try:
+            dev.sh("svc wifi disable")
+            time.sleep(3)
+        finally:
+            dev.sh("svc wifi enable")
         for _ in range(30):
             time.sleep(1)
             if "wlan0" in dev.sh("ip -4 addr show wlan0"):
