@@ -30,7 +30,7 @@ import helium314.keyboard.latin.PunctuationSuggestions;
 import helium314.keyboard.latin.R;
 import helium314.keyboard.latin.RichInputMethodManager;
 import helium314.keyboard.latin.common.Colors;
-import helium314.keyboard.latin.privacy.EncryptedPrefs;
+import helium314.keyboard.latin.privacy.EncryptedPrefsKt;
 import helium314.keyboard.latin.privacy.OverlayMode;
 import helium314.keyboard.latin.privacy.Privacy;
 import helium314.keyboard.latin.privacy.PrivacyPolicy;
@@ -198,9 +198,11 @@ public class SettingsValues {
         // the per-app list is in the credential-encrypted preferences. When they cannot be read (a Keystore or store error; also while locked, when
         // everything is incognito anyway) the list is unknown: every app counts as listed (fail closed)
         final SharedPreferences ce = KtxKt.protectedPrefs(context);
-        final boolean appListReadable = !(ce instanceof EncryptedPrefs) || ((EncryptedPrefs) ce).isAvailable();
+        final boolean appListReadable = EncryptedPrefsKt.isReadable(ce);
+        // the same for the settings (device-protected store): an unreadable store answers "off" for always-incognito, so it counts as "on"
+        final boolean settingsReadable = EncryptedPrefsKt.isReadable(prefs);
         return PrivacyPolicy.INSTANCE.decide(inputAttributes.mInputType, inputAttributes.mImeOptions, inputAttributes.mTargetApplicationPackageName,
-                prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE),
+                !settingsReadable || prefs.getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, Defaults.PREF_ALWAYS_INCOGNITO_MODE),
                 PrivacyPolicy.INSTANCE.parseApps(ce.getString(Settings.PREF_INCOGNITO_APPS, Defaults.PREF_INCOGNITO_APPS)),
                 deviceLocked || Privacy.INSTANCE.isLocked(),
                 prefs.getBoolean(Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, Defaults.PREF_CLIPBOARD_IN_SECURE_FIELDS),
@@ -218,9 +220,13 @@ public class SettingsValues {
 
         // Get the settings preferences
         mIsLocked = IsLockedCompatKt.isDeviceLocked(context);
+        // a settings store that cannot be read gives the defaults; for a privacy switch the restrictive value is taken instead (fail closed)
+        final boolean settingsReadable = EncryptedPrefsKt.isReadable(prefs);
         // the per-app list is in the credential-encrypted preferences (empty while locked, when everything is incognito anyway)
         mPrivacy = decidePrivacy(context, prefs, inputAttributes, mIsLocked);
-        mOverlayMode = OverlayMode.Companion.parse(prefs.getString(Settings.PREF_OVERLAY_MODE, Defaults.PREF_OVERLAY_MODE));
+        mOverlayMode = settingsReadable
+                ? OverlayMode.Companion.parse(prefs.getString(Settings.PREF_OVERLAY_MODE, Defaults.PREF_OVERLAY_MODE))
+                : OverlayMode.BLOCK;
         mA11yWarningEnabled = prefs.getBoolean(Settings.PREF_A11Y_WARNING, Defaults.PREF_A11Y_WARNING);
         mSecureKeyboardWindow = prefs.getBoolean(Settings.PREF_SECURE_KEYBOARD_WINDOW, Defaults.PREF_SECURE_KEYBOARD_WINDOW);
         // we want to hide the toolbar / suggestion strip entirely if device is locked
@@ -238,7 +244,7 @@ public class SettingsValues {
         mSlidingKeyInputPreviewEnabled = prefs.getBoolean(
                 DebugSettings.PREF_SLIDING_KEY_INPUT_PREVIEW, Defaults.PREF_SLIDING_KEY_INPUT_PREVIEW);
         // the voice key is on the keyboard when the field allows a microphone (not a password or e-mail field) and voice typing is on
-        mShowsVoiceInputKey = mInputAttributes.mShouldShowVoiceInputKey && prefs.getBoolean(Settings.PREF_VOICE_TYPING, Defaults.PREF_VOICE_TYPING);
+        mShowsVoiceInputKey = mInputAttributes.mShouldShowVoiceInputKey && settingsReadable && prefs.getBoolean(Settings.PREF_VOICE_TYPING, Defaults.PREF_VOICE_TYPING);
         String languagePref = prefs.getString(Settings.PREF_LANGUAGE_SWITCH_KEY, Defaults.PREF_LANGUAGE_SWITCH_KEY);
         mLanguageSwitchKeyToOtherImes = languagePref.equals("input_method") || languagePref.equals("both");
         mLanguageSwitchKeyToOtherSubtypes = mIsLocked || languagePref.equals("internal") || languagePref.equals("both");
@@ -255,7 +261,7 @@ public class SettingsValues {
         mEmojiHold = EmojiHold.Companion.fromPref(prefs.getString(Settings.PREF_EMOJI_HOLD, Defaults.PREF_EMOJI_HOLD));
         mShowsDpadKey = prefs.getBoolean(Settings.PREF_SHOW_DPAD_KEY, Defaults.PREF_SHOW_DPAD_KEY);
         mVarToolbarDirection = mToolbarMode != ToolbarMode.HIDDEN && prefs.getBoolean(Settings.PREF_VARIABLE_TOOLBAR_DIRECTION, Defaults.PREF_VARIABLE_TOOLBAR_DIRECTION);
-        mUsePersonalizedDicts = prefs.getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS);
+        mUsePersonalizedDicts = settingsReadable && prefs.getBoolean(Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS);
         mUseDoubleSpacePeriod = prefs.getBoolean(Settings.PREF_KEY_USE_DOUBLE_SPACE_PERIOD, Defaults.PREF_KEY_USE_DOUBLE_SPACE_PERIOD)
                 && inputAttributes.mIsGeneralTextInput;
         mSmartQuotes = prefs.getBoolean(Settings.PREF_SMART_QUOTES, Defaults.PREF_SMART_QUOTES)
@@ -329,7 +335,7 @@ public class SettingsValues {
         mAutospaceAfterGestureTyping = prefs.getBoolean(Settings.PREF_AUTOSPACE_AFTER_GESTURE_TYPING, Defaults.PREF_AUTOSPACE_AFTER_GESTURE_TYPING);
         mAutospaceBeforeGestureTyping = prefs.getBoolean(Settings.PREF_AUTOSPACE_BEFORE_GESTURE_TYPING, Defaults.PREF_AUTOSPACE_BEFORE_GESTURE_TYPING);
         mShiftRemovesAutospace = prefs.getBoolean(Settings.PREF_SHIFT_REMOVES_AUTOSPACE, Defaults.PREF_SHIFT_REMOVES_AUTOSPACE);
-        mClipboardHistoryEnabled = prefs.getBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, Defaults.PREF_ENABLE_CLIPBOARD_HISTORY);
+        mClipboardHistoryEnabled = settingsReadable && prefs.getBoolean(Settings.PREF_ENABLE_CLIPBOARD_HISTORY, Defaults.PREF_ENABLE_CLIPBOARD_HISTORY);
         mClipboardHistoryRetentionTime = prefs.getInt(Settings.PREF_CLIPBOARD_HISTORY_RETENTION_TIME, Defaults.PREF_CLIPBOARD_HISTORY_RETENTION_TIME);
         mClipboardHistoryPinnedFirst = prefs.getBoolean(Settings.PREF_CLIPBOARD_HISTORY_PINNED_FIRST, Defaults.PREF_CLIPBOARD_HISTORY_PINNED_FIRST);
 

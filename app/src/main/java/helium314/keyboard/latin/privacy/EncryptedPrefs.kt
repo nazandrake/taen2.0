@@ -185,4 +185,11 @@ class EncryptedPrefs(
     }
 }
 
+/**
+ * False when these preferences are encrypted and cannot be read now (a Keystore or I/O error, or locked): every read then returns its
+ * default, which for a privacy switch may be the permissive value. A reader of a privacy switch (always-incognito, learning, clipboard,
+ * voice, overlay) asks this first and takes the restrictive outcome when it is false (fail closed).
+ */
+fun SharedPreferences.isReadable(): Boolean = this !is EncryptedPrefs || isAvailable()
+
 private data class Committed(val changed: List<String>, val cleared: Boolean, val snapshot: Map<String, Any>, val store: SecureStore, val count: Long)

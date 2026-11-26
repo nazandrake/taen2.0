@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import helium314.keyboard.latin.privacy.Privacy
+import helium314.keyboard.latin.privacy.isReadable
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.prefs
@@ -68,7 +69,7 @@ class VoiceTyping(private val ime: LatinIME) : VoiceController.Host {
 
     // ---- VoiceController.Host ----
 
-    override fun voiceEnabled() = ime.prefs().getBoolean(Settings.PREF_VOICE_TYPING, Defaults.PREF_VOICE_TYPING)
+    override fun voiceEnabled() = ime.prefs().let { it.isReadable() && it.getBoolean(Settings.PREF_VOICE_TYPING, Defaults.PREF_VOICE_TYPING) } // unreadable settings: off
     override fun passwordField() = ime.mSettings.current.mPrivacy.passwordField // PrivacyPolicy is the only owner of that test (P9)
     override fun locked() = Privacy.isLocked
     override fun modelReady() = store.isComplete()
