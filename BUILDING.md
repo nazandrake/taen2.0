@@ -246,6 +246,10 @@ python3 -I tools/voice/check_archive.py <archive>     # independent check (Pytho
   with the real model needs the FLEURS samples (public, CC BY 4.0, never committed): download `data/bg_bg/audio/test.tar.gz`, `data/bg_bg/test.tsv` and the
   `en_us` pair from https://huggingface.co/datasets/google/fleurs, run `tools/voice/prepare_samples.py <tar> <tsv> ~/.cache/taen-voice-samples/bg` (and `/en`),
   then `make voice-smoke` (it fails above EN 10 % or BG 20 % WER and prints the transcripts). `tools/voice/parakeet_ref.py` is the independent numpy oracle.
+- Phrase by phrase on the phone (debugNoMinify build installed; push the model files and a samples folder with `en/` and `bg/`): `adb shell 'CLASSPATH=<base.apk>
+  LD_LIBRARY_PATH=<nativeLibraryDir> app_process / helium314.keyboard.bench.LiveBench <model dir> <samples dir> <en|bg> <count> <gap ms> <cold|warm>'`
+  runs the app's `VoiceSession` and engine on the samples in real time and prints each phrase's text, the time from the end of each utterance's speech to
+  its text, the peak memory and the CPU time. `helium314.keyboard.bench.PlayWav <wav>` plays a wav on the phone's speaker for a test in a real text field.
 
 ## 9. Privacy checks
 

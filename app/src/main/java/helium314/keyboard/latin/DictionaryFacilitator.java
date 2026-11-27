@@ -143,6 +143,23 @@ public interface DictionaryFacilitator {
         return isValidSuggestionWord(word);
     }
 
+    /**
+     * Voice text (VoiceWords): the word is in a main dictionary of the active languages. Also true when that cannot be told now (a main
+     * dictionary is missing or not loaded), so that nothing is changed then.
+     */
+    default boolean isMainDictionaryWord(final String word) {
+        return true;
+    }
+
+    /**
+     * Voice text (VoiceWords): the personal and learned words of the active languages, only where the field allows them as a source of
+     * suggestions ([SettingsValuesForSuggestion#mPersonalized], not while locked); null otherwise and when one of them could not be read whole.
+     */
+    @Nullable
+    default List<String> userWordsForVoice(final SettingsValuesForSuggestion settingsValuesForSuggestion) {
+        return null;
+    }
+
     void clearUserHistoryDictionary(final Context context);
 
     String dump(final Context context);

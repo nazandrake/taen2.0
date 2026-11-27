@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Voice typing uses your words: a word that is not in the dictionary becomes a word of your personal dictionary or one Taen has learned
+  when exactly one of them matches (the same letters, or one letter different), for example a name. Dictionary words are never changed, and
+  when two of your words match nothing is changed. Not in password, no-learning or incognito fields, and not while the phone is locked.
+  Dictated text is still not learned.
+- Voice typing puts a capital at the start of a sentence where the field uses automatic capitals.
+- Voice typing types while you speak: after each short pause the phrase you just said is recognised and typed, while the microphone keeps
+  listening. Tap the voice key again (or release it when you hold it) to stop; the last phrase is typed then. The first phrase still waits
+  until the model has loaded, and a phrase is limited to 15 seconds and a recording to 60 seconds.
+- The microphone also closes when you switch incognito mode with the toolbar key.
+
 ## 2.0.6
 
 - Renamed: "Personalized suggestions" (Text correction) is now "Learn from my typing" and sits in Settings > Privacy > Learning. It is still on by

@@ -4,11 +4,13 @@ package helium314.keyboard.latin
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import androidx.annotation.VisibleForTesting
 import helium314.keyboard.latin.privacy.Privacy
 import helium314.keyboard.latin.privacy.isReadable
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.prefs
+import helium314.keyboard.latin.voice.AudioCapture
 import helium314.keyboard.latin.voice.MicCapture
 import helium314.keyboard.latin.voice.VoiceController
 import helium314.keyboard.latin.voice.VoiceEngineHolder
@@ -21,19 +23,25 @@ import java.util.concurrent.Executors
 /**
  * Voice typing in the keyboard service (P20): connects the voice key, the settings and the field to [VoiceController]. Everything is
  * on this device: the microphone (MicCapture), ONNX Runtime, no network. The service owns one instance; the recording is cancelled when the field changes,
- * the window closes, the screen locks (Privacy.onLock, also a self-destruct) and when the service ends.
+ * the window closes, the screen locks (Privacy.onLock, also a self-destruct), incognito mode is switched (the toolbar key) and when the service ends.
+ * Two threads: one reads the microphone, the other transcribes the phrases one at a time, so the text of a phrase appears while the user speaks on.
  */
 class VoiceTyping(private val ime: LatinIME) : VoiceController.Host {
     private val handler = Handler(Looper.getMainLooper())
     private val main = Executor { handler.post(it) }
-    private val worker = Executors.newSingleThreadExecutor { Thread(it, "taen-voice").apply { isDaemon = true } }
+    private val reader = Executors.newSingleThreadExecutor { Thread(it, "taen-voice").apply { isDaemon = true } }
+    private val transcriber = Executors.newSingleThreadExecutor { Thread(it, "taen-voice-text").apply { isDaemon = true } }
     private val store by lazy { VoiceModelStore(Privacy.voiceModelDir(ime)) }
-    private val engines by lazy { VoiceEngineHolder.parakeet(store, THREADS) }
+    private val engines by lazy { newEngine() }
     private var generation = 0
+
+    /** Test seams: the microphone and the engine. */
+    @VisibleForTesting internal var newCapture: () -> AudioCapture = { MicCapture() }
+    @VisibleForTesting internal var newEngine: () -> VoiceEngineHolder = { VoiceEngineHolder.parakeet(store, THREADS) }
 
     // the controller is created at the first use: the service context is not ready when the field initialisers of LatinIME run
     private val controller by lazy {
-        VoiceController(this) { listener -> VoiceSession({ MicCapture() }, { engines }, worker, main, listener) }
+        VoiceController(this) { listener -> VoiceSession({ newCapture() }, { engines }, reader, transcriber, main, listener) }
     }
     private val unloadEngine = Runnable { if (controller.state == VoiceSession.State.IDLE) engines.unload() }
 
@@ -48,7 +56,8 @@ class VoiceTyping(private val ime: LatinIME) : VoiceController.Host {
         handler.removeCallbacks(unloadEngine)
         cancel()
         engines.unload()
-        worker.shutdown()
+        reader.shutdown()
+        transcriber.shutdown()
     }
 
     /** A tap on the voice key. */
@@ -64,6 +73,9 @@ class VoiceTyping(private val ime: LatinIME) : VoiceController.Host {
         generation++
         cancel()
     }
+
+    /** Incognito mode was switched on or off (the toolbar key): a recording ends, the microphone is released and nothing more is typed. */
+    fun onIncognitoChange() = cancel()
 
     private fun cancel() = controller.cancel()
 

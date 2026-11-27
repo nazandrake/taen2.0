@@ -22,6 +22,7 @@ import android.os.Bundle;
 import android.os.Debug;
 import android.os.Message;
 import android.os.Process;
+import android.text.InputType;
 import android.util.PrintWriterPrinter;
 import android.util.Printer;
 import android.view.KeyEvent;
@@ -925,6 +926,7 @@ public class LatinIME extends InputMethodService implements
         SettingsValues currentSettingsValues = mSettings.getCurrent();
         boolean inputTypeChanged = !currentSettingsValues.isSameInputType(editorInfo);
         boolean isDifferentTextField = !restarting || inputTypeChanged;
+        final boolean wasIncognito = currentSettingsValues.mPrivacy.getIncognito();
 
         // we want to reload the settings before calling updateKeyboardTheme, because updateKeyboardTheme reads SettingsValues.mToolbarMode
         if (isDifferentTextField || !currentSettingsValues.hasSameOrientation(getResources().getConfiguration())) {
@@ -936,6 +938,8 @@ public class LatinIME extends InputMethodService implements
         switcher.updateKeyboardTheme(mDisplayContext);
         MainKeyboardView mainKeyboardView = switcher.getMainKeyboardView();
         currentSettingsValues = mSettings.getCurrent(); // settingsValues may have been reloaded
+        // a restarted field that turned into a password, no-learning or incognito field: the microphone closes like at a field change
+        if (restarting && !wasIncognito && currentSettingsValues.mPrivacy.getIncognito()) mVoiceTyping.onFieldChange();
         if (hasSuggestionStripView())
             mSuggestionStripView.updateFieldKeys(); // paste, select all and clear all on the strip of a number, phone or date field
 
@@ -1851,11 +1855,25 @@ public class LatinIME extends InputMethodService implements
     /**
      * text recognised from speech goes in as committed text (InputLogic.onTextInput) and the suggestions are NOT restarted on its last word:
      * that restart makes the word composing again, and the next separator would then learn it (performAdditionToUserHistoryDictionary) or autocorrect it.
-     * One space in front when the text before the cursor needs it (VoiceText).
+     * One space in front when the text before the cursor needs it (VoiceText). Before that the user's words and the capitals are applied
+     * (VoiceWords; the personal and learned words only where the field allows them as suggestions).
      */
     void commitVoiceText(@NonNull final String text) {
+        final SettingsValues settings = mSettings.getCurrent();
+        final EditorInfo editorInfo = getCurrentInputEditorInfo();
+        final int capsFlags = InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS | InputType.TYPE_TEXT_FLAG_CAP_WORDS | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES;
+        final boolean capsField = settings.mAutoCap && editorInfo != null && (editorInfo.inputType & capsFlags) != 0;
+        final VoiceWords.Casing casing = new VoiceWords.Casing(settings.mLocale,
+                getCurrentAutoCapsState() != Constants.TextUtils.CAP_MODE_OFF, capsField, settings.mSpacingAndPunctuations::isSentenceTerminator);
+        final String words = VoiceWords.INSTANCE.apply(text, casing,
+                VoiceWords.INSTANCE.source(mDictionaryFacilitator, settings.mSettingsValuesForSuggestion));
         final CharSequence before = mInputLogic.mConnection.getTextBeforeCursor(1, 0);
-        commitTextInput(helium314.keyboard.latin.voice.VoiceText.INSTANCE.forInsertion(before, text), false);
+        commitTextInput(helium314.keyboard.latin.voice.VoiceText.INSTANCE.forInsertion(before, words), false);
+    }
+
+    /** Incognito mode was switched with the toolbar key: a voice recording ends (P20, the microphone closes). */
+    public void onIncognitoToggled() {
+        mVoiceTyping.onIncognitoChange();
     }
 
     void showVoiceState(@NonNull final helium314.keyboard.latin.voice.VoiceSession.State state) {

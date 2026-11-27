@@ -177,6 +177,7 @@ class KeyboardActionListenerImpl(private val latinIME: LatinIME, private val inp
             KeyCode.TOGGLE_INCOGNITO_MODE -> {
                 vim.captureChanged() // the Vim layer is not called while the user types: a switch to "no" in the middle of an insert must reach it
                 settings.toggleAlwaysIncognitoMode()
+                latinIME.onIncognitoToggled() // a recording ends: the microphone closes
                 return
             }
             KeyCode.MEDIA_PANEL -> { // the picture panel; it shows "locked" itself while the credential-encrypted tier is closed
