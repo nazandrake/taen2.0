@@ -168,6 +168,26 @@ private fun IncognitoSection() {
     val appPrefs = ctx.protectedPrefs()
     var apps by remember { mutableStateOf(PrivacyPolicy.parseApps(appPrefs.getString(Settings.PREF_INCOGNITO_APPS, Defaults.PREF_INCOGNITO_APPS))) }
     var showDialog by rememberSaveable { mutableStateOf(false) }
+    // the list was lost (damaged store, lost key): every app is incognito until it is entered again or this notice is dismissed
+    var lost by remember { mutableStateOf(Settings.isIncognitoListLost(appPrefs)) }
+    var showDismiss by rememberSaveable { mutableStateOf(false) }
+    if (lost) Preference(
+        name = stringResource(R.string.incognito_list_lost_title),
+        description = stringResource(R.string.incognito_list_lost_text),
+        onClick = { showDismiss = true },
+    )
+    if (showDismiss) {
+        ConfirmationDialog(
+            onDismissRequest = { showDismiss = false },
+            onConfirmed = {
+                Settings.dismissIncognitoListLost(ctx)
+                lost = Settings.isIncognitoListLost(appPrefs)
+                KeyboardSwitcher.getInstance().setThemeNeedsReload()
+            },
+            content = { Text(stringResource(R.string.incognito_list_lost_dismiss)) },
+            confirmButtonText = stringResource(R.string.incognito_list_lost_dismiss_button),
+        )
+    }
     Preference(
         name = stringResource(R.string.incognito_apps_title),
         description = if (apps.isEmpty()) stringResource(R.string.incognito_apps_empty) else stringResource(R.string.incognito_apps_count, apps.size),
@@ -178,7 +198,8 @@ private fun IncognitoSection() {
             onDismissRequest = { showDialog = false },
             onConfirmed = { text ->
                 apps = PrivacyPolicy.parseApps(text)
-                Settings.setIncognitoApps(ctx, apps) // also forgets the per-app languages of these apps
+                Settings.setIncognitoApps(ctx, apps) // also forgets the per-app languages of these apps, and ends a lost list
+                lost = Settings.isIncognitoListLost(appPrefs)
                 KeyboardSwitcher.getInstance().setThemeNeedsReload()
             },
             title = { Text(stringResource(R.string.incognito_apps_title)) },

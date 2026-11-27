@@ -34,7 +34,10 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
 - **P7 Ciphertext at rest.** Preferences, clipboard history, personal dictionary and snippets, learned words, background images and
   pictures exist only in AES-GCM stores of `helium314.keyboard.latin.privacy` (Keystore-wrapped data keys, files in `no_backup/taen`).
   Only a failed authentication tag, a broken format or a permanently lost key (`VaultKeyException`) deletes a store; a transient
-  Keystore or I/O error (`VaultUnavailableException`) never does: the store is unavailable until it works. The credential-encrypted
+  Keystore or I/O error (`VaultUnavailableException`) never does: the store is unavailable until it works. While the device is locked
+  any failure of the CE data key is `VaultLockedException` (`DataKeys` deviceLocked, asked before and after the vault call): no key is
+  deleted or created then (`DataKeysTest`, `LockedStartTest`). `Privacy.store` reuses cached `DataKeys` only for the same key file
+  (`StoreKeyBindingTest`). The credential-encrypted
   (CE) tier is empty and read-only while the user is locked. New user-data storage goes through `Privacy.kt`, never a platform file,
   preferences file or database. Guards: SourceRules (no `getSharedPreferences`, `PreferenceManager`, `SQLiteOpenHelper` or
   `FileProvider` outside `Privacy.kt`, no plain file writers or dictionary flush outside their owners); `CanaryAtRestTest`,
@@ -74,8 +77,10 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   give incognito: no learning, no clipboard capture, no recents, no learned or personal word as a suggestion or glide source. Password
   fields also get no suggestion strip, key previews or clipboard suggestion. The flag, the password tests and the list are read through
   the policy only (SourceRules). A list that cannot be read (an error of the credential-encrypted preferences) counts every app as listed
-  (`PrivacyPolicy.Input.appListReadable`). Tests: `PrivacyPolicyTest`, `AntiSnoopingWiringTest`, `PersonalSourcesPrivacyTest`,
-  `FailClosedPrivacyInputsTest`.
+  (`PrivacyPolicy.Input.appListReadable`); so does a lost list: a reset of the CE preferences (damaged file, lost key) starts them with
+  `Settings.PREF_INCOGNITO_LIST_LOST` (`Privacy.credentialResetValues`, write-new-then-rename) until the list is entered again
+  (`Settings.setIncognitoApps`) or the notice in Settings > Privacy is dismissed. Tests: `PrivacyPolicyTest`, `AntiSnoopingWiringTest`,
+  `PersonalSourcesPrivacyTest`, `FailClosedPrivacyInputsTest`, `IncognitoListLostTest`.
 - **P10 Clipboard.** Text only. A copy flagged sensitive, made in a password or no-learning field, or made while the store is locked is
   never stored (`ClipboardCapture`); so is a clip that was already on the clipboard when the keyboard service started (its timestamp is older than the service start), whenever the system reports it. Entries expire at the retention time (default 1 hour, 5 minutes to 7 days, or Forever: exactly
   `ClipboardLimits.FOREVER_MINUTES`, the largest value, so "lower is stricter" holds for profiles), at most 50 unpinned; pinned entries never expire. "Clear clipboard" removes every entry, pinned ones too;
@@ -185,8 +190,8 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
 - **P20 Voice typing on the device.** `VoiceController` (`VoiceGate`: setting on, not a password field, not locked, model present, then
   permission) to `VoiceSession` to `MicCapture` (the only `AudioRecord`) to the ONNX Runtime engine. RECORD_AUDIO is asked only by
   `VoicePermissionActivity`. Audio and everything derived from it stay in memory, are zeroed after use and are never written or logged.
-  The microphone opens only after a tap on the voice key and closes at the stop, the 60 s limit, a field change, the window closing, the
-  screen lock, an incognito switch, the end of the service and any error; while it is open, `PauseDetector` cuts phrases at pauses (at
+  The microphone opens only after a tap on the voice key and closes at the stop, the 60 s limit, a field change (also a restart into a
+  password field, or from an ordinary field into an incognito one), the window closing, the screen lock, an incognito switch, the end of the service and any error; while it is open, `PauseDetector` cuts phrases at pauses (at
   most 15 s each), which are transcribed one at a time and typed at once. The text is committed as plain text and never learned. Before the commit `VoiceWords.apply` adds capitals at sentence starts and
   replaces a word that is in no main dictionary by a personal or learned word only when exactly one matches; it gets those words only
   through `DictionaryFacilitator.userWordsForVoice` (the suggestions' rule `userWordsAllowed`: not in incognito fields, never while

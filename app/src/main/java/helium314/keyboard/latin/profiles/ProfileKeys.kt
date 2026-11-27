@@ -164,7 +164,7 @@ object ProfileKeys {
         INCOGNITO_APPS, Settings.PREF_SPACE_BAR_TEXT, Settings.PREF_VERSION_CODE, Settings.PREF_SETUP_GUIDE_DONE, Settings.PREF_WHATS_NEW_SHOWN, Settings.PREF_EMOJI_MAX_SDK,
         Settings.PREF_DONT_SHOW_MISSING_DICTIONARY_DIALOG, Settings.PREF_RECENT_EMOJIS, Settings.PREF_LAST_SHOWN_EMOJI_CATEGORY_ID,
         Settings.PREF_LAST_SHOWN_EMOJI_CATEGORY_PAGE_ID, Settings.PREF_SELECTED_SUBTYPE, Settings.PREF_CUSTOM_CURRENCY_KEY, Settings.PREF_TIMESTAMP_FORMAT,
-        AppLanguageMemory.KEY, ProfileStore.KEY, Settings.PREF_MEDIA_STARTER_PACK,
+        AppLanguageMemory.KEY, ProfileStore.KEY, Settings.PREF_MEDIA_STARTER_PACK, Settings.PREF_INCOGNITO_LIST_LOST,
     )
 
     private class PrefixRule(val prefix: String, val cls: KeyClass, val spec: ValueSpec?, val matches: (String) -> Boolean)

@@ -23,7 +23,10 @@ object PrivacyPolicy {
         val locked: Boolean,
         /** The user allowed the clipboard keys in password fields (Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, off by default). */
         val secureClipboard: Boolean = false,
-        /** The per-app list could be read. False (a store error) counts every app as listed: incognito everywhere until it can be read (fail closed). */
+        /**
+         * The per-app list could be read and is known. False (a store error, or a list lost when its store was reset) counts every app as listed:
+         * incognito everywhere until it can be read, or until a lost list is entered again or its notice dismissed (fail closed).
+         */
         val appListReadable: Boolean = true,
     )
 
