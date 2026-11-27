@@ -51,6 +51,7 @@ object Privacy {
         @Volatile var cePrefsMigrated = false
         var personal: PersonalDictionary? = null
         var media: MediaVault? = null
+        val removed = HashMap<String, RemovedWords>()
     }
 
     private var cached = State()
@@ -174,6 +175,7 @@ object Privacy {
         }
         prefs.forEach { it.evict() } // outside this object's lock, see [lock]
         personal?.evict()
+        synchronized(this) { cached.removed.values.toList() }.forEach { it.evict() }
         for (hook in lockHooks.values) runCatching(hook) // clipboard history and the app lock in memory
         keys.forEach { it.evict() }
     }
@@ -399,6 +401,14 @@ object Privacy {
         return dir.listFiles { f -> f.name.startsWith(LEARNED_PREFIX) && f.name.endsWith(".enc") }
     }
 
+    /** The languages that have learned words in a store; null while the tier is locked. */
+    @Synchronized
+    fun learnedTags(context: Context): Set<String>? {
+        val app = context.applicationContext ?: context
+        if (ceDataDir(app) == null) return null
+        return learnedFiles(app).orEmpty().map { it.name.removeSuffix(".enc").removePrefix(LEARNED_PREFIX) }.toSortedSet()
+    }
+
     /** The serialized learned-word dictionaries of every language, by language tag (for the export). */
     @Synchronized
     fun readAllLearned(context: Context): Map<String, ByteArray> {
@@ -436,6 +446,82 @@ object Privacy {
         val app = context.applicationContext ?: context
         val dir = File(File(ceDataDir(app) ?: return, "no_backup"), DIR)
         dir.listFiles { f -> f.name.startsWith(LEARNED_PREFIX) }?.forEach { it.delete() }
+    }
+
+    // ---- removed words ----------------------------------------------------------------------------------------
+    // The words the user removed from the suggestions (the strip's bin icon, the learned-words list): one store `blacklist_<tag>` per language in the
+    // credential-encrypted tier. Earlier versions kept them as plain text in files/blacklists/<tag>.txt; that file is moved in and deleted.
+
+    private const val REMOVED_PREFIX = "blacklist_"
+    private const val LEGACY_REMOVED_DIR = "blacklists"
+
+    private fun removedName(localeTag: String) = REMOVED_PREFIX + localeTag.map { if (it.isLetterOrDigit() && it.code < 128 || it == '-') it else '_' }.joinToString("")
+
+    /** The plain file of an earlier version. Read with a size bound; never written. */
+    private class LegacyRemovedFile(private val file: File) : LegacyRemovedWords {
+        override fun exists() = file.isFile
+        override fun read(): List<String>? = try {
+            if (file.length() > RemovedWordsStorage.MAX_LEGACY_BYTES) null
+            else file.inputStream().use { it.readAtMost(RemovedWordsStorage.MAX_LEGACY_BYTES) }
+                .takeIf { it.size <= RemovedWordsStorage.MAX_LEGACY_BYTES }
+                ?.toString(Charsets.UTF_8)?.lines()?.filter { it.isNotEmpty() }
+        } catch (_: java.io.IOException) {
+            null
+        }
+        override fun delete(): Boolean {
+            file.delete()
+            file.parentFile?.takeIf { it.list()?.isEmpty() == true }?.delete() // the empty folder of the plain files
+            return !file.exists()
+        }
+    }
+
+    private fun legacyRemovedFile(app: Context, localeTag: String) = File(File(app.filesDir, LEGACY_REMOVED_DIR), "$localeTag.txt")
+
+    /**
+     * The removed words of one language: one object per language for the life of the process, shared by the keyboard, the spell checker and the
+     * settings. Readable only while the credential-encrypted tier is open.
+     */
+    @Synchronized
+    fun removedWords(context: Context, localeTag: String): RemovedWords {
+        val app = context.applicationContext ?: context
+        cached.removed[localeTag]?.let { return it }
+        val name = removedName(localeTag)
+        // no import guard (unlike the learned words): an import replaces the words through this same object, under its lock
+        val storage = RemovedWordsStorage({ store(app, Tier.CE, name, 1) }, LegacyRemovedFile(legacyRemovedFile(app, localeTag)))
+        return RemovedWords(storage, writer, { isLocked || wiping }).also { cached.removed[localeTag] = it }
+    }
+
+    /** The languages that have removed words (a store, or a plain file of an earlier version); null while the tier is locked. */
+    @Synchronized
+    fun removedWordTags(context: Context): Set<String>? {
+        val app = context.applicationContext ?: context
+        val dir = File(File(ceDataDir(app) ?: return null, "no_backup"), DIR)
+        val stored = dir.listFiles { f -> f.name.startsWith(REMOVED_PREFIX) && f.name.endsWith(".enc") }.orEmpty()
+            .map { it.name.removePrefix(REMOVED_PREFIX).removeSuffix(".enc") }
+        val legacy = File(app.filesDir, LEGACY_REMOVED_DIR).listFiles { f -> f.isFile && f.name.endsWith(".txt") }.orEmpty().map { it.name.removeSuffix(".txt") }
+        return (stored + legacy + cached.removed.keys).toSortedSet()
+    }
+
+    /** The removed words of every language, by language tag (for the export); null while the tier is locked or one language cannot be read. */
+    fun readAllRemovedWords(context: Context): Map<String, Set<String>>? {
+        val result = HashMap<String, Set<String>>()
+        for (tag in removedWordTags(context) ?: return null) {
+            val words = removedWords(context, tag).all() ?: return null
+            if (words.isNotEmpty()) result[tag] = words
+        }
+        return result
+    }
+
+    /** Deletes the removed words of every language (Forget learned data); false while the tier is locked or one could not be deleted. */
+    fun deleteAllRemovedWords(context: Context): Boolean {
+        val tags = removedWordTags(context) ?: return false
+        return tags.map { removedWords(context, it).forget() }.all { it }
+    }
+
+    /** Replaces the removed words of every language by [byTag] (an import). False if one could not be written. */
+    fun replaceAllRemovedWords(context: Context, byTag: Map<String, Set<String>>): Boolean {
+        if (!deleteAllRemovedWords(context)) return false
+        return byTag.all { (tag, words) -> removedWords(context, tag).replace(words) }
     }
 
     // ---- background images -----------------------------------------------------------------------------------

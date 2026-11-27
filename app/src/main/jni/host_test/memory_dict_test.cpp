@@ -216,6 +216,60 @@ static void testGcKeepsLearnedWordsAndStaysUpdatable() {
     CHECK_EQ(dumpAll(third.get()).size(), 6);
 }
 
+// Removing a learned word (LearnedWords.remove -> removeUnigramEntry) leaves no pair behind: no "previous -> word" pair of the words
+// before it, and none of its own continuations ("word -> next") if the word is learned again later. Checked on the live dictionary,
+// after a plain save, after a save with garbage collection, and after a reopen.
+static int pairsWithTarget(const WordProperty &p, const char *target) {
+    int n = 0;
+    for (const NgramProperty &ng : p.getNgramProperties()) {
+        const std::vector<int> &t = *ng.getTargetCodePoints();
+        if (t == cps(target)) ++n;
+    }
+    return n;
+}
+
+// afterGc: the pair "good -> morning" is gone altogether. Without a garbage collection the removal leaves the pair as an entry whose target
+// word no longer exists (it names no word and is never read as one); LearnedWords.remove -> removeWordAndSave always collects before it saves.
+static void checkNoTrace(DictionaryStructureWithBufferPolicy *d, const char *when, bool afterGc) {
+    printf("  trace check: %s\n", when);
+    CHECK_EQ(propertyOf(d, "morning").getCodePoints().size(), 0); // not a word any more
+    CHECK_EQ(pairsWithTarget(propertyOf(d, "good"), "morning"), 0); // no pair names it
+    for (const NgramProperty &ng : propertyOf(d, "good").getNgramProperties()) CHECK_EQ(ng.getTargetCodePoints()->size(), 0);
+    if (afterGc) CHECK_EQ(propertyOf(d, "good").getNgramProperties().size(), 0);
+    CHECK_EQ(propertyOf(d, "my").getUnigramProperty().getHistoricalInfo().getCount(), 4); // the neighbours are untouched
+    CHECK_EQ(propertyOf(d, "good").getUnigramProperty().getHistoricalInfo().getCount(), 4);
+}
+
+static void testRemovedWordLeavesNoPairsAndNoContinuations() {
+    TimeKeeper::setCurrentTime();
+    const int now = TimeKeeper::peekCurrentTime();
+    PolicyPtr dict = learnedSample(now);
+    // control: before the removal the word has a pair before it (good -> morning) and a continuation (morning -> my)
+    CHECK_EQ(pairsWithTarget(propertyOf(dict.get(), "good"), "morning"), 1);
+    CHECK_EQ(pairsWithTarget(propertyOf(dict.get(), "morning"), "my"), 1);
+    std::vector<int> w = cps("morning");
+    CHECK(dict->removeUnigramEntry(CodePointArrayView(w.data(), w.size())));
+    checkNoTrace(dict.get(), "live, before a collection", false);
+
+    std::vector<uint8_t> plain, gc;
+    CHECK(dict->flushToMemory(false, &plain));
+    CHECK(dict->flushToMemory(true, &gc));
+    PolicyPtr reopenedPlain = reopen(plain);
+    PolicyPtr reopenedGc = reopen(gc);
+    CHECK(reopenedPlain != nullptr && reopenedGc != nullptr);
+    if (!reopenedPlain || !reopenedGc) return;
+    checkNoTrace(reopenedPlain.get(), "saved without a collection", false);
+    checkNoTrace(reopenedGc.get(), "saved with garbage collection (the path of the removal)", true);
+
+    // the user types the word again later: it starts from nothing, the old "morning -> my" is not back
+    for (PolicyPtr *d : {&dict, &reopenedPlain, &reopenedGc}) {
+        learn(d->get(), {"good"}, "morning", now);
+        WordProperty again = propertyOf(d->get(), "morning");
+        CHECK_EQ(again.getUnigramProperty().getHistoricalInfo().getCount(), 1);
+        CHECK_EQ(again.getNgramProperties().size(), 0);
+    }
+}
+
 static void testEmptyDictionaryRoundTrip() {
     PolicyPtr dict = newHistoryDict();
     std::vector<uint8_t> bytes;
@@ -683,6 +737,7 @@ int main(int argc, char **argv) {
     testRoundTripKeepsWordsAndHistory();
     testFullFidelityAndIdempotence();
     testGcKeepsLearnedWordsAndStaysUpdatable();
+    testRemovedWordLeavesNoPairsAndNoContinuations();
     testEmptyDictionaryRoundTrip();
     testCorruptBytesAreRejected();
     printf("%d checks, %d failures\n", checks, failures);

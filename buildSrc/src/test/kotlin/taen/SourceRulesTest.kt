@@ -117,6 +117,24 @@ class SourceRulesTest {
         assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/privacy/Wiper.kt", text)) // the wipe deletes that leftover too
     }
 
+    @Test fun theRemovedWordListIsNoPlainFile() { // the words the user removed from the suggestions live in the encrypted store blacklist_<tag>
+        val facilitator = "helium314/keyboard/latin/DictionaryFacilitatorImpl.kt"
+        // the facilitator is no plain file writer any more (it appended the removed words to files/blacklists/<tag>.txt)
+        val write = "blacklistFile.appendText(\"\$word\\n\")"
+        assertEquals(1, problems(facilitator, write).size)
+        assertTrue(problems(facilitator, write)[0].contains("P7"))
+        // the folder of the plain files is named only where the earlier files are moved in and wiped
+        val name = "File(context.filesDir, \"blacklists\")"
+        assertEquals(1, problems(facilitator, name).size)
+        assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/privacy/Privacy.kt", name))
+        // the backup no longer takes them as files; the wipe names the folder of a leftover by its path
+        assertEquals(1, problems("helium314/keyboard/settings/preferences/BackupRestorePreference.kt", "\"blacklists\${File.separator}.*\\\\.txt\".toRegex()").size)
+        assertEquals(emptyList<String>(), problems("helium314/keyboard/latin/privacy/Wiper.kt", "relative.startsWith(\"files/blacklists/\")"))
+        // a plain writer in the settings or the facilitator is still caught (the layout editor stays an owner)
+        assertEquals(1, problems(facilitator, "FileWriter(blacklistFile)").size)
+        assertEquals(emptyList<String>(), problems("helium314/keyboard/settings/dialogs/LayoutEditDialog.kt", "file.writeText(content)"))
+    }
+
     // ---- ----
 
     @Test fun anyDictionaryFlushIsRejectedOutsideTheEngineWrapper() { // the rule once matched only "inaryDictionary.flush()"

@@ -36,7 +36,7 @@ object ExportService {
     private fun SharedPreferences.typed(): Map<String, Any> =
         all.entries.mapNotNull { (k, v) -> if (v == null) null else k to v }.toMap()
 
-    /** [accept] tells which relative file paths belong in an export (custom layouts, fonts, user dictionaries, blacklists). */
+    /** [accept] tells which relative file paths belong in an export (custom layouts, fonts, user dictionaries). */
     fun collect(context: Context, accept: (String) -> Boolean): ExportParts = collect(context, accept, withMedia = true, mediaCap = MEDIA_EXPORT_BYTES)
 
     /** [collect] with the pictures switched off ([withMedia] false: the snapshot that an import puts back) or with another cap ([mediaCap], a test seam; the real limit is [MEDIA_EXPORT_BYTES]). */
@@ -51,13 +51,16 @@ object ExportService {
             learned = Privacy.readAllLearned(app),
             files = FileSet.read(app.filesDir, accept),
             protectedFiles = FileSet.read(DeviceProtectedUtils.getFilesDir(app), accept),
+            removedWords = checkNotNull(Privacy.readAllRemovedWords(app)) { "the removed words cannot be read" },
         )
         if (!withMedia) return base
         // the pictures go in only as a whole, when they total MEDIA_EXPORT_BYTES or less and the payload stays within the bundle limit; never a part of them
         val room = ExportBundle.MAX_TOTAL_BYTES - ExportBundle.contentBytes(base)
         return when (val media = Privacy.mediaVault(app).exportAll(minOf(mediaCap, room))) {
-            is MediaVault.Export.Included -> ExportParts(base.prefsDe, base.prefsCe, base.personal, base.learned, base.files, base.protectedFiles, media.snapshot.takeIf { it.items.isNotEmpty() })
-            MediaVault.Export.TooBig -> ExportParts(base.prefsDe, base.prefsCe, base.personal, base.learned, base.files, base.protectedFiles, null, mediaExcluded = true)
+            is MediaVault.Export.Included -> ExportParts(base.prefsDe, base.prefsCe, base.personal, base.learned, base.files, base.protectedFiles, media.snapshot.takeIf { it.items.isNotEmpty() },
+                removedWords = base.removedWords)
+            MediaVault.Export.TooBig -> ExportParts(base.prefsDe, base.prefsCe, base.personal, base.learned, base.files, base.protectedFiles, null, mediaExcluded = true,
+                removedWords = base.removedWords)
             MediaVault.Export.Unavailable -> base
         }
     }
@@ -98,6 +101,7 @@ object ExportService {
             parts.prefsCe?.let { replacePrefs(ce, it) }
             parts.personal?.let { check(personal?.replaceAll(it) == true) { "could not store the personal dictionary" } }
             check(Privacy.replaceAllLearned(app, parts.learned)) { "could not store the learned words" }
+            check(Privacy.replaceAllRemovedWords(app, parts.removedWords)) { "could not store the removed words" }
             FileSet.replace(filesDir, accept, parts.files)
             FileSet.replace(protectedDir, accept, parts.protectedFiles)
             // the last step: the vault keeps the old pictures until the new ones are complete (MediaVault.replaceAll), so a failure here leaves them as they were
@@ -109,6 +113,7 @@ object ExportService {
             runCatching { replacePrefs(ce, before.prefsCe!!) }
             runCatching { personal?.replaceAll(before.personal ?: emptyList()) }
             runCatching { Privacy.replaceAllLearned(app, before.learned) }
+            runCatching { Privacy.replaceAllRemovedWords(app, before.removedWords) }
             runCatching { FileSet.replace(filesDir, accept, before.files) }
             runCatching { FileSet.replace(protectedDir, accept, before.protectedFiles) }
             throw t

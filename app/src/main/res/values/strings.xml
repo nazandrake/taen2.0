@@ -99,9 +99,9 @@
     <!-- Description for option enabling or disabling the use of installed app names for suggestion and correction -->
     <string name="use_apps_dict_summary">Use names of installed apps for suggestions and corrections</string>
     <!-- Option name for enabling the use by the keyboards of sent/received messages, e-mail and typing history to improve suggestion accuracy -->
-    <string name="use_personalized_dicts">Personalized suggestions</string>
+    <string name="use_personalized_dicts">Learn from my typing</string>
     <!-- Dialog message informing that dictionaries will be deleted on changing the setting -->
-    <string name="disable_personalized_dicts_message">Warning: Disabling this setting will clear learned data</string>
+    <string name="disable_personalized_dicts_message">Turning this off deletes the learned words of every language. The removed words and your personal dictionary are kept.</string>
     <!-- Option name for adding learned words to personal dictionary -->
     <string name="add_to_personal_dictionary">Add words to personal dictionary</string>
     <!-- Description for option to add learned words to system-wide user dictionary -->
@@ -350,6 +350,33 @@
     <string name="incognito_apps_info">Package names (for example org.example.bank), one per line, at most %1$d. Invalid entries are dropped. The list is stored encrypted.</string>
     <string name="privacy_category_screen">Screen capture and snooping</string>
     <string name="privacy_category_clipboard">Clipboard</string>
+    <string name="privacy_category_learning">Learning</string>
+    <string name="learned_words_title">Learned words</string>
+    <string name="learned_words_summary">See the words Taen has learned, remove single words, and restore removed ones</string>
+    <string name="learned_words_info">The words Taen learned from your typing in this language, kept encrypted on this phone. A removed word is not suggested any more; Restore brings it back, and so does typing it again.</string>
+    <string name="learned_words_language">Language</string>
+    <string name="learned_words_section">Learned (%d)</string>
+    <string name="removed_words_section">Removed (%d)</string>
+    <string name="learned_words_loading">Reading the words</string>
+    <string name="learned_words_locked">Not available while the phone is locked.</string>
+    <string name="learned_words_none">Nothing learned or removed yet.</string>
+    <string name="learned_words_empty">No learned words in this language.</string>
+    <string name="removed_words_none">No removed words in this language.</string>
+    <string name="learned_word_remove">Remove</string>
+    <string name="learned_word_removed">Removed. You can restore it under Removed.</string>
+    <string name="learned_word_remove_failed">The word could not be removed. Try again when the phone is unlocked.</string>
+    <string name="removed_word_restore">Restore</string>
+    <string name="removed_word_restore_failed">The word could not be restored. Try again when the phone is unlocked.</string>
+    <string name="forget_learned_title">Forget learned data</string>
+    <string name="forget_learned_summary">Deletes the learned words and the removed words of every language now</string>
+    <string name="forget_learned_confirm">Delete the learned words and the removed words of every language now? Your personal dictionary is kept: to empty it, use Clear personal dictionary.</string>
+    <string name="forget_learned_done">Learned data deleted</string>
+    <string name="forget_learned_failed">Not everything could be deleted. Try again when the phone is unlocked.</string>
+    <string name="clear_personal_title">Clear personal dictionary</string>
+    <string name="clear_personal_summary">Deletes every word and shortcut of your personal dictionary, in every language</string>
+    <string name="clear_personal_confirm">Delete every word and shortcut of your personal dictionary? This cannot be undone.</string>
+    <string name="clear_personal_done">Personal dictionary cleared</string>
+    <string name="clear_personal_failed">The personal dictionary could not be cleared. Try again when the phone is unlocked.</string>
     <string name="clipboard_in_secure_fields_title">Clipboard keys in password fields</string>
     <string name="clipboard_in_secure_fields_summary">Show the paste, select all and clear all keys and your pinned keys also in password and number password fields, so you can paste and copy there. A copy made in a password field is marked sensitive: Android hides its preview, and Taen never stores, suggests or logs it. Off by default.</string>
     <string name="secure_keyboard_window_title">Hide the keyboard from screenshots and screen recording</string>
@@ -1020,7 +1047,7 @@ New dictionary:
 \n► In the event of an application crash, you will be prompted whether you want the crash logs when you open the Settings. &lt;br&gt; &lt;br&gt;
 \n► When using multilingual typing, space bar will show an confidence value used for determining the currently used language. &lt;br&gt; &lt;br&gt;
 \n► Suggestions will have some tiny numbers on top showing some internal score and source dictionary (can be disabled).</string>
-    <string name="use_personalized_dicts_summary">Learn from your communications and typed data to improve suggestions</string>
+    <string name="use_personalized_dicts_summary">Learns the words you type and the words that follow them, to suggest them. Never in password, incognito or no-learning fields, or while locked</string>
     <!-- Label for soft enter key when it performs GO action.  Must be short to fit on key. 5 chars or less is preferable. -->
     <string name="label_go_key">Go</string>
     <!-- Label for soft enter key when it performs NEXT action.  Must be short to fit on key. 5 chars or less is preferable. -->

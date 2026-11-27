@@ -2,6 +2,20 @@
 
 Settings > Privacy gathers the switches that decide what Taen remembers, what other software can see, and who can open the settings. Why each one exists, and what it cannot do, is in [Privacy explained](page:privacy).
 
+## Learning
+
+### {#use_personalized_dicts}
+Learns the words you type and the words that follow them, and suggests them. Default: on. Turning it off asks for a confirmation and deletes the learned words of every language (the removed words and your personal dictionary stay). Nothing is learned in password fields, in fields that ask for no personalized learning, in incognito and while locked, whatever this setting says. See [Suggestions and autocorrect](page:suggestions).
+
+### {#learned_words}
+Shows, for each language, the words Taen has learned from your typing, and the words removed from the suggestions. **Remove** takes a learned word out of the learned words at once and puts it on the removed list, so it is not suggested any more; **Restore** takes a word off that list (typing the word again does the same). The list is part of the settings, so the app lock guards it and it cannot be captured on screen. While the phone is locked it shows nothing.
+
+### {#forget_learned_data}
+Deletes now, after a confirmation, the learned words and the removed words of every language, from memory and from their encrypted files. Your personal dictionary is kept: to empty it, use **Clear personal dictionary**. Learning goes on afterwards if **Learn from my typing** is on. Not possible while the phone is locked.
+
+### {#clear_personal_dictionary}
+Deletes, after a confirmation, every word and shortcut of your personal dictionary, in every language. To delete single words, use **Personal dictionary** in [Text correction](page:text-correction). Not possible while the phone is locked.
+
 ## Incognito
 
 ### {#always_incognito_mode}

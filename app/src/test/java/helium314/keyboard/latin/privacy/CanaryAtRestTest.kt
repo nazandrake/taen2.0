@@ -133,9 +133,13 @@ class CanaryAtRestTest {
         ctx.protectedPrefs().edit().putString("restore", "value-$cyrillic").commit()
         assertTrue(assertNotNull(Privacy.personalDictionary(ctx)).add(PersonalWord("word-$latin", "sc-$cyrillic", 250, "en")))
         assertTrue(Privacy.learnedStorage(ctx, "en-US", null).save("learned-$latin".toByteArray() + ByteArray(20)))
+        // the words removed from the suggestions (the blacklist), as the strip's bin icon and the learned-words list store them
+        assertTrue(Privacy.removedWords(ctx, "en-US").add("removed-$latin"))
+        assertTrue(Privacy.removedWords(ctx, "bg").add("removed-$cyrillic"))
+        assertEquals(setOf("removed-$latin"), Privacy.removedWords(ctx, "en-US").all()) // positive control: readable through its owner
         val ce = File(ctx.noBackupFilesDir, "taen").list()!!.toSet()
         val de = File(ctx.createDeviceProtectedStorageContext().noBackupFilesDir, "taen").list()!!.toSet()
-        assertTrue(ce.containsAll(setOf("prefs_ce.enc", "snippets.enc", "learned_en-US.enc", "dek_ce.bin")), ce.toString())
+        assertTrue(ce.containsAll(setOf("prefs_ce.enc", "snippets.enc", "learned_en-US.enc", "blacklist_en-US.enc", "blacklist_bg.enc", "dek_ce.bin")), ce.toString())
         assertTrue(de.containsAll(setOf("prefs_de.enc", "dek_de.bin")), de.toString())
         for (canary in listOf(latin, cyrillic)) assertEquals(emptyList(), scanApp(ctx, canary), "plaintext $canary")
     }

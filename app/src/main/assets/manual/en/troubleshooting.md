@@ -24,7 +24,7 @@ See [Toolbar](page:toolbar) and [Text correction](page:text-correction).
 
 ## Suggestions do not learn my words
 
-Learning is off in password fields, in fields that ask for no personalized learning, in apps on your incognito list, while **Force incognito mode** is on and while the device is locked. Also check that **Personalized suggestions** is on in Text correction. See [Suggestions and autocorrect](page:suggestions).
+Learning is off in password fields, in fields that ask for no personalized learning, in apps on your incognito list, while **Force incognito mode** is on and while the device is locked. Also check that **Learn from my typing** is on in Privacy. See [Suggestions and autocorrect](page:suggestions).
 
 ## Autocorrect keeps changing a word
 

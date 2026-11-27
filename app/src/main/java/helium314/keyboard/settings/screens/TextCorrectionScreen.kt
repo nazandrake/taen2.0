@@ -4,14 +4,8 @@ package helium314.keyboard.settings.screens
 import android.content.Context
 import android.os.Build
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -31,13 +25,11 @@ import helium314.keyboard.settings.SettingsActivity
 import helium314.keyboard.settings.SettingsDestination
 import helium314.keyboard.settings.SettingsWithoutKey
 import helium314.keyboard.latin.utils.Theme
-import helium314.keyboard.settings.dialogs.ConfirmationDialog
 import helium314.keyboard.settings.initPreview
 import helium314.keyboard.settings.preferences.Preference
 import helium314.keyboard.settings.preferences.SwitchPreference
 import helium314.keyboard.settings.preferences.SwitchPreferenceWithEmojiDictWarning
 import helium314.keyboard.latin.utils.previewDark
-import androidx.core.content.edit
 import helium314.keyboard.keyboard.internal.PopupKeySpec
 import helium314.keyboard.settings.preferences.SliderPreference
 import helium314.keyboard.settings.preferences.TextInputPreference
@@ -81,7 +73,6 @@ fun TextCorrectionScreen(
         if (suggestionsEnabled) Settings.PREF_CENTER_SUGGESTION_TEXT_TO_ENTER else null,
         if (suggestionsEnabled || autocorrectEnabled) Settings.PREF_SUGGEST_EMOJIS else null,
         if (suggestionsEnabled || autocorrectEnabled) Settings.PREF_INLINE_EMOJI_SEARCH else null,
-        Settings.PREF_KEY_USE_PERSONALIZED_DICTS,
         Settings.PREF_BIGRAM_PREDICTIONS,
         Settings.PREF_SUGGEST_PUNCTUATION,
         if (prefs.getBoolean(Settings.PREF_SUGGEST_PUNCTUATION, Defaults.PREF_SUGGEST_PUNCTUATION))
@@ -197,28 +188,6 @@ fun createCorrectionSettings(context: Context) = listOf(
         R.string.prefs_always_show_suggestions_except_web_text, R.string.prefs_always_show_suggestions_except_web_text_summary
     ) {
         SwitchPreference(it, Defaults.PREF_ALWAYS_SHOW_SUGGESTIONS_EXCEPT_WEB_TEXT)
-    },
-    Setting(context, Settings.PREF_KEY_USE_PERSONALIZED_DICTS,
-        R.string.use_personalized_dicts, R.string.use_personalized_dicts_summary
-    ) { setting ->
-        var showConfirmDialog by rememberSaveable { mutableStateOf(false) }
-        SwitchPreference(setting, Defaults.PREF_KEY_USE_PERSONALIZED_DICTS,
-            allowCheckedChange = {
-                showConfirmDialog = !it
-                it
-            }
-        )
-        if (showConfirmDialog) {
-            val prefs = LocalContext.current.prefs()
-            ConfirmationDialog(
-                onDismissRequest = { showConfirmDialog = false },
-                onConfirmed = {
-                    prefs.edit { putBoolean(setting.key, false) }
-                },
-                content = { Text(stringResource(R.string.disable_personalized_dicts_message)) }
-            )
-        }
-
     },
     Setting(context, Settings.PREF_BIGRAM_PREDICTIONS,
         R.string.bigram_prediction, R.string.bigram_prediction_summary

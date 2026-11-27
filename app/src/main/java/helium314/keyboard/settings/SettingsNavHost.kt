@@ -30,6 +30,7 @@ import helium314.keyboard.settings.screens.MediaScreen
 import helium314.keyboard.settings.screens.VoiceScreen
 import helium314.keyboard.settings.screens.LanguageScreen
 import helium314.keyboard.settings.screens.MainSettingsScreen
+import helium314.keyboard.settings.screens.LearnedWordsScreen
 import helium314.keyboard.settings.screens.PersonalDictionariesScreen
 import helium314.keyboard.settings.screens.PersonalDictionaryScreen
 import helium314.keyboard.settings.screens.PreferencesScreen
@@ -104,6 +105,9 @@ fun SettingsNavHost(
         }
         composable(SettingsDestination.Privacy) {
             PrivacyScreen(onClickBack = ::goBack, onClickSelfDestruct = { navController.navigate(SettingsDestination.SelfDestruct) })
+        }
+        composable(SettingsDestination.LearnedWords) {
+            LearnedWordsScreen(onClickBack = ::goBack)
         }
         composable(SettingsDestination.SelfDestruct) {
             SelfDestructScreen(onClickBack = ::goBack)
@@ -197,6 +201,7 @@ object SettingsDestination {
     const val Dictionaries = "dictionaries"
     const val Privacy = "privacy"
     const val SelfDestruct = "selfdestruct"
+    const val LearnedWords = "learned_words"
     const val Voice = "voice"
     const val Downloads = "downloads"
     const val Media = "media"

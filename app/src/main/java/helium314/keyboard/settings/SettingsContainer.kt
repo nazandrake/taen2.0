@@ -16,6 +16,7 @@ import helium314.keyboard.settings.screens.createCorrectionSettings
 import helium314.keyboard.settings.screens.createGestureTypingSettings
 import helium314.keyboard.settings.screens.createLayoutSettings
 import helium314.keyboard.settings.screens.createPreferencesSettings
+import helium314.keyboard.settings.screens.createPrivacySettings
 import helium314.keyboard.settings.screens.createToolbarSettings
 
 class SettingsContainer(context: Context) {
@@ -66,7 +67,7 @@ class Setting(
 
 // intentionally not putting individual debug settings in here so user knows the context
 private fun createSettings(context: Context) = createTaenSettings(context) + createAboutSettings(context) + createAppearanceSettings(context) +
-        createCorrectionSettings(context) + createPreferencesSettings(context) + createToolbarSettings(context) +
+        createCorrectionSettings(context) + createPrivacySettings(context) + createPreferencesSettings(context) + createToolbarSettings(context) +
         createLayoutSettings(context) + createAdvancedSettings(context) +
         if (JniUtils.sHaveGestureLib) createGestureTypingSettings(context) else emptyList()
 
@@ -96,6 +97,9 @@ object SettingsWithoutKey {
     const val APP_LOCK = "app_lock"
     const val EDIT_PERSONAL_DICTIONARY = "edit_personal_dictionary"
     const val CLEAR_APP_LANGUAGES = "clear_app_languages"
+    const val LEARNED_WORDS = "learned_words"
+    const val FORGET_LEARNED_DATA = "forget_learned_data"
+    const val CLEAR_PERSONAL_DICTIONARY = "clear_personal_dictionary"
     const val APP = "app"
     const val VERSION = "version"
     const val LICENSE = "license"

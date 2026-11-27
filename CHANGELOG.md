@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.0.6
+
+- Renamed: "Personalized suggestions" (Text correction) is now "Learn from my typing" and sits in Settings > Privacy > Learning. It is still on by
+  default and still switches learning on and off.
+- New: "Learned words" shows the words Taen has learned, per language. Remove a word, and restore it from the removed words.
+- New: "Forget learned data" deletes the learned and the removed words of every language at once. Your personal dictionary is kept; the new "Clear
+  personal dictionary" empties it.
+- The words you remove from the suggestions are now stored encrypted, like the learned words. The plain list of earlier versions is moved in.
+- Stricter when something cannot be read: if Taen cannot read its settings or its list of apps without learning (a storage or key error), it treats every
+  field as private and learns nothing until it can read them again; a lock state that cannot be read counts as locked.
+
+Details of the learning controls:
+
+- The learned-words list is part of the settings: the app lock guards it and it cannot be captured on screen. While the phone is locked it shows nothing
+  and nothing can be removed, restored or deleted.
+- Nothing is learned in password, no-learning or incognito fields or while the phone is locked, as before. Adding often typed words to the personal
+  dictionary stays off by default.
+- The plain list of removed words of an earlier version is moved into the encrypted store at the first unlock after the update: the encrypted copy is
+  written and read back first, and the plain file is deleted only then. An older backup that has it is imported into the encrypted store too.
+
 ## 2.0.5
 
 - New: while you press a key on the toolbar or a pinned key, a small label above it shows the key's name and what a long press does, for example "Copy ·

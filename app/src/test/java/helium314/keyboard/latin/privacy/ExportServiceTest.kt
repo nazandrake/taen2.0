@@ -29,7 +29,8 @@ class ExportServiceTest {
     private val canary = "TAENcanary-Qx93"
     private val passphrase = "correct horse battery".toCharArray()
     private val fast = ExportCodec.Kdf(64, 3, 1)
-    private val accept: (String) -> Boolean = { it.startsWith("layouts/") || it.startsWith("blacklists/") || it == "custom_font" }
+    // the removed words (the blacklist) are an encrypted store now, not a file of the export (BackupRestorePreference's patterns)
+    private val accept: (String) -> Boolean = { it.startsWith("layouts/") || it == "custom_font" }
 
     @Before fun before() = Privacy.forgetCachedState()
     @After fun after() = Privacy.forgetCachedState()
@@ -44,8 +45,7 @@ class ExportServiceTest {
         assertTrue(learned("en-US").save(("learned-$variant-$canary").toByteArray() + ByteArray(40)))
         File(ctx.filesDir, "layouts").mkdirs()
         File(ctx.filesDir, "layouts/custom.$variant.json").writeText("layout $variant")
-        File(ctx.filesDir, "blacklists").mkdirs()
-        File(ctx.filesDir, "blacklists/en.txt").writeText("blocked-$variant")
+        assertTrue(Privacy.removedWords(ctx, "en").replace(setOf("blocked-$canary-$variant")))
         File(DeviceProtectedUtils.getFilesDir(ctx), "custom_font").writeText("font $variant")
     }
 
@@ -54,6 +54,7 @@ class ExportServiceTest {
         "ce" to ctx.protectedPrefs().all.toMap(),
         "personal" to assertNotNull(Privacy.personalDictionary(ctx)).all(),
         "learned" to Privacy.readAllLearned(ctx).mapValues { it.value.toList() },
+        "removed" to Privacy.readAllRemovedWords(ctx),
         "files" to fileDirs().map { d -> FileSet.read(d, accept).mapValues { it.value.toList() } },
     )
 
@@ -124,6 +125,7 @@ class ExportServiceTest {
         val parts = ExportService.collect(ctx, accept)
         assertTrue(parts.prefsCe!!.values.any { it.toString().contains(canary) }) // positive control: the canary is in the exported data
         assertTrue(parts.learned.values.any { it.indexOfSub(canary.toByteArray()) >= 0 })
+        assertEquals(setOf("blocked-$canary-one"), parts.removedWords["en"]) // the removed words are exported, encrypted with the rest
         val file = ExportCodec.encrypt(passphrase, ExportBundle.pack(parts), fast)
         for (e in encodings(canary)) assertEquals(-1, file.indexOfSub(e))
         val dirs = listOf(ctx.dataDir, DeviceProtectedUtils.getFilesDir(ctx).parentFile!!).distinct()
@@ -200,5 +202,20 @@ class ExportServiceTest {
         ExportService.applyImport(ctx, ExportParts(parts.prefsDe, ce, parts.personal, parts.learned, parts.files, parts.protectedFiles), accept) {}
         assertNull(AppLanguageMemory.recall(ctx.protectedPrefs(), "org.example.x"), "incognito app X must have no remembered language right after the import")
         assertEquals("en_US", AppLanguageMemory.recall(ctx.protectedPrefs(), "org.example.y")) // control: the other app kept its language
+    }
+
+    @Test fun theRemovedWordsComeBackWithAnImportAndThePlainFilesOfAnOlderExportBecomeTheStore() {
+        fill("one")
+        val file = ExportCodec.encrypt(passphrase, ExportBundle.pack(ExportService.collect(ctx, accept)), fast)
+        assertTrue(Privacy.removedWords(ctx, "en").replace(setOf("other")))
+        assertTrue(Privacy.removedWords(ctx, "bg").add("Жщ")) // a language that is not in the export
+        ExportService.apply(ctx, ExportBundle.unpack(ExportCodec.decrypt(passphrase, file)), accept)
+        assertEquals(mapOf("en" to setOf("blocked-$canary-one")), Privacy.readAllRemovedWords(ctx)) // replaced as a whole, like the learned words
+        // an export of an earlier version carried them as plain files; an import keeps them only in the store
+        val old = ExportParts(null, null, null, emptyMap(), mapOf("blacklists/de.txt" to "Quatsch\nUnsinn\n".toByteArray()), emptyMap())
+        ExportService.apply(ctx, ExportBundle.unpack(ExportBundle.pack(old)), accept)
+        assertEquals(mapOf("de" to setOf("Quatsch", "Unsinn")), Privacy.readAllRemovedWords(ctx))
+        assertFalse(File(ctx.filesDir, "blacklists").exists())
+        assertEquals(emptyList(), filesContaining(ctx.dataDir, "Quatsch"))
     }
 }

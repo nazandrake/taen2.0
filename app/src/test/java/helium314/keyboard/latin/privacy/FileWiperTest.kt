@@ -14,7 +14,7 @@ class FileWiperTest {
     private val de = tempDir()
 
     // every kind of file the app keeps, by data directory and wipe scope
-    private val learned = listOf("no_backup/taen/learned_en-US.enc", "no_backup/taen/learned_bg.enc.tmp", "no_backup/taen/snippets.enc", "files/blacklists/en-US.txt", "files/UserHistoryDictionary.en.dict")
+    private val learned = listOf("no_backup/taen/learned_en-US.enc", "no_backup/taen/learned_bg.enc.tmp", "no_backup/taen/snippets.enc", "no_backup/taen/blacklist_en-US.enc", "no_backup/taen/blacklist_bg.enc.tmp", "files/blacklists/en-US.txt", "files/UserHistoryDictionary.en.dict")
     private val clipboard = listOf("no_backup/taen/clipboard.enc", "databases/heliboard.db", "files/clipboard/clip1.png", "files/temp_clip")
     private val settings = listOf("no_backup/taen/prefs_ce.enc", "no_backup/taen/prefs_de.enc", "no_backup/taen/background_day_portrait.enc", "no_backup/taen/unknown_future_store.enc",
         "shared_prefs/old.xml", "files/layouts/custom.main.json", "files/custom_font", "files/theme/x.json", "no_backup/other.bin")

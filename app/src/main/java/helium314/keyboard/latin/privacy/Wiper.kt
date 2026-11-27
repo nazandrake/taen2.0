@@ -227,7 +227,8 @@ class FileWiper(private val ce: File?, private val de: File?) {
     private fun storeCategory(name: String): Category = when {
         name == Wiper.PENDING_NAME -> Category.NEVER
         name.startsWith("dek_") -> Category.KEYS
-        name.startsWith("learned_") || name.startsWith("snippets.enc") -> Category.LEARNED
+        // the learned words, the words removed from the suggestions (blacklist_<tag>) and the personal dictionary
+        name.startsWith("learned_") || name.startsWith("blacklist_") || name.startsWith("snippets.enc") -> Category.LEARNED
         name.startsWith("clipboard.enc") -> Category.CLIPBOARD
         name.startsWith("security.enc") || name.startsWith("selfdestruct.enc") -> Category.CONFIG
         // the imported pictures (media_<id>.enc and media_index.enc). Listed on its own, not left to the else-branch: a new store name falls to SETTINGS.

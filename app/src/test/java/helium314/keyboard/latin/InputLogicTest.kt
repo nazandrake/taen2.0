@@ -766,6 +766,33 @@ class InputLogicTest {
         assertEquals(listOf(false, false), ShadowFacilitator2.mayPromote)
     }
 
+    @Test fun `nothing is learned in a password, no-learning, incognito or locked field`() {
+        val privacy = helium314.keyboard.latin.privacy.Privacy
+        typeAndCommit("hello", Constants.CODE_SPACE) // positive control: the same keys learn in a normal field
+        assertEquals("hello", lastAddedWord)
+        val states = listOf<Pair<String, () -> Unit>>(
+            "password field" to { setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD) },
+            "no-learning field" to { ShadowInputMethodService.currentImeOptions = android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING; setText("") },
+            "force incognito" to { latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }; setText("") },
+            "locked" to { privacy.lock(latinIME); setText("") },
+        )
+        try {
+            for ((name, enter) in states) {
+                reset()
+                privacy.unlock(latinIME)
+                enter()
+                lastAddedWord = ""
+                val before = ShadowFacilitator2.added.size
+                typeAndCommit("hello", Constants.CODE_SPACE)
+                typeAndCommit("world")
+                assertEquals("", lastAddedWord, name)
+                assertEquals(before, ShadowFacilitator2.added.size, name)
+            }
+        } finally {
+            privacy.unlock(latinIME)
+        }
+    }
+
     @Test fun `a reverted autocorrect is not learned in incognito mode`() {
         setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT)
         latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }

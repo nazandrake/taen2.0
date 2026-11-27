@@ -28,6 +28,7 @@ import helium314.keyboard.latin.gesture.GlideSuggester
 import helium314.keyboard.latin.privacy.PersonalDictionary
 import helium314.keyboard.latin.privacy.PersonalWord
 import helium314.keyboard.latin.privacy.Privacy
+import helium314.keyboard.latin.privacy.RemovedWords
 import helium314.keyboard.latin.personalization.UserHistoryDictionary
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
@@ -43,7 +44,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
-import java.io.IOException
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
@@ -812,56 +812,22 @@ private class DictionaryGroup(
 
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    // words cannot be (permanently) removed from some dictionaries, so we use a blacklist for "removing" words
-    private val blacklistFile = if (context?.filesDir == null) null
-    else {
-        val file = File(context.filesDir.absolutePath + File.separator + "blacklists" + File.separator + locale.toLanguageTag() + ".txt")
-        if (file.isDirectory) file.delete() // this apparently was an issue in some versions
-        if (file.parentFile?.exists() == true || file.parentFile?.mkdirs() == true) file
-        else null
-    }
+    // Words cannot be (permanently) removed from some dictionaries, so a list of removed words hides them. It is the encrypted store of the
+    // language (Privacy.removedWords, P7): one object per language shared with the settings, which list and restore the words.
+    private val removedWords: RemovedWords? = context?.let { Privacy.removedWords(it, locale.toLanguageTag()) }
 
-    private val blacklist = hashSetOf<String>().apply {
-        if (blacklistFile?.isFile != true) return@apply
-        scope.launch {
-            synchronized(this) {
-                try {
-                    addAll(blacklistFile.readLines())
-                } catch (e: IOException) {
-                    Log.e(TAG, "Exception while trying to read blacklist from")
-                }
-            }
-        }
-    }
-
-    fun isBlacklisted(word: String) = blacklist.contains(word)
+    fun isBlacklisted(word: String) = removedWords?.contains(word) == true
 
     fun addToBlacklist(word: String) {
-        if (!blacklist.add(word) || blacklistFile == null) return
-        scope.launch {
-            synchronized(this) {
-                try {
-                    if (blacklistFile.isDirectory) blacklistFile.delete()
-                    blacklistFile.appendText("$word\n")
-                } catch (e: IOException) {
-                    Log.e(TAG, "Exception while trying to add a word to blacklist")
-                }
-            }
-        }
+        val removed = removedWords ?: return
+        removed.hideNow(word) // the strip stops showing it at once; stored in the background (refused while the store is locked)
+        scope.launch { removed.add(word) }
     }
 
     fun removeFromBlacklist(word: String) {
-        if (!blacklist.remove(word) || blacklistFile == null) return
-        scope.launch {
-            synchronized(this) {
-                try {
-                    val newLines = blacklistFile.readLines().filterNot { it == word }
-                    blacklistFile.writeText(newLines.joinToString("\n"))
-                } catch (e: IOException) {
-                    Log.e(TAG, "Exception while trying to remove a word from blacklist")
-                }
-            }
-        }
+        val removed = removedWords ?: return
+        if (!removed.contains(word)) return
+        scope.launch { removed.remove(word) }
     }
 
     // --------------- Dictionary handling -------------------

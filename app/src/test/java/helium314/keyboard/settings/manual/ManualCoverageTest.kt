@@ -18,6 +18,7 @@ import helium314.keyboard.settings.screens.createCorrectionSettings
 import helium314.keyboard.settings.screens.createGestureTypingSettings
 import helium314.keyboard.settings.screens.createLayoutSettings
 import helium314.keyboard.settings.screens.createPreferencesSettings
+import helium314.keyboard.settings.screens.createPrivacySettings
 import helium314.keyboard.settings.screens.createToolbarSettings
 import java.io.File
 import java.util.Locale
@@ -254,12 +255,12 @@ class ManualCoverageTest {
 
     @Test fun theTitleOfAnEntryIsTheTitleThatTheScreenGivesTheSameKey() {
         val screens: List<Setting> = createAboutSettings(ctx) + createAdvancedSettings(ctx) + createAppearanceSettings(ctx) + createCorrectionSettings(ctx) +
-            createGestureTypingSettings(ctx) + createLayoutSettings(ctx) + createPreferencesSettings(ctx) + createToolbarSettings(ctx)
+            createGestureTypingSettings(ctx) + createLayoutSettings(ctx) + createPreferencesSettings(ctx) + createToolbarSettings(ctx) + createPrivacySettings(ctx)
         var compared = 0
         for (locale in listOf(Locale.ENGLISH, Locale("bg"))) {
             val c = localized(locale)
             val ofLocale: List<Setting> = createAboutSettings(c) + createAdvancedSettings(c) + createAppearanceSettings(c) + createCorrectionSettings(c) +
-                createGestureTypingSettings(c) + createLayoutSettings(c) + createPreferencesSettings(c) + createToolbarSettings(c)
+                createGestureTypingSettings(c) + createLayoutSettings(c) + createPreferencesSettings(c) + createToolbarSettings(c) + createPrivacySettings(c)
             for (setting in ofLocale) {
                 val t = ManualTitles[setting.key] ?: continue
                 compared++

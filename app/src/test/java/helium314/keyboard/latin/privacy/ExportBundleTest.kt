@@ -27,6 +27,7 @@ class ExportBundleTest {
         learned = mapOf("en-US" to byteArrayOf(1, 2, 3), "bg-BG" to ByteArray(300) { it.toByte() }),
         files = mapOf("layouts/custom.qwerty.json" to "{\"a\":1}".toByteArray(), "custom_font" to byteArrayOf(9, 9)),
         protectedFiles = mapOf("custom_emoji_font" to byteArrayOf(7)),
+        removedWords = mapOf("en-US" to setOf("zork", "Quibble"), "bg" to setOf("Жщ")),
     )
 
     private fun assertSame(a: ExportParts, b: ExportParts) {
@@ -39,6 +40,7 @@ class ExportBundleTest {
         a.files.forEach { (k, v) -> assertContentEquals(v, b.files[k], k) }
         assertEquals(a.protectedFiles.keys, b.protectedFiles.keys)
         a.protectedFiles.forEach { (k, v) -> assertContentEquals(v, b.protectedFiles[k], k) }
+        assertEquals(a.removedWords, b.removedWords)
     }
 
     // ---- core behaviour -------------------------------------------------------------------------------
@@ -105,5 +107,21 @@ class ExportBundleTest {
         val back = ExportBundle.unpack(zip(version, "something/else" to byteArrayOf(1), "/files/evil" to byteArrayOf(3), "files/x" to byteArrayOf(2)))
         assertEquals(setOf("x"), back.files.keys)
         assertEquals(emptyMap(), back.protectedFiles)
+    }
+
+    // ---- the removed words ----
+
+    @Test fun thePlainRemovedWordFilesOfAnEarlierExportBecomeRemovedWords() {
+        val parts = ExportBundle.unpack(zip(version, "files/blacklists/en-US.txt" to "zork\nQuibble\n\n${"x".repeat(49)}\n".toByteArray(),
+            "removed/en-US.bin" to RemovedWordsCodec.encode(listOf("stored")), "files/layouts/custom.a.json" to byteArrayOf(1)))
+        assertEquals(mapOf("en-US" to setOf("stored", "zork", "Quibble")), parts.removedWords) // empty and over-long lines are no words
+        assertEquals(setOf("layouts/custom.a.json"), parts.files.keys) // the plain file is not handed on as a file
+    }
+
+    @Test fun badOrDamagedRemovedWordEntriesAreRejected() {
+        for (name in listOf("removed/../x.bin", "removed/en US.bin", "removed/en.txt", "files/blacklists/a b.txt"))
+            assertFailsWith<ExportException>(name) { ExportBundle.unpack(zip(version, name to RemovedWordsCodec.encode(listOf("w")))) }
+        assertFailsWith<ExportException> { ExportBundle.unpack(zip(version, "removed/en.bin" to byteArrayOf(0, 0, 0, 7))) }
+        assertEquals(mapOf("en" to setOf("w")), ExportBundle.unpack(zip(version, "removed/en.bin" to RemovedWordsCodec.encode(listOf("w")))).removedWords) // control
     }
 }

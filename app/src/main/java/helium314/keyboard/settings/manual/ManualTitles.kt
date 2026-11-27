@@ -155,6 +155,9 @@ object ManualTitles {
         // the Taen screens: their switches are drawn by the screen itself, not registered in SettingsContainer
         "incognito_apps" to ManualTitle(R.string.incognito_apps_title), // named by text: the P9 rule lets only the privacy code mention the constant (ManualCoverageTest keeps the two equal)
         Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS to ManualTitle(R.string.clipboard_in_secure_fields_title),
+        SettingsWithoutKey.LEARNED_WORDS to ManualTitle(R.string.learned_words_title),
+        SettingsWithoutKey.FORGET_LEARNED_DATA to ManualTitle(R.string.forget_learned_title),
+        SettingsWithoutKey.CLEAR_PERSONAL_DICTIONARY to ManualTitle(R.string.clear_personal_title),
         Settings.PREF_SECURE_KEYBOARD_WINDOW to ManualTitle(R.string.secure_keyboard_window_title),
         Settings.PREF_A11Y_WARNING to ManualTitle(R.string.a11y_warning_title),
         Settings.PREF_OVERLAY_MODE to ManualTitle(R.string.overlay_mode_title),

@@ -43,6 +43,15 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   (`learned_<tag>.enc`, CE tier). `LearnedStorage` owns the rules: nothing is loaded, saved or learned while locked; a damaged store
   means the words are lost. The native flush, open and migrate calls are allowed in `BinaryDictionary.java` only.
   Tests: `LearnedStorageTest`, `make native-test`.
+- **P7 Removed words and the learning controls.** The words removed from the suggestions are one AES-GCM store per language
+  (`blacklist_<tag>.enc`, CE tier, `Privacy.removedWords`, `RemovedWordsStorage` owns the rules: nothing read, written or moved while locked; a change
+  that cannot be stored is refused; at most 10 000 words of 48 characters). The plain `files/blacklists/<tag>.txt` of earlier versions is deleted only
+  after its words were written and read back equal; a damaged or unreadable store never deletes it. Only `Privacy.kt` names that folder (SourceRules).
+  Settings > Privacy > Learning (`LearnedWords`): the switch is `PREF_KEY_USE_PERSONALIZED_DICTS`; the learned-words list is a settings page (app lock,
+  FLAG_SECURE) that reads nothing and changes nothing while locked; Forget learned data deletes the learned and removed words of every language and
+  keeps the personal dictionary. Wipe: LEARNED; export: `removed/<tag>.bin`. Tests: `RemovedWordsTest`, `LearnedWordsTest`, `LearnedWordListTest`,
+  `CanaryAtRestTest`, `ExportBundleTest`, `ExportServiceTest`, `FileWiperTest`, `InputLogicTest` (nothing learned in password, no-learning, incognito or
+  locked fields).
 - **P7 Screen lock.** `Privacy.lock` (screen off, from the receiver in `LatinIME` through `ScreenLockPolicy`) stops opening the tier,
   writes a queued preference edit, wipes the CE preferences, personal dictionary and registered copies (clipboard history) from memory,
   then forgets the data key; learned words are saved first. A later edit is refused, never kept only in memory. `Privacy.unlock`

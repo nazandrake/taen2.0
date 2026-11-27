@@ -139,9 +139,11 @@ class SecureStore(
         }
     }
 
-    fun delete() = synchronized(lock) {
+    /** Deletes the store and its temporary file; false when either is still there afterwards. */
+    fun delete(): Boolean = synchronized(lock) {
         file.delete()
         tmp.delete()
+        !file.exists() && !tmp.exists()
     }
 
     /** A 256-bit key that is not all zeros: a wiped key (never a real one) must neither decrypt nor encrypt, so it can never delete or write a store. */
