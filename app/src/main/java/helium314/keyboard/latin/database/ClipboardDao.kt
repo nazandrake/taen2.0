@@ -8,6 +8,8 @@ import helium314.keyboard.latin.privacy.ClipboardHistory
 import helium314.keyboard.latin.privacy.ClipboardLimits
 import helium314.keyboard.latin.privacy.Privacy
 import helium314.keyboard.latin.privacy.SecureStore
+import helium314.keyboard.latin.privacy.isReadable
+import helium314.keyboard.latin.profiles.ProfileKeys
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.Log
@@ -110,8 +112,13 @@ class ClipboardDao private constructor(private val history: ClipboardHistory) {
             return instance
         }
 
-        private fun limitsFrom(context: Context): ClipboardLimits {
+        internal fun limitsFrom(context: Context): ClipboardLimits {
             val prefs = context.prefs()
+            // unreadable settings give the defaults, which are looser than a stored choice (5 minutes would become 60): take the strictest values (fail closed)
+            if (!prefs.isReadable()) return ClipboardLimits.of(
+                ProfileKeys.strictValue(Settings.PREF_CLIPBOARD_HISTORY_RETENTION_TIME) as Int,
+                ProfileKeys.strictValue(Settings.PREF_CLIPBOARD_HISTORY_MAX_ITEMS) as Int,
+            )
             return ClipboardLimits.of(
                 prefs.getInt(Settings.PREF_CLIPBOARD_HISTORY_RETENTION_TIME, Defaults.PREF_CLIPBOARD_HISTORY_RETENTION_TIME),
                 prefs.getInt(Settings.PREF_CLIPBOARD_HISTORY_MAX_ITEMS, Defaults.PREF_CLIPBOARD_HISTORY_MAX_ITEMS),

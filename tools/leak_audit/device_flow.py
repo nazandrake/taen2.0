@@ -73,20 +73,58 @@ def network_check(run, base_all, final_all, pkgs, label="D1"):
         details.append("%s uid %s: rx/tx bytes before %s after %s" % (pkg, uid, b, f))
         if f != (0, 0) or b != (0, 0):
             problems.append("%s (uid %s) has network traffic: before %s after %s" % (pkg, uid, b, f))
-        status = ""
-        for pid in d.sh("pidof %s" % pkg).split():
-            status = d.sh("cat /proc/%s/status" % pid)
-            problems += ["%s pid %s: %s" % (pkg, pid, p) for p in dc.check_no_inet_group(status)]
-            details.append("%s pid %s Groups: %s" % (pkg, pid, sorted(dc.gids_of(status) or [])))
-    rx = [r for r in d.sh("cat /proc/net/tcp /proc/net/tcp6 /proc/net/udp /proc/net/udp6").splitlines()]
-    for pkg in pkgs:
-        rows = dc.socket_rows_for_uid("\n".join(rx), netstats.uid_of(d, pkg))
-        if rows:
-            problems.append("%s owns %d socket row(s) in /proc/net/*" % (pkg, len(rows)))
-    details.append("/proc/net/{tcp,tcp6,udp,udp6}: %d rows readable, none owned by the Taen uid(s)" % len(rx))
+    p, det = process_socket_problems(run, pkgs)
+    problems += p
+    details += det
     details.append("no root: tcpdump and iptables counters are not available; per-UID platform counters, process groups and /proc/net rows are the evidence (positive control below)")
     return verdict(label, "No network: per-UID traffic zero across the session, no inet group, no socket rows", problems,
                    "traffic 0 bytes for %s over the whole session; the processes lack group 3003 (inet), so socket() is refused by the kernel" % ", ".join(pkgs), details)
+
+
+PROC_NET = "cat /proc/net/tcp /proc/net/tcp6 /proc/net/udp /proc/net/udp6"
+
+
+def process_socket_problems(run, pkgs):
+    """The processes of [pkgs] hold no inet group (so the kernel refuses socket()) and own no row of /proc/net/{tcp,tcp6,udp,udp6}. Reads only: nothing
+    is switched off, so it also runs over adb on Wi-Fi. A package with no running process is a problem (the check would see nothing)."""
+    d = run.dev
+    problems, details = [], []
+    for pkg in pkgs:
+        pids = d.sh("pidof %s" % pkg).split()
+        if not pids:
+            problems.append("%s has no running process: its groups cannot be read" % pkg)
+        for pid in pids:
+            status = d.sh("cat /proc/%s/status" % pid)
+            problems += ["%s pid %s: %s" % (pkg, pid, p) for p in dc.check_no_inet_group(status)]
+            details.append("%s pid %s Groups: %s" % (pkg, pid, sorted(dc.gids_of(status) or [])))
+    rx = d.sh(PROC_NET).splitlines()
+    for pkg in pkgs:
+        uid = netstats.uid_of(d, pkg)
+        if uid is None:  # no uid, no rows to match: the check would pass for the wrong reason
+            problems.append("%s: its uid cannot be read, so its socket rows cannot be told apart" % pkg)
+            continue
+        rows = dc.socket_rows_for_uid("\n".join(rx), uid)
+        if rows:
+            problems.append("%s owns %d socket row(s) in /proc/net/*" % (pkg, len(rows)))
+    details.append("/proc/net/{tcp,tcp6,udp,udp6}: %d rows readable, none owned by the Taen uid(s)" % len(rx))
+    return problems, details
+
+
+def process_network_check(run, pkgs, label="D1s"):
+    """D1s/D1sr: the process half of D1 (inet group, socket rows), which needs no Wi-Fi toggle; over Wi-Fi it runs while the counters (D1) are a GAP."""
+    problems, details = process_socket_problems(run, pkgs)
+    return verdict(label, "No inet group, no socket rows", problems,
+                   "%s: no process holds group 3003 (inet), so socket() is refused by the kernel; no socket row in /proc/net" % ", ".join(pkgs), details)
+
+
+def process_network_control(run):
+    """T-D1s: the same two readers flag the shell: it holds the inet group, and over adb on Wi-Fi adbd (uid 2000) owns the TCP socket of the session."""
+    d = run.dev
+    grp = dc.check_no_inet_group(d.sh("cat /proc/self/status"))
+    rows = dc.socket_rows_for_uid(d.sh(PROC_NET), 2000)
+    ok = bool(grp) and bool(rows)
+    return Result("T-D1s", "D1s can fail: the same group test flags the shell, the same row reader finds the socket of the adb session", PASS if ok else FAIL,
+                  "group test on the shell: %s; socket rows of uid 2000: %d" % ("flagged (holds 3003)" if grp else "NOT FLAGGED", len(rows)))
 
 
 def network_control(run):
@@ -109,6 +147,8 @@ def log_check(run, text, label="D2"):
     hits, scanned = dc.scan_log(text, CANARIES)
     activity = len([1 for l in text.splitlines() if run.pkg in l])
     problems = ["canary %s (%s) in logcat: %s" % (k, CANARIES[k], v[0]) for k, v in hits.items()]
+    if run.log_ended and not problems:  # a clean scan of a part of the session says nothing about the rest: name the gap, do not pass it (a hit in the part is still a FAIL)
+        return Result(label, "logcat has no canary (typed text, clipboard, passphrase, trigger word)", GAP, "not the whole session: " + run.log_ended), text
     if activity == 0:
         problems.append("logcat holds no line that mentions %s: the capture may have missed the session" % run.pkg)
     return verdict(label, "logcat has no canary (typed text, clipboard, passphrase, trigger word)", problems,
@@ -282,6 +322,59 @@ def toasts_since(run, mark, needle):
     return [l for l in helper_log(run)[mark:] if "class=android.widget.Toast" in l and needle in l]
 
 
+STATUS_SCROLLS = 4  # a bound: the Status section is the last on the screen and has three lines (PrivacyScreen.kt), so one swipe of 800 px shows them
+
+
+def privacy_status_texts(run, lines):
+    """The texts on the Privacy screen at its Status section. `lines` are the status lines the caller needs (substrings).
+    The "Status" heading stops near the bottom edge after the scroll and the lines under it can still be off screen, where a dump does not list
+    them: scroll on until one of `lines` is shown, or the list ends / the tries are used up (the last dump is returned, so a missing line is
+    a FAIL with the real screen as its evidence)."""
+    d = run.dev
+    run.settings_home()
+    run.open_section("Privacy")
+    time.sleep(1)
+    run.scroll_to("Status", tries=6)
+    texts = d.texts()
+    for _ in range(STATUS_SCROLLS):
+        if any(line in t for line in lines for t in texts):
+            break
+        d.scroll_down()
+        time.sleep(0.9)  # let the list stop moving: a dump during a fling shows the rows of the previous position
+        texts = d.texts()
+    return texts
+
+
+OVERLAY_TRIES = 8  # starts of the overlay window; Android marks about 30% of them trusted (measured), so eight in a row are about 1 in 15000
+OVERLAY_POLLS = 6  # looks at `dumpsys input` (1 s apart) for the window of one start
+
+
+def overlay_trust(dump):
+    """"trusted", "untrusted" or "absent" for the helper's overlay window in `dumpsys input`. Android decides it when the window is created: a trusted
+    overlay does not set the obscured flag of the touches under it, so the keyboard has nothing to warn about. Any trusted helper window counts as trusted."""
+    found = re.findall(r"Sys2038:%s[^\n]*?trustedOverlay=(\w+)" % re.escape(HELPER), dump)
+    if not found:
+        return "absent"
+    return "trusted" if "true" in found else "untrusted"
+
+
+def add_untrusted_overlay(run):
+    """Starts the helper with its overlay window until Android shows it as an untrusted one (the check taps under it); returns the number of starts
+    it took, or None when no start gave one."""
+    for start in range(1, OVERLAY_TRIES + 1):
+        run.field("normal", overlay=True)
+        time.sleep(1)
+        state = "absent"
+        for _ in range(OVERLAY_POLLS):
+            state = overlay_trust(run.dev.sh("dumpsys input"))
+            if state != "absent":
+                break
+            time.sleep(1)
+        if state == "untrusted":
+            return start
+    return None
+
+
 def a11y_and_overlay(run):
     """UiAutomation (uiautomator dumps) cannot see toasts, so the helper's own accessibility service reports them; its events are the evidence."""
     d = run.dev
@@ -291,16 +384,9 @@ def a11y_and_overlay(run):
     some_prefix = strings_value(run.root, "privacy_status_a11y_some").split("%")[0]
     none_line = strings_value(run.root, "privacy_status_a11y_none")
 
-    def privacy_status():
-        run.settings_home()
-        run.open_section("Privacy")
-        time.sleep(1)
-        run.scroll_to("Status", tries=6)
-        return d.texts()
-
     d.sh("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0")
     time.sleep(2)
-    base_status = privacy_status()
+    base_status = privacy_status_texts(run, (none_line, some_prefix))
     base_ok = any(none_line in t for t in base_status) and not any(some_prefix in t for t in base_status)
     out.append(Result("T-D7", "D7 can fail: with no accessibility service on the status line says none and does not list a service", PASS if base_ok else FAIL,
                       "status none line shown: %s; service line shown: %s" % (any(none_line in t for t in base_status), any(some_prefix in t for t in base_status))))
@@ -316,7 +402,7 @@ def a11y_and_overlay(run):
     run.field("normal")
     time.sleep(5)
     again = toasts_since(run, mark2, a11y_needle)
-    status = privacy_status()
+    status = privacy_status_texts(run, (none_line, some_prefix))
     status_some = [t for t in status if some_prefix in t]
     problems = []
     if not seen:
@@ -337,7 +423,17 @@ def a11y_and_overlay(run):
     ev = [l for l in helper_log(run)[mark3:] if "a11y" in l and ("abc" in l or "xyz" in l or "\u2022" in l)]
     out.append(Result("D7i", "What an enabled reading service sees of typing (limitation, PRIVACY.md 'What a keyboard cannot protect against')", INFO,
                       "%d event line(s) with typed text from the helper's log" % len(ev), [l[-150:] for l in ev[:8]]))
-    # overlay: first without an overlay (control), then with the helper's touch-through window over the keyboard
+    out += overlay_warning_checks(run, overlay_needle)
+    d.sh("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0")
+    d.sh("am force-stop %s" % HELPER)
+    return out
+
+
+def overlay_warning_checks(run, overlay_needle):
+    """D7o: first without an overlay (control), then with the helper's touch-through window over the keyboard. A warning without any overlay is a FAIL
+    of its own row (D7o-c) even when no untrusted overlay could be had and D7o itself is a GAP."""
+    d = run.dev
+    out = []
     d.sh("appops set %s SYSTEM_ALERT_WINDOW allow" % HELPER)
     run.field("normal")
     time.sleep(3)  # the first tap right after a uiautomator dump can be lost: wait, then tap three times
@@ -347,28 +443,39 @@ def a11y_and_overlay(run):
         time.sleep(1.5)
     time.sleep(3)
     none = toasts_since(run, mark4, overlay_needle)
-    run.field("normal", overlay=True)
-    time.sleep(1)
+    typed = [l for l in helper_log(run)[mark4:] if "a11y type=16 " in l and "class=android.widget.EditText" in l]  # TYPE_VIEW_TEXT_CHANGED
+    starts = add_untrusted_overlay(run)
     time.sleep(3)
-    mark5 = len(helper_log(run))
-    for _ in range(3):
-        d.tap(900, 1660)  # outside the overlay's corner
-        time.sleep(1.5)
-    time.sleep(3)
-    seen2 = toasts_since(run, mark5, overlay_needle)
-    added = any("overlay added" in l for l in helper_log(run))
-    problems = []
-    if none:
-        problems.append("overlay warning without any overlay (control)")
-    if not added:
-        problems.append("the helper's overlay window was not added (appop?)")
-    if not seen2:
-        problems.append("no overlay warning toast after a tap on the covered keyboard")
-    out.append(verdict("D7o", "Overlay warning: a tap on a keyboard covered by another window shows the warning, a tap without an overlay does not", problems,
-                       "overlay over a keyboard corner (300x150 px): toast %r; without the overlay: no toast" % (seen2[0].split("text=")[-1][:70] if seen2 else None),
-                       ["with overlay: %s" % [l[-120:] for l in seen2[:1]], "control (no overlay): %s" % none[:1]]))
-    d.sh("settings put secure enabled_accessibility_services ''; settings put secure accessibility_enabled 0")
-    d.sh("am force-stop %s" % HELPER)
+    if starts is None:
+        out.append(Result("D7o", "Overlay warning: a tap on a keyboard covered by another window shows the warning, a tap without an overlay does not", GAP,
+                          "not run: Android marked the helper's overlay window trusted (or showed none) in all %d starts; a touch under a trusted window carries no obscured flag, so there is nothing to warn about" % OVERLAY_TRIES,
+                          ["control (no overlay): %s" % none[:1]]))
+        title = "Overlay warning control: a tap on the keyboard with no overlay shows no warning"
+        if none:
+            out.append(verdict("D7o-c", title, ["overlay warning without any overlay (control): %s" % none[:1]], ""))
+        elif not typed:
+            # positive control: "no warning" says something only when the taps reached the keyboard (a key tap types into the helper's field)
+            out.append(Result("D7o-c", title, GAP, "no warning toast, but the three taps did not reach the keyboard (no text change in the helper's field), so the absence proves nothing", []))
+        else:
+            out.append(verdict("D7o-c", title, [], "three taps on the keyboard with no overlay window typed %d change(s) into the field: no warning toast" % len(typed)))
+    else:
+        mark5 = len(helper_log(run))
+        for _ in range(3):
+            d.tap(900, 1660)  # outside the overlay's corner
+            time.sleep(1.5)
+        time.sleep(3)
+        seen2 = toasts_since(run, mark5, overlay_needle)
+        added = any("overlay added" in l for l in helper_log(run))
+        problems = []
+        if none:
+            problems.append("overlay warning without any overlay (control)")
+        if not added:
+            problems.append("the helper's overlay window was not added (appop?)")
+        if not seen2:
+            problems.append("no overlay warning toast after a tap on the covered keyboard")
+        out.append(verdict("D7o", "Overlay warning: a tap on a keyboard covered by another window shows the warning, a tap without an overlay does not", problems,
+                           "overlay over a keyboard corner (300x150 px, an untrusted window, start %d): toast %r; without the overlay: no toast" % (starts, seen2[0].split("text=")[-1][:70] if seen2 else None),
+                           ["with overlay: %s" % [l[-120:] for l in seen2[:1]], "control (no overlay): %s" % none[:1]]))
     return out
 
 

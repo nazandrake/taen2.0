@@ -47,11 +47,14 @@ class NextWordTyping(private val ime: LatinIME) {
     private var readiness = HashMap<String, NextWordGate.Readiness>()
     private val unloadAll = Runnable { unloadOnWorker() }
 
+    private val lockHook: () -> Unit = { handler.post { onLock() } }
+
     fun onCreate() {
-        Privacy.onLock(LOCK_HOOK) { handler.post { onLock() } } // screen off, and the start of a self-destruct wipe
+        Privacy.onLock(LOCK_HOOK, lockHook) // screen off, and the start of a self-destruct wipe
     }
 
     fun onDestroy() {
+        Privacy.removeOnLock(LOCK_HOOK, lockHook) // the hook holds this service: it ends with it
         handler.removeCallbacks(unloadAll)
         assist.cancel(holders.values.toList())
         unloadOnWorker()

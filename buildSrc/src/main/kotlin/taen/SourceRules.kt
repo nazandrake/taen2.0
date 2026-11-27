@@ -196,8 +196,10 @@ object SourceRules {
     // Glide typing: the gesture package reads the touch points of a gesture, scores them and drops them. It has no file or
     // network class, no logger, no storage owner, no preferences and no stream output, so a gesture can neither be kept nor sent.
     private const val GESTURE_PACKAGE = "helium314/keyboard/latin/gesture/"
+    // every writer to stdout or stderr: Kotlin print and println reach logcat through System.out (the same list as the vim package)
+    private const val CONSOLE_WRITERS = """|\bprint\b|\bPrint(?:Stream|Writer)\b|\bprintStackTrace\b|\bdumpStack\b|\bSystem\s*\.\s*(?:out|err|console|setOut|setErr)\b"""
     private val gestureForbidden = Regex(
-        """\bjava\.(?:io|nio|net)\.|\bFile\w*\b|\bLog\b|\bprintln\b|\bPrivacy\b|SharedPreferences|\bprefs\s*\(|\bSecureStore\b|\bandroid\.util\.Log\b""")
+        """\bjava\.(?:io|nio|net)\.|\bFile\w*\b|\bLog\b|\bprintln\b|\bPrivacy\b|SharedPreferences|\bprefs\s*\(|\bSecureStore\b|\bandroid\.util\.Log\b""" + CONSOLE_WRITERS)
 
     private fun gesturePackageProblems(relativePath: String, text: String): List<String> =
         if (!relativePath.startsWith(GESTURE_PACKAGE)) emptyList()
@@ -315,7 +317,8 @@ object SourceRules {
         SourceRule("taen-models", "the folder of the next-word models is named by Privacy only", setOf("helium314/keyboard/latin/privacy/Privacy.kt")),
     )
     private val nextwordNoLeaks = Regex(
-        """\bjava\.net\.|\bLog\b|\bprintln\b|\bPrivacy\b|SharedPreferences|\bprefs\s*\(|getSharedPreferences|PreferenceManager|\bSecureStore\b|\bandroid\.util\.Log\b|UserHistory|PersonalDictionary|LearnedStorage""")
+        """\bjava\.net\.|\bLog\b|\bprintln\b|\bPrivacy\b|SharedPreferences|\bprefs\s*\(|getSharedPreferences|PreferenceManager|\bSecureStore\b|\bandroid\.util\.Log\b|UserHistory|PersonalDictionary|LearnedStorage""" +
+            CONSOLE_WRITERS)
 
     private fun nextwordPackageProblems(relativePath: String, text: String): List<String> {
         if (!relativePath.startsWith(NEXTWORD_PACKAGE)) return emptyList()

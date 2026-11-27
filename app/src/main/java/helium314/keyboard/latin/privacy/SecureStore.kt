@@ -59,7 +59,7 @@ sealed interface StoreContent {
     /** No store file: nothing was saved yet. */
     object Missing : StoreContent
     class Data(val bytes: ByteArray) : StoreContent
-    /** The file was damaged (tag mismatch, broken format, unknown version, key lost for good) and has been deleted. Callers start empty. */
+    /** The file was damaged (tag mismatch, broken format, unknown version, key lost for good) and has been deleted (unless the caller asked to keep it to replace it). Callers start empty, or with their reset values. */
     object Reset : StoreContent
     /** The key is unavailable (device locked, screen locked, key file unreadable) or a transient error stopped the read. The file is untouched. */
     object Unavailable : StoreContent
@@ -69,7 +69,7 @@ sealed interface StoreContent {
  * One AES-256-GCM encrypted file `<name>.enc`. The store name and [schemaVersion] are the AAD, so a
  * file cannot be moved to another store or schema. Writes go to a temporary file that is synced and decrypted again
  * before it replaces the old file, so the old generation survives every failed write. A file that fails its integrity check
- * (authentication tag, magic, schema, length) is deleted and reported as [StoreContent.Reset]; there is no fallback to old or
+ * (authentication tag, magic, schema, length) is deleted (or, with `deleteDamaged = false`, left for the caller's replacement) and reported as [StoreContent.Reset]; there is no fallback to old or
  * plain data. Any other failure (I/O error, an unusable key) is [StoreContent.Unavailable] and deletes nothing.
  */
 class SecureStore(
@@ -88,7 +88,13 @@ class SecureStore(
 
     fun exists() = file.exists()
 
-    fun read(): StoreContent = synchronized(lock) {
+    /**
+     * [deleteDamaged] false: a damaged file is reported as [StoreContent.Reset] but stays on disk, for a caller that replaces it at once with [write]
+     * (write-new-then-atomic-rename). The file is then never missing while the replacement is not in place: a failed or interrupted write leaves the
+     * damaged file, and the next start is a reset again. The settings store uses this (EncryptedPrefs); a caller that does not replace the file
+     * deletes it, so a store of that kind never stays damaged.
+     */
+    fun read(deleteDamaged: Boolean = true): StoreContent = synchronized(lock) {
         if (!file.exists()) return@synchronized StoreContent.Missing
         val key = try { dataKey() } catch (_: Exception) { return@synchronized StoreContent.Unavailable }
         try {
@@ -104,7 +110,7 @@ class SecureStore(
                 return@synchronized StoreContent.Unavailable // cipher or provider failure: may pass, delete nothing
             }
             if (plain == null) {
-                delete()
+                if (deleteDamaged) delete()
                 return@synchronized StoreContent.Reset
             }
             StoreContent.Data(plain)

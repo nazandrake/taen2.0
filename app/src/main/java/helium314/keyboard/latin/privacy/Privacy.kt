@@ -16,6 +16,7 @@ import helium314.keyboard.latin.media.MediaStorage
 import helium314.keyboard.latin.media.MediaTokens
 import helium314.keyboard.latin.media.MediaVault
 import helium314.keyboard.latin.media.StarterPack
+import helium314.keyboard.latin.profiles.ProfileKeys
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.Log
 import java.io.File
@@ -96,6 +97,15 @@ object Privacy {
     /** Registers [hook] (replacing an earlier one with the same [name]) to wipe an in-memory copy when the tier locks. */
     fun onLock(name: String, hook: () -> Unit) { lockHooks[name] = hook }
 
+    /**
+     * Removes the lock hook [name] if it is still [hook] (the service that registered it ends). A hook that a newer object registered under the same
+     * name stays.
+     */
+    fun removeOnLock(name: String, hook: () -> Unit) { lockHooks.remove(name, hook) }
+
+    /** The names of the registered lock hooks (tests). */
+    internal fun lockHookNames(): Set<String> = lockHooks.keys.toSet()
+
     /** Test seam: runs after the memory copies were wiped and before the data key is forgotten (the window of an edit that races the lock). */
     @Volatile internal var duringLockForTest: (() -> Unit)? = null
 
@@ -155,8 +165,12 @@ object Privacy {
     }
 
     /** Drops the cached keys and store objects, so the next access opens everything again (files are not touched). */
-    @Synchronized
-    internal fun forgetCachedState() { cached = State(); appLockInstance = null; SelfDestruct.forget() }
+    internal fun forgetCachedState() {
+        // Writes of the old objects that are still queued finish first (outside this object's lock, which they need). A test switches the storage
+        // directory under a queued write otherwise, and a store that is then read with another key counts as damaged and is reset.
+        runCatching { writer.submit {}.get(10, java.util.concurrent.TimeUnit.SECONDS) }
+        synchronized(this) { cached = State(); appLockInstance = null; SelfDestruct.forget() }
+    }
 
     // ---- self-destruct ---------------------------------------------------------------------------------------
     // The wipe stops every writer first: from beginWipe on no store of either tier can be opened, read or written, not even through an
@@ -227,12 +241,21 @@ object Privacy {
         return SecureStore(dir, name, 1, keys::key)
     }
 
+    /**
+     * What the settings store starts with after a reset (failed integrity check, lost key): incognito on, learning off, clipboard history off with the
+     * shortest retention, voice typing off, overlay block. The restrictive value of each is the one ProfileKeys already owns; the user loosens them on purpose.
+     */
+    internal fun restrictiveSettings(): Map<String, Any> = listOf(
+        Settings.PREF_ALWAYS_INCOGNITO_MODE, Settings.PREF_KEY_USE_PERSONALIZED_DICTS, Settings.PREF_ENABLE_CLIPBOARD_HISTORY,
+        Settings.PREF_CLIPBOARD_HISTORY_RETENTION_TIME, Settings.PREF_VOICE_TYPING, Settings.PREF_OVERLAY_MODE,
+    ).associateWith { ProfileKeys.strictValue(it) }
+
     /** Preferences that are also readable before the first unlock (device-protected tier). Never put sensitive data here. */
     @Synchronized
     fun prefs(context: Context): SharedPreferences {
         val app = context.applicationContext ?: context
         cached.dePrefs?.let { return it }
-        val p = EncryptedPrefs({ store(app, Tier.DE, PREFS_DE, 1) }, writer, ::notifyOnMain)
+        val p = EncryptedPrefs({ store(app, Tier.DE, PREFS_DE, 1) }, writer, ::notifyOnMain, restrictiveSettings())
         cached.dePrefs = p
         val plainName = plainPrefsName(app)
         val deCtx = deviceProtected(app)

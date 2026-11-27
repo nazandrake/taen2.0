@@ -48,6 +48,7 @@ object ScreenLockPolicy {
         if (isKeyguardLocked(context)) Privacy.lock(context)
     }
 
+    // a keyguard that cannot be asked counts as up: the tier stays locked until the user is present (USER_PRESENT)
     private fun isKeyguardLocked(context: Context): Boolean =
-        runCatching { (context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).isKeyguardLocked }.getOrDefault(false)
+        runCatching { (context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).isKeyguardLocked }.getOrDefault(true)
 }

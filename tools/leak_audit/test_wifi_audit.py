@@ -108,7 +108,8 @@ class ChecksOverWifi(unittest.TestCase):
         usb, _, _ = run_flow(False)
         wifi, _, _ = run_flow(True)
         self.assertEqual(set(usb.steps) - set(wifi.steps), NETWORK_IDS)
-        self.assertEqual(set(wifi.steps) - set(usb.steps), set())
+        # over Wi-Fi the process half of D1 runs on its own (over USB D1 holds it)
+        self.assertEqual(set(wifi.steps) - set(usb.steps), {"D1s", "T-D1s", "D1sr"})
         for ident in ("D2", "D3a", "D6", "D8", "D9", "D10", "D14", "D2r"):
             self.assertIn(ident, wifi.steps)
 
@@ -327,6 +328,180 @@ class ReportLine(unittest.TestCase):
         with open(os.path.join(s.out_dir, "leak-audit-report.md")) as f:
             self.assertNotIn("GAP over Wi-Fi", f.read())
 
+
+class TransportKindOnly(unittest.TestCase):
+    """results.json and the report name the transport kind (USB or Wi-Fi), never the serial or the address of the phone."""
+
+    def run_and_store(self, serial):
+        dev, run, flow, _ = RunAllRestores.run_all(RunAllRestores(), serial)
+        store = Store(tempfile.mkdtemp())
+        store.put("device", [Result("D1", "t", GAP, REASON)], run.meta)
+        with open(store.path) as f:
+            stored = f.read()
+        with open(os.path.join(store.out_dir, "leak-audit-report.md")) as f:
+            report = f.read()
+        return run, stored, report
+
+    def test_meta_names_the_kind_not_the_address(self):
+        for serial, kind in (("192.0.2.7:5555", "Wi-Fi"), ("[fe80::1]:5555", "Wi-Fi"), ("adb-ABCDEF123456-aB3dEf._adb-tls-connect._tcp", "Wi-Fi"),
+                             ("ABCDEF123456", "USB cable")):
+            run, stored, report = self.run_and_store(serial)
+            self.assertTrue(run.meta["adb transport"].startswith(kind), run.meta["adb transport"])
+            self.assertIn("adb transport", stored)  # positive control: the entry is written
+            for part in (serial, "192.0.2.7", "fe80::1", "ABCDEF123456"):
+                self.assertNotIn(part, json.dumps(run.meta), serial)
+                self.assertNotIn(part, stored, serial)
+                self.assertNotIn(part, report, serial)
+
+    def test_the_wifi_line_says_which_checks_ran(self):
+        self.assertEqual(device_audit.transport_kind("192.0.2.7:5555"),
+                         "Wi-Fi: D1, T-D1 and D1r are GAP (needs USB: switches Wi-Fi off); the process and socket checks D1s, T-D1s and D1sr ran")
+        self.assertEqual(device_audit.transport_kind("ABCDEF123456"), "USB cable")
+        self.assertTrue(device_audit.transport_kind("").startswith("Wi-Fi"))  # unknown: the restrictive reading, as over_wifi
+
+
+class ProcessChecksOverWifi(unittest.TestCase):
+    """The inet-group and /proc/net socket-row checks switch nothing off, so they run over Wi-Fi too."""
+
+    def test_group_and_socket_checks_run_over_wifi(self):
+        run, ns, fl = run_flow(True)
+        for ident in ("D1s", "T-D1s", "D1sr"):
+            self.assertIn(ident, run.steps)
+        self.assertEqual([c.kwargs.get("label", "D1s") for c in fl.process_network_check.call_args_list], ["D1s", "D1sr"])
+        fl.process_network_control.assert_called_once()
+        ns.read.assert_not_called()  # still nothing that switches the Wi-Fi off
+
+    def test_over_usb_d1_holds_them(self):
+        run, ns, fl = run_flow(False)
+        fl.process_network_check.assert_not_called()
+        fl.process_network_control.assert_not_called()
+        self.assertEqual([c.kwargs.get("label", "D1") for c in fl.network_check.call_args_list], ["D1", "D1r"])  # positive control
+
+
+class FakeProcDev:
+    """The phone for the process and socket checks: pidof, /proc/<pid>/status, /proc/net rows and the package uid."""
+
+    def __init__(self, pids="4242", groups="3003 9997", rows="", uid="10123", self_groups="1004 3003 9997"):
+        self.pids, self.groups, self.rows, self.uid, self.self_groups = pids, groups, rows, uid, self_groups
+        self.cmds = []
+
+    def sh(self, cmd, timeout=120):
+        self.cmds.append(cmd)
+        if cmd.startswith("pidof"):
+            return self.pids
+        if cmd == "cat /proc/self/status":
+            return "Name:\tsh\nGroups:\t%s\n" % self.self_groups
+        if cmd.startswith("cat /proc/") and cmd.endswith("/status"):
+            return "Name:\ttaen\nGroups:\t%s\n" % self.groups
+        if cmd.startswith("cat /proc/net/"):
+            return self.rows
+        if cmd.startswith("dumpsys package"):
+            return "    userId=%s" % self.uid if self.uid else ""
+        return ""
+
+
+def row(uid):
+    return "   0: 0100007F:15B3 00000000:0000 0A 00000000:00000000 00:00000000 00000000  %d        0 12345 1 0000000000000000 100 0 0 10 0" % uid
+
+
+class ProcessSocketCheck(unittest.TestCase):
+    import device_flow as fl_real  # noqa: E402
+
+    def check(self, **kw):
+        dev = FakeProcDev(**kw)
+        r = self.fl_real.process_network_check(types.SimpleNamespace(dev=dev), ["io.github.nazandrake.taen"])
+        return r, dev
+
+    def test_a_clean_process_passes_and_nothing_is_switched_off(self):
+        r, dev = self.check(groups="9997 50123", rows=row(2000))
+        self.assertEqual(r.status, PASS, r.summary)
+        self.assertEqual(r.ident, "D1s")
+        self.assertFalse([c for c in dev.cmds if "svc" in c or "settings put" in c])
+
+    def test_the_inet_group_fails(self):
+        r, _ = self.check(groups="3003 9997")
+        self.assertEqual(r.status, FAIL)
+        self.assertIn("inet group 3003", r.summary)
+
+    def test_a_socket_row_of_the_app_fails(self):
+        r, _ = self.check(groups="9997", rows=row(2000) + "\n" + row(10123))
+        self.assertEqual(r.status, FAIL)
+        self.assertIn("owns 1 socket row", r.summary)
+
+    def test_no_process_fails(self):
+        r, _ = self.check(pids="", groups="9997")
+        self.assertEqual(r.status, FAIL)
+        self.assertIn("no running process", r.summary)
+
+    def test_a_uid_that_cannot_be_read_fails(self):
+        r, _ = self.check(groups="9997", uid="")
+        self.assertEqual(r.status, FAIL)
+        self.assertIn("uid", r.summary)
+
+    def test_the_release_row_has_its_own_id(self):
+        dev = FakeProcDev(groups="9997")
+        r = self.fl_real.process_network_check(types.SimpleNamespace(dev=dev), ["io.github.nazandrake.taen"], label="D1sr")
+        self.assertEqual((r.ident, r.status), ("D1sr", PASS))
+
+    def test_the_control_finds_the_shell_group_and_the_adb_socket(self):
+        ok = self.fl_real.process_network_control(types.SimpleNamespace(dev=FakeProcDev(rows=row(2000))))
+        self.assertEqual((ok.ident, ok.status), ("T-D1s", PASS), ok.summary)
+        for kw in ({"rows": ""}, {"rows": row(2000), "self_groups": "1004 9997"}):  # either reader blind: the control fails
+            r = self.fl_real.process_network_control(types.SimpleNamespace(dev=FakeProcDev(**kw)))
+            self.assertEqual(r.status, FAIL, kw)
+
+
+class ExitStatus(unittest.TestCase):
+    """The audit exits non-zero when the network checks are GAPs over Wi-Fi and the release "may pass" rule is not met."""
+
+    def gaps(self):
+        return [Result(i, "t", GAP, REASON) for i in ("D1", "T-D1", "D1r")]
+
+    def device(self, out, results, sha="abc"):
+        with mock.patch.object(device_audit, "run_all", return_value=(results, {"release apk sha256": sha})):
+            return load_main().main(["device", "--out", out])
+
+    def static_proof(self, out, statuses=(PASS, PASS, PASS), sha="abc"):
+        Store(out).put("static", [Result(i, "t", st, "x") for i, st in zip(("S1", "S3", "S8"), statuses)], {"sha256": sha})
+
+    def test_exit_is_1_when_the_rule_is_not_met(self):
+        for statuses, sha in (((PASS, FAIL, PASS), "abc"), ((PASS, PASS, PASS), "other"), (None, "abc")):
+            out = tempfile.mkdtemp()
+            if statuses:
+                self.static_proof(out, statuses, sha)
+            self.assertEqual(self.device(out, self.gaps()), 1, (statuses, sha))
+
+    def test_exit_is_0_when_the_rule_is_met(self):
+        out = tempfile.mkdtemp()
+        self.static_proof(out)
+        self.assertEqual(self.device(out, self.gaps()), 0)
+
+    def test_exit_is_0_without_network_gaps(self):
+        self.assertEqual(self.device(tempfile.mkdtemp(), [Result("D1", "t", PASS, "ok")]), 0)
+
+    def test_a_fail_still_exits_1(self):
+        out = tempfile.mkdtemp()
+        self.static_proof(out)
+        self.assertEqual(self.device(out, self.gaps() + [Result("D2", "t", FAIL, "leak")]), 1)
+
+    def test_a_static_run_after_the_device_run_reads_the_rule_too(self):
+        out = tempfile.mkdtemp()
+        self.assertEqual(self.device(out, self.gaps()), 1)  # no static proof yet
+        with mock.patch("static_run.run_all", return_value=[Result(i, "t", PASS, "x") for i in ("S1", "S3", "S8")]), \
+                mock.patch("static_run.sha256", return_value="abc"), mock.patch("os.path.exists", return_value=True):
+            self.assertEqual(load_main().main(["static", "--apk", "/x/release.apk", "--out", out, "--no-deps"]), 0)
+        with mock.patch("static_run.run_all", return_value=[Result("S1", "t", PASS, "x"), Result("S3", "t", PASS, "x")]), \
+                mock.patch("static_run.sha256", return_value="abc"), mock.patch("os.path.exists", return_value=True):
+            self.assertEqual(load_main().main(["static", "--apk", "/x/release.apk", "--out", out, "--no-deps"]), 1)  # S8 missing: not met
+
+
+def load_main():
+    """tools/leak_audit/__main__.py as a module (its name clashes with the test runner's __main__)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("leak_audit_main", os.path.join(HERE, "__main__.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 if __name__ == "__main__":
     unittest.main()

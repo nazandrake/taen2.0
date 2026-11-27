@@ -524,6 +524,28 @@ class SourceRulesTest {
         }
     }
 
+    @Test fun theGestureAndNextWordPackagesHaveNoConsoleWriter() { // Kotlin print reaches logcat through System.out
+        val nextAssist = "helium314/keyboard/latin/nextword/NextWordAssist.kt"
+        for (path in listOf(engine, nextAssist)) {
+            val found = problems(path, "print(points.size)").filter { it.startsWith("gesture:") || it.contains("next-word") }
+            assertEquals("print in $path: $found", 1, found.size)
+        }
+    }
+
+    @Test fun everyConsoleWriterIsCaughtInTheGestureAndNextWordPackages() {
+        val nextAssist = "helium314/keyboard/latin/nextword/NextWordAssist.kt"
+        for (text in listOf("print(points.size)", "print (x)", "kotlin.io.print(x)", "System.out.println(x)", "System.err.print(x)", "System . out . write(b)",
+            "val s: PrintStream = p", "PrintWriter(w)", "e.printStackTrace()", "Thread.dumpStack()", "System.setOut(p)", "System.console()"))
+            for (path in listOf(engine, suggester, nextAssist)) {
+                val found = problems(path, text).filter { it.startsWith("gesture:") || it.contains("next-word") }
+                assertEquals("$text in $path: $found", 1, found.size)
+            }
+        // positive controls: words that only contain "print" pass, and the same call outside the two packages is not their problem
+        for (text in listOf("val blueprint = 1", "val printable = isPrintable(c)", "val fingerprint = hash(x)"))
+            for (path in listOf(engine, nextAssist)) assertEquals("$text in $path", emptyList<String>(), problems(path, text))
+        assertTrue(problems("helium314/keyboard/latin/Suggest.kt", "print(x)").none { it.startsWith("gesture:") || it.contains("next-word") })
+    }
+
     @Test fun theGesturePackageRuleOnlyAppliesToThatPackageAndLetsOrdinaryCodeThrough() {
         // positive controls: the same text elsewhere is not a gesture-package problem; clean engine code passes
         assertTrue(problems("helium314/keyboard/latin/Suggest.kt", "import java.io.File").none { it.startsWith("gesture:") })

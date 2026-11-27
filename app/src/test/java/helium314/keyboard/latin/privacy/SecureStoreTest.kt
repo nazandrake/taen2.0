@@ -243,6 +243,18 @@ class SecureStoreTest {
         assertFalse(File(dir, "test.enc").exists())
     }
 
+    @Test fun aDamagedFileIsKeptWhenTheCallerWillReplaceItAndOnlyThenDoesTheNewWriteTakeItsPlace() {
+        val dir = tempDir()
+        testStore(dir).write("secret".toByteArray())
+        val before = File(dir, "test.enc").readBytes()
+        val other = testStore(dir, key = fixedKey(2))
+        assertIs<StoreContent.Reset>(other.read(deleteDamaged = false)) // reported as damaged ...
+        assertContentEquals(before, File(dir, "test.enc").readBytes()) // ... but not deleted
+        assertIs<StoreContent.Reset>(other.read(deleteDamaged = false)) // so it is damaged again at the next start
+        other.write("new".toByteArray())
+        assertContentEquals("new".toByteArray(), assertIs<StoreContent.Data>(other.read(deleteDamaged = false)).bytes)
+    }
+
     @Test fun separateObjectsForTheSameFileNeverCorruptEachOther() { // they share one lock per file
         val dir = tempDir()
         val failures = java.util.concurrent.atomic.AtomicInteger()

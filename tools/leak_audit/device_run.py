@@ -52,6 +52,7 @@ class Run:
         self.meta = {}
         self.pkg = None
         self.log_proc = None
+        self.log_ended = None  # when the logcat stream ended before stop_logcat: where, and how (then the capture is not the whole session)
         self.log_path = os.path.join(self.out, "logcat-session.txt")
         self.scan = load_device_scan(root)
         self.test_mode_started = None
@@ -71,6 +72,7 @@ class Run:
                     self.add(r)
         except Exception as e:  # noqa: BLE001
             self.add(Result(ident, title, GAP, "could not run: %s: %s" % (type(e).__name__, str(e)[:160]), traceback.format_exc().splitlines()[-6:]))
+        self.stream_check("the end of step " + ident)
 
     def save(self, name, text):
         with open(os.path.join(self.out, name), "w") as f:
@@ -187,7 +189,19 @@ class Run:
                 time.sleep(1)
 
     # ------------------------------------------------------------ setup
+    def stream_check(self, where):
+        """The logcat stream is a child process. If it has ended without our stop, remember where we noticed it: D2 then names the gap
+        (log_check) instead of reporting a clean scan of a part of the session."""
+        p = self.log_proc
+        if p is None or self.log_ended is not None:
+            return
+        rc = p.poll()
+        if rc is not None:
+            self.log_ended = "the logcat stream (adb logcat, exit code %s) had ended by the %s: the capture holds %d bytes and not the whole session" % (
+                rc, where, os.path.getsize(self.log_path))
+
     def start_logcat(self):
+        self.log_ended = None
         self.dev.logcat_clear()
         self.log_path = os.path.join(self.out, "logcat-%s.txt" % self.pkg)  # one file per build under test
         self.log_file = open(self.log_path, "wb")
@@ -197,6 +211,7 @@ class Run:
 
     def stop_logcat(self):
         time.sleep(1.5)
+        self.stream_check("stop of the capture")
         if self.log_proc:
             self.log_proc.terminate()
             self.log_proc.wait(timeout=10)

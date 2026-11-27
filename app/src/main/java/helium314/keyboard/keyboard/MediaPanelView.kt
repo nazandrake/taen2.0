@@ -80,6 +80,8 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
+    private val lockHook: () -> Unit = { main.post { clear(); hide() } } // before the init that registers it
+
     init {
         orientation = VERTICAL
         visibility = GONE
@@ -97,7 +99,12 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
         grid.layoutManager = GridLayoutManager(context, COLUMNS)
         grid.adapter = adapter
         addView(grid, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        Privacy.onLock("media-panel") { main.post { clear(); hide() } } // a lock closes the panel and drops the thumbnails
+        Privacy.onLock(LOCK_HOOK, lockHook) // a lock closes the panel and drops the thumbnails
+    }
+
+    /** The keyboard service ends: the lock hook (it holds this view and the service) is removed, unless a newer panel replaced it. */
+    fun release() {
+        Privacy.removeOnLock(LOCK_HOOK, lockHook)
     }
 
     private fun label(text: String, size: Float) = TextView(context).apply {
@@ -325,6 +332,7 @@ class MediaPanelView(context: Context, private val host: Host) : LinearLayout(co
     }
 
     companion object {
+        const val LOCK_HOOK = "media-panel"
         private const val COLUMNS = 4
         private const val THUMB_PIXELS = 160
         private const val THUMB_CACHE = 96

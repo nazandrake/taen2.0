@@ -73,7 +73,9 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   variations), `IME_FLAG_NO_PERSONALIZED_LEARNING` in any input class, force-incognito, apps on the per-app list and a locked device
   give incognito: no learning, no clipboard capture, no recents, no learned or personal word as a suggestion or glide source. Password
   fields also get no suggestion strip, key previews or clipboard suggestion. The flag, the password tests and the list are read through
-  the policy only (SourceRules). Tests: `PrivacyPolicyTest`, `AntiSnoopingWiringTest`, `PersonalSourcesPrivacyTest`.
+  the policy only (SourceRules). A list that cannot be read (an error of the credential-encrypted preferences) counts every app as listed
+  (`PrivacyPolicy.Input.appListReadable`). Tests: `PrivacyPolicyTest`, `AntiSnoopingWiringTest`, `PersonalSourcesPrivacyTest`,
+  `FailClosedPrivacyInputsTest`.
 - **P10 Clipboard.** Text only. A copy flagged sensitive, made in a password or no-learning field, or made while the store is locked is
   never stored (`ClipboardCapture`); so is a clip that was already on the clipboard when the keyboard service started (its timestamp is older than the service start), whenever the system reports it. Entries expire at the retention time (default 1 hour, 5 minutes to 7 days, or Forever: exactly
   `ClipboardLimits.FOREVER_MINUTES`, the largest value, so "lower is stricter" holds for profiles), at most 50 unpinned; pinned entries never expire. "Clear clipboard" removes every entry, pinned ones too;
@@ -100,9 +102,12 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   tools. `OverlayGuard.dispatch` is the only touch entry: covered touches are warned about or dropped per gesture. Tests:
   `A11yWatchTest`, `OverlayGuardTest`, `OverlayWiringTest`, `AntiSnoopingWiringTest`.
 - **P19 Lock state.** Before the first unlock and while the screen is locked there is no learning, no clipboard history, no recents and
-  no personal suggestion (`PrivacyPolicy`).
+  no personal suggestion (`PrivacyPolicy`). A keyguard that cannot be asked (no service, a failing system call) counts as locked
+  (`isDeviceLocked`, `ScreenLockPolicy`). The lock hooks that the keyboard service registers (Vim, navigation, next word, voice, picture
+  panel) are removed when it is destroyed (`Privacy.removeOnLock`). Tests: `FailClosedPrivacyInputsTest`, `LockHooksLifecycleTest`,
+  `MediaPanelLockHookTest`.
 - **Glide typing.** Nothing records swipe or typing samples. The engine is open-source Kotlin in `helium314.keyboard.latin.gesture`
-  and may not use files, network, logger or preferences (SourceRules). User words join only through
+  and may not use files, network, logger, console output (print, System.out) or preferences (SourceRules). User words join only through
   `DictionaryFacilitatorImpl.userWordsAllowed`. `Defaults.PREF_GESTURE_INPUT` is true exactly when `GlideQualityGateTest` passes.
   The English gate is 79.5 % (Bulgarian 70 %): with the licensed dictionaries the English sample measures 79.6 %, which is within the
   noise of a 500-word sample, and switching off a feature people use costs more than that gap. Improving the English figure is planned.
@@ -186,7 +191,7 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   The browser downloads; `DownloadAccess` is the only intent; `PinnedInstaller` is the only writer (hash while copying, size cap,
   rename after the hash matches). Tests: `DownloadCatalogTest`, `PinnedInstallerTest`.
 - **P23 Next-word model.** `NextWordGate` decides where a model runs (switch, strip, `PrivacyPolicy` personalized, speed and memory
-  gates). The nextword package has no file, log, preference or learning class; only dictionary words are shown; late results are
+  gates). The nextword package has no file, log, console output, preference or learning class; only dictionary words are shown; late results are
   dropped. The free memory is checked before every load; a load writes a marker that the next process reads as a crash if the
   load never returned, and holds the per-model lock of `ModelFiles` from the marker to the end of the load, so loads of one model (speed
   test and keyboard) never overlap. Tests: `:nextword-engine:test`, `NextWord*Test`, `ModelFilesTest`.

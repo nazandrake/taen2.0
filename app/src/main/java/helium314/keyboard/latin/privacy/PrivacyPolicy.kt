@@ -23,6 +23,8 @@ object PrivacyPolicy {
         val locked: Boolean,
         /** The user allowed the clipboard keys in password fields (Settings.PREF_CLIPBOARD_IN_SECURE_FIELDS, off by default). */
         val secureClipboard: Boolean = false,
+        /** The per-app list could be read. False (a store error) counts every app as listed: incognito everywhere until it can be read (fail closed). */
+        val appListReadable: Boolean = true,
     )
 
     /**
@@ -74,14 +76,15 @@ object PrivacyPolicy {
     fun decide(input: Input): Decision {
         val password = InputTypeUtils.isAnyPasswordInputType(input.inputType)
         val noLearning = noLearning(input.imeOptions)
-        val listed = input.packageName != null && input.packageName in input.incognitoApps
+        val listed = !input.appListReadable || (input.packageName != null && input.packageName in input.incognitoApps)
         return Decision(password, noLearning, password || noLearning || input.forceIncognito || listed || input.locked, input.secureClipboard, input.locked)
     }
 
+    @JvmOverloads
     fun decide(
         inputType: Int, imeOptions: Int, packageName: String?, forceIncognito: Boolean, incognitoApps: Set<String>, locked: Boolean,
-        secureClipboard: Boolean = false,
-    ): Decision = decide(Input(inputType, imeOptions, packageName, forceIncognito, incognitoApps, locked, secureClipboard))
+        secureClipboard: Boolean = false, appListReadable: Boolean = true,
+    ): Decision = decide(Input(inputType, imeOptions, packageName, forceIncognito, incognitoApps, locked, secureClipboard, appListReadable))
 
     private val packageName = Regex("""[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+""")
     private val separators = Regex("""[\s,;]+""")

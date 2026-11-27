@@ -15,6 +15,10 @@ class ShadowAndroidKeyVault {
     companion object {
         /** Number of credential-encrypted-tier unwrap calls in this process (tests reset it), to see that a data key is unwrapped again. */
         @JvmStatic var unwrapCalls = 0
+        /** Thrown by the credential-encrypted unwrap while set: a Keystore failure that may pass (tests reset it to null). */
+        @JvmStatic var ceUnwrapError: Exception? = null
+        /** The same for the device-protected tier (the settings store). */
+        @JvmStatic var deUnwrapError: Exception? = null
     }
 
     @Implementation
@@ -25,6 +29,8 @@ class ShadowAndroidKeyVault {
 
     @Implementation
     fun unwrap(tier: Tier, wrapped: ByteArray): ByteArray {
+        if (tier == Tier.CE) ceUnwrapError?.let { throw it }
+        if (tier == Tier.DE) deUnwrapError?.let { throw it }
         if (tier == Tier.CE) unwrapCalls++
         return fake.unwrap(tier, wrapped)
     }

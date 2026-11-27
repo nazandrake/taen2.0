@@ -14,11 +14,15 @@ import java.util.concurrent.Executor
  * [store] returns null while the store cannot be opened (device locked). Then the preferences are empty and read-only:
  * reads return the defaults and edits are dropped (commit returns false), never written anywhere else. The store is
  * opened again on the next access. [executor] runs the writes of apply(); [notify] delivers change callbacks.
+ *
+ * [afterReset] is what a store that was reset (failed integrity check, lost key, malformed content) starts with instead of nothing: the settings
+ * store passes the restrictive value of each privacy switch, so a reset never loosens them. A store that never existed starts empty.
  */
 class EncryptedPrefs(
     private val store: () -> SecureStore?,
     private val executor: Executor,
     private val notify: (Runnable) -> Unit,
+    private val afterReset: Map<String, Any> = emptyMap(),
 ) : SharedPreferences {
     private var map: HashMap<String, Any>? = null
     private var openedStore: SecureStore? = null
@@ -58,18 +62,28 @@ class EncryptedPrefs(
     private fun ensureLoaded(): Boolean {
         if (map != null) return true
         val s = store() ?: return false
-        val loaded = when (val content = s.read()) {
-            is StoreContent.Missing, is StoreContent.Reset -> HashMap<String, Any>()
+        var reset = false
+        // A store with reset values is never deleted first: the damaged file stays until the restrictive snapshot replaces it (write-new-then-rename), so a
+        // failed write or a crash at any step leaves a file that is damaged again at the next start, never a missing one (a missing file means a fresh install).
+        val keepDamaged = afterReset.isNotEmpty()
+        val loaded = when (val content = s.read(deleteDamaged = !keepDamaged)) {
+            is StoreContent.Missing -> HashMap<String, Any>()
+            is StoreContent.Reset -> { reset = true; HashMap(afterReset) }
             is StoreContent.Unavailable -> return false
             is StoreContent.Data -> try {
                 PrefsCodec.decode(content.bytes)
             } catch (_: CorruptStoreException) {
-                s.delete() // authenticated but malformed: start empty, never keep partial data
-                HashMap()
+                if (!keepDamaged) s.delete() // authenticated but malformed: start empty (with the reset values), never keep partial data
+                reset = true
+                HashMap(afterReset)
             }
         }
         map = HashMap(loaded)
         openedStore = s
+        // A store that was lost or damaged is readable but empty, and an empty store means the permissive defaults. The reset values replace the damaged file now,
+        // so they hold across a restart too; a failed write keeps them in memory (the damaged file stays, so the next start resets again) and the next edit
+        // or the screen lock writes the complete snapshot.
+        if (reset && afterReset.isNotEmpty()) write(snapshot(), s, ++changeCount)
         return true
     }
 
@@ -184,5 +198,12 @@ class EncryptedPrefs(
         }
     }
 }
+
+/**
+ * False when these preferences are encrypted and cannot be read now (a Keystore or I/O error, or locked): every read then returns its
+ * default, which for a privacy switch may be the permissive value. A reader of a privacy switch (always-incognito, learning, clipboard,
+ * voice, overlay) asks this first and takes the restrictive outcome when it is false (fail closed).
+ */
+fun SharedPreferences.isReadable(): Boolean = this !is EncryptedPrefs || isAvailable()
 
 private data class Committed(val changed: List<String>, val cleared: Boolean, val snapshot: Map<String, Any>, val store: SecureStore, val count: Long)

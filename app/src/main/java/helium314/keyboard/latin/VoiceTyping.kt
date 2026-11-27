@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import helium314.keyboard.latin.privacy.Privacy
+import helium314.keyboard.latin.privacy.isReadable
 import helium314.keyboard.latin.settings.Defaults
 import helium314.keyboard.latin.settings.Settings
 import helium314.keyboard.latin.utils.prefs
@@ -36,11 +37,14 @@ class VoiceTyping(private val ime: LatinIME) : VoiceController.Host {
     }
     private val unloadEngine = Runnable { if (controller.state == VoiceSession.State.IDLE) engines.unload() }
 
+    private val lockHook: () -> Unit = { handler.post { cancel() } }
+
     fun onCreate() {
-        Privacy.onLock(LOCK_HOOK) { handler.post { cancel() } } // screen off, and the start of a self-destruct wipe
+        Privacy.onLock(LOCK_HOOK, lockHook) // screen off, and the start of a self-destruct wipe
     }
 
     fun onDestroy() {
+        Privacy.removeOnLock(LOCK_HOOK, lockHook) // the hook holds this service: it ends with it
         handler.removeCallbacks(unloadEngine)
         cancel()
         engines.unload()
@@ -65,7 +69,7 @@ class VoiceTyping(private val ime: LatinIME) : VoiceController.Host {
 
     // ---- VoiceController.Host ----
 
-    override fun voiceEnabled() = ime.prefs().getBoolean(Settings.PREF_VOICE_TYPING, Defaults.PREF_VOICE_TYPING)
+    override fun voiceEnabled() = ime.prefs().let { it.isReadable() && it.getBoolean(Settings.PREF_VOICE_TYPING, Defaults.PREF_VOICE_TYPING) } // unreadable settings: off
     override fun passwordField() = ime.mSettings.current.mPrivacy.passwordField // PrivacyPolicy is the only owner of that test (P9)
     override fun locked() = Privacy.isLocked
     override fun modelReady() = store.isComplete()
