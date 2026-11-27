@@ -140,6 +140,8 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
     public static final String PREF_ALWAYS_INCOGNITO_MODE = "always_incognito_mode";
     // Anti-snooping settings (see PrivacyPolicy, OverlayGuard, A11yWatch, SecureWindow); the app list is kept in the credential-encrypted preferences
     public static final String PREF_INCOGNITO_APPS = "incognito_apps";
+    // true when the credential-encrypted preferences were reset (damaged file, lost key): the app list is lost and every app counts as incognito
+    public static final String PREF_INCOGNITO_LIST_LOST = "incognito_list_lost";
     public static final String PREF_SECURE_KEYBOARD_WINDOW = "secure_keyboard_window";
     public static final String PREF_A11Y_WARNING = "accessibility_warning";
     public static final String PREF_OVERLAY_MODE = "overlay_mode";
@@ -669,11 +671,27 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
         AppLanguageMemory.INSTANCE.clearLegacy(KtxKt.prefs(context));
     }
 
-    /** Stores the per-app incognito list and forgets the languages of the apps on it (the one writer of the list). */
+    /**
+     * Stores the per-app incognito list and forgets the languages of the apps on it (the one writer of the list). Entering the list also ends the
+     * state of a lost list (see {@link #isIncognitoListLost}).
+     */
     public static void setIncognitoApps(final Context context, final Set<String> apps) {
         final SharedPreferences ce = KtxKt.protectedPrefs(context);
-        ce.edit().putString(PREF_INCOGNITO_APPS, PrivacyPolicy.INSTANCE.formatApps(apps)).apply();
+        ce.edit().putString(PREF_INCOGNITO_APPS, PrivacyPolicy.INSTANCE.formatApps(apps)).remove(PREF_INCOGNITO_LIST_LOST).apply();
         AppLanguageMemory.INSTANCE.removeApps(ce, apps);
+    }
+
+    /**
+     * The per-app list was lost: the credential-encrypted preferences were reset (their file failed its integrity check or its key was lost) and
+     * start with this mark (Privacy). Until the user enters the list again or dismisses the notice, every app counts as incognito.
+     */
+    public static boolean isIncognitoListLost(final SharedPreferences ce) {
+        return ce.getBoolean(PREF_INCOGNITO_LIST_LOST, false);
+    }
+
+    /** The user dismissed the notice of a lost list: the apps leave incognito again unless they are on the list. False when it could not be stored. */
+    public static boolean dismissIncognitoListLost(final Context context) {
+        return KtxKt.protectedPrefs(context).edit().remove(PREF_INCOGNITO_LIST_LOST).commit();
     }
 
     /**
@@ -689,7 +707,8 @@ public final class Settings implements SharedPreferences.OnSharedPreferenceChang
             clearAppLanguages(context);
             return;
         }
-        AppLanguageMemory.INSTANCE.settleLegacy(de, ce, true, incognito);
+        // a lost list makes every app incognito: the old entries are then deleted, not moved
+        AppLanguageMemory.INSTANCE.settleLegacy(de, ce, !isIncognitoListLost(ce), incognito);
         AppLanguageMemory.INSTANCE.removeApps(ce, incognito);
     }
 

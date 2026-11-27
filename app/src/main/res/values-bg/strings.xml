@@ -596,6 +596,10 @@
     <string name="incognito_apps_empty">"Няма. В изброените приложения нищо не се научава и не се пази."</string>
     <string name="incognito_apps_count">"Приложения: %1$d — в тях нищо не се научава и не се пази"</string>
     <string name="incognito_apps_info">"Имена на пакети (например org.example.bank), по едно на ред, най-много %1$d. Невалидните записи се отхвърлят. Списъкът се съхранява шифрован."</string>
+    <string name="incognito_list_lost_title">"Списъкът с приложения инкогнито е загубен"</string>
+    <string name="incognito_list_lost_text">"Файлът му е повреден или ключът му е загубен. Докато не въведете списъка отново или не скриете това известие, всички приложения са инкогнито. Докоснете, за да го скриете."</string>
+    <string name="incognito_list_lost_dismiss">"Да се скрие ли известието? Тогава отново само приложенията от списъка са инкогнито."</string>
+    <string name="incognito_list_lost_dismiss_button">"Скриване"</string>
     <string name="privacy_category_screen">"Заснемане на екрана и следене"</string>
     <string name="privacy_category_clipboard">"Клипборд"</string>
     <string name="privacy_category_learning">Учене</string>

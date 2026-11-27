@@ -250,6 +250,13 @@ object Privacy {
         Settings.PREF_CLIPBOARD_HISTORY_RETENTION_TIME, Settings.PREF_VOICE_TYPING, Settings.PREF_OVERLAY_MODE,
     ).associateWith { ProfileKeys.strictValue(it) }
 
+    /**
+     * What the credential-encrypted preferences start with after a reset (failed integrity check, lost key): the mark that the per-app incognito list
+     * was lost, so that every app counts as incognito until the user enters the list again or dismisses the notice (Settings.isIncognitoListLost).
+     * A store that never existed (a fresh install) starts empty.
+     */
+    internal fun credentialResetValues(): Map<String, Any> = mapOf(Settings.PREF_INCOGNITO_LIST_LOST to true)
+
     /** Preferences that are also readable before the first unlock (device-protected tier). Never put sensitive data here. */
     @Synchronized
     fun prefs(context: Context): SharedPreferences {
@@ -276,7 +283,7 @@ object Privacy {
         val app = context.applicationContext ?: context
         val (state, p) = synchronized(this) {
             val st = cached
-            st to (st.cePrefs ?: EncryptedPrefs({ store(app, Tier.CE, PREFS_CE, 1) }, writer, ::notifyOnMain).also { st.cePrefs = it })
+            st to (st.cePrefs ?: EncryptedPrefs({ store(app, Tier.CE, PREFS_CE, 1) }, writer, ::notifyOnMain, credentialResetValues()).also { st.cePrefs = it })
         }
         // outside this object's lock (see [lock]); one migration at a time
         if (!state.cePrefsMigrated) synchronized(migrationLock) {
@@ -314,9 +321,13 @@ object Privacy {
             Tier.DE -> File(deviceProtected(app).noBackupFilesDir, DIR)
             Tier.CE -> File(File(ceDataDir(app) ?: return null, "no_backup"), DIR)
         }
-        val dataKeys = cached.keys.getOrPut(tier) {
-            DataKeys(vault, tier, File(dir, "dek_${tier.name.lowercase()}.bin"), allowed = if (tier == Tier.CE) ({ !screenLocked && !wiping }) else ({ !wiping }))
-        }
+        // the cached keys belong to the directory they were made for: a store of another directory never gets another directory's key
+        val keyFile = File(dir, "dek_${tier.name.lowercase()}.bin")
+        val dataKeys = cached.keys[tier]?.takeIf { it.keyFile == keyFile } ?: DataKeys(vault, tier, keyFile,
+            allowed = if (tier == Tier.CE) ({ !screenLocked && !wiping }) else ({ !wiping }),
+            // the CE vault key needs an unlocked device: while it is locked any failure means "try later", never a new key
+            deviceLocked = if (tier == Tier.CE) ({ isDeviceLocked(app) }) else ({ false }),
+        ).also { cached.keys.put(tier, it)?.evict() }
         return SecureStore(dir, name, schemaVersion, dataKeys::key)
     }
 

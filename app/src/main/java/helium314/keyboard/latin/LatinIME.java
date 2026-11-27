@@ -68,6 +68,7 @@ import helium314.keyboard.latin.define.DebugFlags;
 import helium314.keyboard.latin.inputlogic.InputLogic;
 import helium314.keyboard.latin.media.MediaTokens;
 import helium314.keyboard.latin.personalization.PersonalizationHelper;
+import helium314.keyboard.latin.privacy.PrivacyPolicy;
 import helium314.keyboard.latin.privacy.PrivacyWarnings;
 import helium314.keyboard.latin.privacy.SelfDestruct;
 import helium314.keyboard.latin.privacy.SecureWindow;
@@ -938,8 +939,10 @@ public class LatinIME extends InputMethodService implements
         switcher.updateKeyboardTheme(mDisplayContext);
         MainKeyboardView mainKeyboardView = switcher.getMainKeyboardView();
         currentSettingsValues = mSettings.getCurrent(); // settingsValues may have been reloaded
-        // a restarted field that turned into a password, no-learning or incognito field: the microphone closes like at a field change
-        if (restarting && !wasIncognito && currentSettingsValues.mPrivacy.getIncognito()) mVoiceTyping.onFieldChange();
+        // a restarted field that is a password field now (whatever it was before), or an ordinary field that turned into a no-learning or incognito
+        // field: the microphone closes like at a field change
+        final PrivacyPolicy.Decision restartedPrivacy = currentSettingsValues.mPrivacy;
+        if (restarting && (restartedPrivacy.getPasswordField() || (!wasIncognito && restartedPrivacy.getIncognito()))) mVoiceTyping.onFieldChange();
         if (hasSuggestionStripView())
             mSuggestionStripView.updateFieldKeys(); // paste, select all and clear all on the strip of a number, phone or date field
 

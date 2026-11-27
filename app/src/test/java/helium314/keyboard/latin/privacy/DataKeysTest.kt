@@ -233,4 +233,93 @@ class DataKeysTest {
         assertFailsWith<VaultLockedException> { k.key() }
         assertEquals(before, vault.unwrapCalls) // a closed gate does not even ask the vault
     }
+
+    // ---- while the device is locked, any failure of the credential-encrypted key means "locked, try later" ----------------------
+
+    private fun lockedKeys(locked: () -> Boolean, v: KeyVault = vault) = DataKeys(v, Tier.CE, File(dir, "dek_CE.bin"), deviceLocked = locked)
+
+    @Test fun aKeyErrorWhileTheDeviceIsLockedIsLockedAndReplacesNothing() {
+        val key = keys().key().copyOf()
+        val file = File(dir, "dek_CE.bin")
+        val bytes = file.readBytes()
+        // a platform that reports the refused key of a locked device as a lost one
+        vault.failNextUnwrap = VaultKeyException("key lost or wrapped key does not authenticate")
+        assertFailsWith<VaultLockedException> { lockedKeys({ true }).key() }
+        assertContentEquals(bytes, file.readBytes(), "the wrapped key was not replaced")
+        assertContentEquals(key, keys().key(), "the same key works after the unlock")
+    }
+
+    // ---- pass 2 ----
+
+    /** A vault that counts deleted keys and throws [error] at every unwrap while it is set. */
+    private class FailingVault(private val inner: FakeKeyVault) : KeyVault by inner {
+        var error: Exception? = null
+        val deleted = ArrayList<Tier>()
+        override fun unwrap(tier: Tier, wrapped: ByteArray): ByteArray = error?.let { throw it } ?: inner.unwrap(tier, wrapped)
+        override fun deleteKey(tier: Tier) { deleted.add(tier); inner.deleteKey(tier) }
+    }
+
+    @Test fun everyKindOfFailureWhileLockedIsLockedAndNothingIsDeletedOrCreated() {
+        val key = keys().key().copyOf()
+        val store = SecureStore(dir, "clipboard", 1, keys()::key)
+        store.write("secret".toByteArray())
+        val file = File(dir, "dek_CE.bin")
+        val bytes = file.readBytes()
+        val failing = FailingVault(vault)
+        for (error in listOf<Exception>(VaultKeyException("lost"), VaultUnavailableException("busy"), IllegalStateException("odd state"),
+            java.security.ProviderException("keystore daemon"), StoreWriteException("odd"))) {
+            failing.error = error
+            assertFailsWith<VaultLockedException>(error.toString()) { lockedKeys({ true }, failing).key() }
+            // a store read in this state is unavailable, never reset or deleted
+            assertIs<StoreContent.Unavailable>(SecureStore(dir, "clipboard", 1, lockedKeys({ true }, failing)::key).read())
+        }
+        assertEquals(emptyList(), failing.deleted, "no vault key was deleted")
+        assertContentEquals(bytes, file.readBytes(), "the wrapped key was not replaced")
+        assertEquals(1, vault.wrapCalls, "no new key was wrapped")
+        assertEquals("secret", String(assertIs<StoreContent.Data>(SecureStore(dir, "clipboard", 1, keys()::key).read()).bytes))
+        assertContentEquals(key, keys().key())
+        // positive control: the same lost key on an unlocked device is replaced (the one case that may reset)
+        failing.error = null
+        vault.failNextUnwrap = VaultKeyException("lost")
+        val fresh = lockedKeys({ false }).key()
+        assertNotEquals(key.toList(), fresh.toList())
+    }
+
+    @Test fun anUnreadableKeyFileWhileLockedIsLocked() {
+        keys().key()
+        val unreadable = object : StoreFiles {
+            override fun writeSynced(file: File, bytes: ByteArray) = DefaultStoreFiles.writeSynced(file, bytes)
+            override fun replace(from: File, to: File) = DefaultStoreFiles.replace(from, to)
+            override fun read(file: File): ByteArray = throw IOException("I/O error")
+        }
+        assertFailsWith<VaultLockedException> { DataKeys(vault, Tier.CE, File(dir, "dek_CE.bin"), unreadable, deviceLocked = { true }).key() }
+        // control: unlocked, the same error is the transient one it always was
+        assertFailsWith<VaultUnavailableException> { DataKeys(vault, Tier.CE, File(dir, "dek_CE.bin"), unreadable, deviceLocked = { false }).key() }
+    }
+
+    @Test fun aLockOrAnUnlockDuringTheCallCountsAsLocked() {
+        val key = keys().key().copyOf()
+        val bytes = File(dir, "dek_CE.bin").readBytes()
+        val failing = FailingVault(vault).apply { error = VaultKeyException("lost") }
+        for (states in listOf(listOf(false, true), listOf(true, false))) { // locked only after the failure, locked only before it
+            val answers = ArrayDeque(states)
+            assertFailsWith<VaultLockedException>(states.toString()) { lockedKeys({ answers.removeFirstOrNull() ?: states.last() }, failing).key() }
+        }
+        assertEquals(emptyList(), failing.deleted)
+        assertContentEquals(bytes, File(dir, "dek_CE.bin").readBytes())
+        assertContentEquals(key, keys().key())
+    }
+
+    @Test fun noFirstKeyIsMadeWhileLocked() {
+        assertFailsWith<VaultLockedException> { lockedKeys({ true }).key() }
+        assertFalse(File(dir, "dek_CE.bin").exists())
+        assertEquals(0, vault.wrapCalls)
+        assertEquals(32, lockedKeys({ false }).key().size) // positive control: after the unlock the first key is made
+        assertEquals(1, vault.wrapCalls)
+    }
+
+    @Test fun aKeyThatWorksWhileLockedIsStillHandedOut() { // only failures change: a platform that lets the key work is not blocked
+        val key = keys().key().copyOf()
+        assertContentEquals(key, lockedKeys({ true }).key())
+    }
 }

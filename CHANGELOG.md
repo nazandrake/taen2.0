@@ -10,7 +10,17 @@
 - Voice typing types while you speak: after each short pause the phrase you just said is recognised and typed, while the microphone keeps
   listening. Tap the voice key again (or release it when you hold it) to stop; the last phrase is typed then. The first phrase still waits
   until the model has loaded, and a phrase is limited to 15 seconds and a recording to 60 seconds.
-- The microphone also closes when you switch incognito mode with the toolbar key.
+- The microphone also closes when you switch incognito mode with the toolbar key, and whenever the field you dictate into turns into a
+  password field.
+- Stricter when the list of incognito apps is lost: if the file that holds it is damaged or its key is lost, every app is incognito until you
+  enter the list again or dismiss the notice that Settings > Privacy then shows. Before, the list was simply empty. A new install still starts
+  with an empty list.
+- When the keyboard starts while the phone is locked, an error of the key that needs an unlocked phone now always means "try again after the
+  unlock": it never makes Taen start a new key or reset your settings, whatever error the phone reports. This covers only the key that needs an
+  unlocked phone: if the other key (device-encrypted, used for the main settings) is really lost, Taen still starts a new one, also while the phone
+  is locked, and those settings start again with the restrictive values.
+- While the list of incognito apps is marked lost, the per-app language entries of the earlier format are deleted for good instead of being moved.
+  They are not sensitive, and the change is restrictive.
 
 ## 2.0.6
 

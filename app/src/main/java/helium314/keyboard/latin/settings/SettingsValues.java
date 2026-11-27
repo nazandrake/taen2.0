@@ -198,7 +198,8 @@ public class SettingsValues {
         // the per-app list is in the credential-encrypted preferences. When they cannot be read (a Keystore or store error; also while locked, when
         // everything is incognito anyway) the list is unknown: every app counts as listed (fail closed)
         final SharedPreferences ce = KtxKt.protectedPrefs(context);
-        final boolean appListReadable = EncryptedPrefsKt.isReadable(ce);
+        // a list that was lost (the store was reset after a damaged file or a lost key) is unknown as well, until it is entered again or the notice dismissed
+        final boolean appListReadable = EncryptedPrefsKt.isReadable(ce) && !Settings.isIncognitoListLost(ce);
         // the same for the settings (device-protected store): an unreadable store answers "off" for always-incognito, so it counts as "on"
         final boolean settingsReadable = EncryptedPrefsKt.isReadable(prefs);
         return PrivacyPolicy.INSTANCE.decide(inputAttributes.mInputType, inputAttributes.mImeOptions, inputAttributes.mTargetApplicationPackageName,

@@ -19,6 +19,8 @@ class ShadowAndroidKeyVault {
         @JvmStatic var ceUnwrapError: Exception? = null
         /** The same for the device-protected tier (the settings store). */
         @JvmStatic var deUnwrapError: Exception? = null
+        /** Thrown by the next credential-encrypted unwrap only, then cleared (a key that is lost once; the new key that follows works). */
+        @JvmStatic var ceUnwrapErrorOnce: Exception? = null
     }
 
     @Implementation
@@ -30,6 +32,7 @@ class ShadowAndroidKeyVault {
     @Implementation
     fun unwrap(tier: Tier, wrapped: ByteArray): ByteArray {
         if (tier == Tier.CE) ceUnwrapError?.let { throw it }
+        if (tier == Tier.CE) ceUnwrapErrorOnce?.let { ceUnwrapErrorOnce = null; throw it }
         if (tier == Tier.DE) deUnwrapError?.let { throw it }
         if (tier == Tier.CE) unwrapCalls++
         return fake.unwrap(tier, wrapped)
