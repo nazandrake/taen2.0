@@ -23,25 +23,38 @@ interface AudioCapture {
 }
 
 /**
- * One utterance at a time: record, close the microphone, transcribe, hand over the text.
+ * One recording at a time, typed phrase by phrase: the microphone is read until the stop (at most [maxSeconds]); [PauseDetector] cuts the
+ * recording at pauses (and at [PauseDetector.MAX_PHRASE_SECONDS]), and each phrase is transcribed while the user goes on speaking and handed
+ * over as text at once. The stop ends the recording and the last phrase is transcribed then.
  *
- * P20 (voice privacy): the audio lives in one array of [maxSeconds] seconds that is only in this object's worker task, is overwritten with
- * zeros as soon as the text is known (or the recording is cancelled) and is never written anywhere, logged or passed to anything but
- * the engine; this class has no file, log or network type (privacyCheck). The microphone is released before the engine runs and on
- * every way out of the recording loop, including an exception.
+ * P20 (voice privacy): the audio lives in one array of [maxSeconds] seconds that only this object's tasks see. The part of a phrase is
+ * overwritten with zeros as soon as its float copy for the engine is made, the float copy as soon as the engine returns, and the whole array
+ * when the recording ends (also after a cancel or an error). It is never written anywhere, logged or passed to anything but the engine; this
+ * class has no file, log or network type (privacyCheck). The microphone stays open while a phrase is transcribed and is released at the stop,
+ * at the length limit, at a cancel (field change, window closed, screen lock, incognito switch, service end), when the engine fails and on
+ * every way out of the reading loop, including an exception.
  *
- * Threads: [start], [stop], [cancel] are called on the main thread; the worker does the reading and the transcription (one task per
- * utterance, [worker] must run tasks one at a time); the listener is called through [main].
+ * Threads: [start], [stop], [cancel] are called on the main thread; [reader] runs the reading loop (one task per recording); [transcriber]
+ * runs the transcriptions, one phrase at a time in order (it must run its tasks one after another: one phrase in flight); the listener is
+ * called through [main]. The two may be one inline executor (tests): then each phrase is transcribed before the next read.
  */
 class VoiceSession(
     private val capture: () -> AudioCapture,
     private val engine: () -> SpeechEngine,
-    private val worker: Executor,
+    private val reader: Executor,
+    private val transcriber: Executor,
     private val main: Executor,
     private val listener: Listener,
     val maxSeconds: Int = MAX_SECONDS,
+    private val newPauses: () -> PauseDetector = { PauseDetector() },
 ) {
-    enum class State { IDLE, RECORDING, TRANSCRIBING }
+    enum class State {
+        IDLE,
+        /** The microphone is open (the listening state); finished phrases are transcribed and typed meanwhile. */
+        RECORDING,
+        /** The microphone is closed; the last phrases are being transcribed. */
+        TRANSCRIBING,
+    }
     enum class Failure { MICROPHONE, ENGINE }
 
     interface Listener {
@@ -53,7 +66,8 @@ class VoiceSession(
     @Volatile private var state = State.IDLE
     @Volatile private var stopRequested = false
     @Volatile private var cancelled = false
-    @Volatile private var recording: AudioCapture? = null // the open device while the worker may be blocked in its read
+    @Volatile private var failed = false // the engine failed in this recording: no more phrases are transcribed
+    @Volatile private var recording: AudioCapture? = null // the open device while the reader may be blocked in its read
 
     val current: State get() = state
 
@@ -70,21 +84,22 @@ class VoiceSession(
         }
         stopRequested = false
         cancelled = false
+        failed = false
         recording = device
         state = State.RECORDING
         listener.onState(State.RECORDING)
-        worker.execute { run(device) }
+        reader.execute { run(device) }
         return true
     }
 
-    /** Ends the recording and transcribes it. No effect unless recording. */
+    /** Ends the recording; the last phrase is transcribed. No effect unless recording. */
     fun stop() {
         if (state == State.RECORDING) stopRequested = true
     }
 
     /**
-     * Ends the recording or the wait for the transcription and discards the audio; no text is delivered. The microphone is stopped here, on the
-     * calling thread, because the worker may be blocked in a read that only returns when samples arrive or the device is stopped.
+     * Ends the recording or the wait for the transcriptions and discards the audio; no more text is delivered. The microphone is stopped
+     * here, on the calling thread, because the reader may be blocked in a read that only returns when samples arrive or the device is stopped.
      */
     fun cancel() {
         if (state != State.IDLE) {
@@ -96,16 +111,24 @@ class VoiceSession(
 
     private fun run(device: AudioCapture) {
         val pcm = ShortArray(maxSeconds * RATE)
+        val pauses = newPauses()
         var length = 0
+        var phraseStart = 0
         try {
             try {
                 while (!stopRequested && length < pcm.size) {
                     val n = device.read(pcm, length, minOf(CHUNK, pcm.size - length))
                     if (n < 1) break
+                    val cut = pauses.next(pcm, length, n)
                     length += n
+                    if (cut) {
+                        transcribe(pcm, phraseStart, length)
+                        phraseStart = length
+                    }
                 }
             } catch (_: Throwable) {
                 if (!cancelled) main.execute { listener.onFailure(Failure.MICROPHONE) }
+                cancelled = true // nothing more is typed from this recording
                 return
             } finally {
                 recording = null
@@ -113,24 +136,41 @@ class VoiceSession(
             }
             if (cancelled) return
             post(State.TRANSCRIBING)
-            val samples = FloatArray(length) { pcm[it] / 32768f }
-            pcm.fill(0)
-            val text = try {
-                engine().transcribe(samples, length)
-            } catch (_: Throwable) {
-                if (!cancelled) main.execute { listener.onFailure(Failure.ENGINE) }
-                return
-            } finally {
-                samples.fill(0f)
-            }
-            if (!cancelled && text.isNotEmpty()) main.execute { listener.onText(text) }
+            if (length > phraseStart) transcribe(pcm, phraseStart, length) // the last phrase, whatever its levels
         } finally {
-            pcm.fill(0)
-            main.execute {
-                state = State.IDLE
-                listener.onState(State.IDLE)
+            transcriber.execute { // after every phrase: the transcriber runs its tasks in order
+                pcm.fill(0)
+                main.execute {
+                    state = State.IDLE
+                    listener.onState(State.IDLE)
+                }
             }
         }
+    }
+
+    /** Queues the phrase [from, to) of [pcm]: transcribed after the earlier ones, its audio cleared from [pcm] once copied. */
+    private fun transcribe(pcm: ShortArray, from: Int, to: Int) = transcriber.execute {
+        if (cancelled || failed) {
+            pcm.fill(0, from, to)
+            return@execute
+        }
+        val count = to - from
+        val samples = FloatArray(count) { pcm[from + it] / 32768f }
+        pcm.fill(0, from, to)
+        val text = try {
+            engine().transcribe(samples, count)
+        } catch (_: Throwable) {
+            failed = true
+            if (!cancelled) {
+                recording?.abort() // the engine cannot type anything: the microphone is closed too
+                stopRequested = true
+                main.execute { listener.onFailure(Failure.ENGINE) }
+            }
+            return@execute
+        } finally {
+            samples.fill(0f)
+        }
+        if (!cancelled && text.isNotEmpty()) main.execute { if (!cancelled) listener.onText(text) }
     }
 
     private fun post(next: State) = main.execute {

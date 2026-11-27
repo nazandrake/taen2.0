@@ -42,7 +42,7 @@ class VoiceControllerTest {
         // a microphone that supplies chunks until the test lets it end
         val capture = object : AudioCapture {
             override fun start() { micOpen = true; calls.add("mic start") }
-            override fun read(buffer: ShortArray, offset: Int, length: Int): Int { blockInRead?.invoke(); return if (micOpen) { buffer[offset] = 5; 1600 } else -1 }
+            override fun read(buffer: ShortArray, offset: Int, length: Int): Int { blockInRead?.invoke(); return if (micOpen) { val n = minOf(1600, length); buffer.fill(3000, offset, offset + n); n } else -1 } // speech, no pause
             override fun abort() {}
             override fun release() { micOpen = false; calls.add("mic release") }
         }
@@ -52,7 +52,7 @@ class VoiceControllerTest {
         lateinit var c: VoiceController
         phone.blockInRead = { readHook(c) }
         c = VoiceController(phone) { listener ->
-            VoiceSession({ phone.capture }, { object : SpeechEngine { override fun transcribe(pcm: FloatArray, length: Int) = phone.engineText; override fun close() {} } }, inline, inline, listener)
+            VoiceSession({ phone.capture }, { object : SpeechEngine { override fun transcribe(pcm: FloatArray, length: Int) = phone.engineText; override fun close() {} } }, inline, inline, inline, listener)
         }
         return c
     }
@@ -97,7 +97,7 @@ class VoiceControllerTest {
         phone.permission = true
         c.onKey() // the user taps again after granting: only then it records (this phone's microphone runs to the 60 s limit)
         assertEquals(listOf("permission", "prepare", "mic start", "mic release"), phone.calls)
-        assertEquals(listOf("hello"), phone.committed)
+        assertEquals(List(4) { "hello" }, phone.committed) // speech without a pause: four phrases of 15 s
     }
 
     @Test fun holdRecordsWhileHeldAndStopsOnRelease() {
@@ -168,7 +168,7 @@ class VoiceControllerTest {
         }
         var reads = 0
         phone.blockInRead = { if (++reads == 2) c.onKey() }
-        c = VoiceController(phone) { VoiceSession({ phone.capture }, { engine }, inline, inline, it) }
+        c = VoiceController(phone) { VoiceSession({ phone.capture }, { engine }, inline, inline, inline, it) }
         c.onKey()
         assertEquals(listOf("once"), phone.committed)
         assertEquals(1, phone.calls.count { it == "mic start" })

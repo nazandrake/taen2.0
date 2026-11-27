@@ -43,9 +43,10 @@ class GlideFacilitatorKit(context: Context, forSpellChecking: Boolean = false) {
         var onContentVersion: (() -> Unit)? = null
         /** False: the dictionary cannot hand over all its words now (like a lock timeout of the native one). */
         var complete = true
+        var wordReads = 0
         override fun loadInitialContentsLocked() {}
         override fun contentVersion(): Long { onContentVersion?.invoke(); return version }
-        override fun forEachWord(listener: WordListener): Boolean { words.forEach { listener.onWord(it.first, it.second) }; return complete }
+        override fun forEachWord(listener: WordListener): Boolean { wordReads++; words.forEach { listener.onWord(it.first, it.second) }; return complete }
         override fun getSuggestions(composedData: ComposedData, ngramContext: NgramContext, proximityInfoHandle: Long,
             settingsValuesForSuggestion: SettingsValuesForSuggestion, sessionId: Int, weightForLocale: Float,
             inOutWeightOfLangModelVsSpatialModel: FloatArray?): ArrayList<SuggestedWordInfo>? {

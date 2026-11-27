@@ -1868,6 +1868,11 @@ public class LatinIME extends InputMethodService implements
         commitTextInput(helium314.keyboard.latin.voice.VoiceText.INSTANCE.forInsertion(before, words), false);
     }
 
+    /** Incognito mode was switched with the toolbar key: a voice recording ends (P20, the microphone closes). */
+    public void onIncognitoToggled() {
+        mVoiceTyping.onIncognitoChange();
+    }
+
     void showVoiceState(@NonNull final helium314.keyboard.latin.voice.VoiceSession.State state) {
         if (hasSuggestionStripView()) mSuggestionStripView.setVoiceState(state);
     }

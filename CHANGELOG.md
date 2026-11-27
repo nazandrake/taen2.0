@@ -7,6 +7,10 @@
   when two of your words match nothing is changed. Not in password, no-learning or incognito fields, and not while the phone is locked.
   Dictated text is still not learned.
 - Voice typing puts a capital at the start of a sentence where the field uses automatic capitals.
+- Voice typing types while you speak: after each short pause the phrase you just said is recognised and typed, while the microphone keeps
+  listening. Tap the voice key again (or release it when you hold it) to stop; the last phrase is typed then. The first phrase still waits
+  until the model has loaded, and a phrase is limited to 15 seconds and a recording to 60 seconds.
+- The microphone also closes when you switch incognito mode with the toolbar key.
 
 ## 2.0.6
 

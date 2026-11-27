@@ -7,7 +7,7 @@ Voice typing turns speech into text on your phone. The model that recognises spe
 1. Install the voice model once (below).
 2. Tap the **voice key** on the strip (it is pinned there by default), or hold it. Tap to start and stop, hold to talk and release to stop.
 3. Allow the microphone when Android asks the first time. The microphone is open only while you record.
-4. The recognised text is typed into the field. A sentence start gets a capital where the field uses automatic capitals. A word that is not in the dictionary is replaced by a word of your personal dictionary or a learned word when exactly one of them matches (the same letters, or one letter different), for example a name. This is not done in password, no-learning or incognito fields or while the phone is locked, and nothing you dictate is learned.
+4. The recognised text is typed into the field while you speak: each phrase after a short pause, the last one when you stop. The first phrase waits until the model has loaded. A sentence start gets a capital where the field uses automatic capitals. A word that is not in the dictionary is replaced by a word of your personal dictionary or a learned word when exactly one of them matches (the same letters, or one letter different), for example a name. This is not done in password, no-learning or incognito fields or while the phone is locked, and nothing you dictate is learned.
 
 The voice key is not available in password fields and while the device is locked. If nothing records, see [Troubleshooting](page:troubleshooting).
 

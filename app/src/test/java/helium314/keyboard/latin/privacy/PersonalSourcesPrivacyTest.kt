@@ -109,9 +109,12 @@ class PersonalSourcesPrivacyTest {
     @Test fun voiceTextGetsTheLearnedAndPersonalWordsOnlyWhereTheFieldAllowsThem() {
         val kit = GlideFacilitatorKit(ctx)
         assertEquals(listOf("quibble", "zork"), voice(kit, personalized = true)) // positive control: both user dictionaries
+        assertEquals(1, kit.history.wordReads)
         assertNull(voice(kit, personalized = false)) // an incognito field (password, no-learning flag, incognito mode or app)
         Privacy.lock(ctx)
         assertNull(voice(kit, personalized = true)) // locked, whatever the field was loaded with
+        assertEquals(1, kit.history.wordReads) // and in neither case was a user dictionary read at all
+        assertEquals(1, kit.personal.wordReads)
         Privacy.unlock(ctx)
         assertEquals(listOf("quibble", "zork"), voice(kit, personalized = true))
         assertNull(GlideFacilitatorKit(ctx, forSpellChecking = true).facilitator.userWordsForVoice(SettingsValuesForSuggestion(false, false, true)))
