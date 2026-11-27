@@ -8,12 +8,14 @@
 - New: "Forget learned data" deletes the learned and the removed words of every language at once. Your personal dictionary is kept; the new "Clear
   personal dictionary" empties it.
 - The words you remove from the suggestions are now stored encrypted, like the learned words. The plain list of earlier versions is moved in.
-- Stricter when something cannot be read: if Taen cannot read its settings or its list of apps without learning (a storage or key error), it treats every
-  field as private and learns nothing until it can read them again; a lock state that cannot be read counts as locked.
+- Stricter when something cannot be read: if Taen cannot read its settings or its list of apps without learning (a temporary storage or key error), it
+  treats every field as private and learns nothing until it can read them again. If the settings file is damaged or its key is lost, the settings start
+  again with incognito on and learning, voice typing and the clipboard history off, and you turn them back on yourself; a damaged list of apps without
+  learning is deleted and must be entered again. A lock state that cannot be read counts as locked.
 
 Details of the learning controls:
 
-- The learned-words list is part of the settings: the app lock guards it and it cannot be captured on screen. While the phone is locked it shows nothing
+- The learned-words list is part of the settings: the app lock guards it if you set one, and screenshots and screen recordings of it are blocked. While the phone is locked it shows nothing
   and nothing can be removed, restored or deleted.
 - Nothing is learned in password, no-learning or incognito fields or while the phone is locked, as before. Adding often typed words to the personal
   dictionary stays off by default.
