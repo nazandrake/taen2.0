@@ -35,15 +35,17 @@ class GlideFacilitatorKit(context: Context, forSpellChecking: Boolean = false) {
      * A learned-word or personal dictionary. Like the native one it keeps what it was given until it is recreated: the
      * words stay after a screen lock (that is the data the privacy rules must keep out of glide).
      */
-    class FakeUser(context: Context, type: String, var words: List<Pair<String, Int>>) :
+    open class FakeUser(context: Context, type: String, var words: List<Pair<String, Int>>) :
         ExpandableBinaryDictionary(context, "fake-$type", Locale.ENGLISH, type, null) {
         var suggestionCalls = 0
         var version = 1L
         /** Test seam: runs when glide asks for the content version, i.e. after the facilitator authorized the user words and before they are scored. */
         var onContentVersion: (() -> Unit)? = null
+        /** False: the dictionary cannot hand over all its words now (like a lock timeout of the native one). */
+        var complete = true
         override fun loadInitialContentsLocked() {}
         override fun contentVersion(): Long { onContentVersion?.invoke(); return version }
-        override fun forEachWord(listener: WordListener): Boolean { words.forEach { listener.onWord(it.first, it.second) }; return true }
+        override fun forEachWord(listener: WordListener): Boolean { words.forEach { listener.onWord(it.first, it.second) }; return complete }
         override fun getSuggestions(composedData: ComposedData, ngramContext: NgramContext, proximityInfoHandle: Long,
             settingsValuesForSuggestion: SettingsValuesForSuggestion, sessionId: Int, weightForLocale: Float,
             inOutWeightOfLangModelVsSpatialModel: FloatArray?): ArrayList<SuggestedWordInfo>? {

@@ -185,8 +185,11 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
 - **P20 Voice typing on the device.** `VoiceController` (`VoiceGate`: setting on, not a password field, not locked, model present, then
   permission) to `VoiceSession` to `MicCapture` (the only `AudioRecord`) to the ONNX Runtime engine. RECORD_AUDIO is asked only by
   `VoicePermissionActivity`. Audio and everything derived from it stay in memory, are zeroed after use and are never written or logged.
-  The text is committed as plain text and never learned. The model is installed by the user, checked against its SHA-256 and kept in
-  `no_backup/taen-voice`. Tests: `:voice-engine:test`, `Voice*Test`.
+  The text is committed as plain text and never learned. Before the commit `VoiceWords.apply` adds capitals at sentence starts and
+  replaces a word that is in no main dictionary by a personal or learned word only when exactly one matches; it gets those words only
+  through `DictionaryFacilitator.userWordsForVoice` (the suggestions' rule `userWordsAllowed`: not in incognito fields, never while
+  locked). The model is installed by the user, checked against its SHA-256 and kept in `no_backup/taen-voice`. Tests:
+  `:voice-engine:test`, `Voice*Test`, `VoiceWordsTest`, `PersonalSourcesPrivacyTest`.
 - **P22 Optional downloads.** `assets/catalog/downloads.tsv` equals `tools/downloads.lock` (https, commit-pinned, SHA-256 and size).
   The browser downloads; `DownloadAccess` is the only intent; `PinnedInstaller` is the only writer (hash while copying, size cap,
   rename after the hash matches). Tests: `DownloadCatalogTest`, `PinnedInstallerTest`.

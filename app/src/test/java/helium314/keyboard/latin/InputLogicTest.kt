@@ -1486,6 +1486,83 @@ class InputLogicTest {
         assertEquals("", lastAddedWord)
     }
 
+    // ---- voice typing: the user's words and the capitals (VoiceWords) ----
+
+    /** The real facilitator over fake dictionaries (main: hello, world, word; learned: zork; personal: quibble) in place of the service's own. */
+    private fun useWordKit() {
+        val kit = helium314.keyboard.latin.gesture.GlideFacilitatorKit(latinIME)
+        LatinIME::class.java.getDeclaredField("mDictionaryFacilitator").apply { isAccessible = true }.set(latinIME, kit.facilitator)
+    }
+
+    @Test fun `the user's words fix dictated text only where personalised suggestions are allowed`() {
+        val privacy = helium314.keyboard.latin.privacy.Privacy
+        val chat = "com.example.chat"
+        setInputType(InputType.TYPE_CLASS_TEXT)
+        useWordKit() // after the field started: loading the settings of a new field resets the facilitator's dictionaries
+        dictate("zorc quible") // learned "zork" one letter changed, personal "quibble" one letter missing
+        assertEquals("zork quibble", text) // positive control: a normal field
+        val states = listOf<Pair<String, () -> Unit>>(
+            "password field" to { setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD) },
+            "no-learning field" to { ShadowInputMethodService.currentImeOptions = android.view.inputmethod.EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING; setInputType(InputType.TYPE_CLASS_TEXT) },
+            "incognito mode" to { latinIME.prefs().edit { putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true) }; setInputType(InputType.TYPE_CLASS_TEXT) },
+            "app on the incognito list" to { Settings.setIncognitoApps(latinIME, setOf(chat)); ShadowInputMethodService.currentPackage = chat; setInputType(InputType.TYPE_CLASS_TEXT) },
+            "locked after the field started" to { setInputType(InputType.TYPE_CLASS_TEXT); privacy.lock(latinIME) },
+        )
+        try {
+            for ((name, enter) in states) {
+                reset()
+                privacy.unlock(latinIME)
+                enter()
+                useWordKit()
+                dictate("zorc quible")
+                assertEquals("zorc quible", text, name)
+            }
+            // positive control: the same app off the list, unlocked
+            reset()
+            privacy.unlock(latinIME)
+            Settings.setIncognitoApps(latinIME, emptySet())
+            ShadowInputMethodService.currentPackage = chat
+            setInputType(InputType.TYPE_CLASS_TEXT)
+            useWordKit()
+            dictate("zorc quible")
+            assertEquals("zork quibble", text)
+        } finally {
+            privacy.unlock(latinIME)
+            Settings.setIncognitoApps(latinIME, emptySet())
+        }
+    }
+
+    @Test fun `dictated text keeps dictionary words and is not learned after the user's words were applied`() {
+        setInputType(InputType.TYPE_CLASS_TEXT)
+        useWordKit()
+        dictate("hello wrd zorc") // "wrd" is one letter from the dictionary word "word" but no user word: unchanged
+        assertEquals("hello wrd zork", text)
+        input(' ')
+        assertEquals("", lastAddedWord) // nothing of it is learned
+        assertEquals("", composingText)
+    }
+
+    @Test fun `dictated text gets a capital at a sentence start where the field asks for capitals`() {
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
+        dictate("hello there. how are you")
+        assertEquals("Hello there. How are you", text)
+        dictate("fine") // not at a sentence start
+        assertEquals("Hello there. How are you fine", text)
+        setText("Done. ")
+        dictate("next")
+        assertEquals("Done. Next", text)
+        // a field without automatic capitals, and the setting off: the engine's text as it is
+        reset()
+        setInputType(InputType.TYPE_CLASS_TEXT)
+        dictate("hello there. how are you")
+        assertEquals("hello there. how are you", text)
+        reset()
+        latinIME.prefs().edit { putBoolean(Settings.PREF_AUTO_CAP, false) }
+        setInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
+        dictate("hello there. how are you")
+        assertEquals("hello there. how are you", text)
+    }
+
     // always need to handle messages for proper simulation
     private fun handleMessages() {
         while (messages.isNotEmpty()) {

@@ -594,6 +594,26 @@ class DictionaryFacilitatorImpl @JvmOverloads constructor(
      */
     private fun userWordsInValidityChecks() = !forSpellChecking && !Privacy.isLocked
 
+    override fun isMainDictionaryWord(word: String): Boolean {
+        val mains = dictionaryGroups.map { it.getDict(Dictionary.TYPE_MAIN) }
+        if (mains.isEmpty() || mains.any { it == null || !it.isInitialized }) return true // not known now: counts as a word, so voice text is not changed
+        return mains.any { it!!.isValidWord(word) }
+    }
+
+    /** The same rule as the suggestions ([userWordsAllowed]); asked again after the read, because a lock may come in between. */
+    override fun userWordsForVoice(settingsValuesForSuggestion: SettingsValuesForSuggestion): List<String>? {
+        if (!userWordsAllowed(settingsValuesForSuggestion)) return null
+        val words = ArrayList<String>()
+        for (group in dictionaryGroups) {
+            for (type in arrayOf(Dictionary.TYPE_USER, Dictionary.TYPE_USER_HISTORY)) {
+                val dictionary = group.getSubDict(type) ?: continue
+                // a list that is not whole could make an ambiguous match look like the only one
+                if (!dictionary.forEachWord { word, _ -> if (!group.isBlacklisted(word)) words.add(word) }) return null
+            }
+        }
+        return if (userWordsAllowed(settingsValuesForSuggestion)) words else null
+    }
+
     // Spell checker is using this, and has its own instance of DictionaryFacilitatorImpl,
     // meaning that it always has default mConfidence. So we cannot choose to only check preferred
     // locale, and instead simply return true if word is in any of the available dictionaries

@@ -3,8 +3,11 @@ package helium314.keyboard.latin.privacy
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import helium314.keyboard.latin.DictionaryFacilitatorImpl
+import helium314.keyboard.latin.dictionary.Dictionary
 import helium314.keyboard.latin.gesture.GlideFacilitatorKit
 import helium314.keyboard.latin.gesture.GlideSuggester
+import helium314.keyboard.latin.settings.SettingsValuesForSuggestion
 import org.junit.After
 import org.junit.Before
 import org.junit.runner.RunWith
@@ -12,6 +15,7 @@ import org.robolectric.RobolectricTestRunner
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -95,6 +99,51 @@ class PersonalSourcesPrivacyTest {
         assertFalse(kit.facilitator.isValidSpellingWord("zork"))
         assertFalse(kit.facilitator.isValidSuggestionWord("quibble"))
         assertTrue(kit.facilitator.isValidSpellingWord("world")) // the main dictionary still answers
+    }
+
+    // ---- voice text (VoiceWords) gets the user words through the same decision ----
+
+    private fun voice(kit: GlideFacilitatorKit, personalized: Boolean) =
+        kit.facilitator.userWordsForVoice(SettingsValuesForSuggestion(false, false, personalized))?.sorted()
+
+    @Test fun voiceTextGetsTheLearnedAndPersonalWordsOnlyWhereTheFieldAllowsThem() {
+        val kit = GlideFacilitatorKit(ctx)
+        assertEquals(listOf("quibble", "zork"), voice(kit, personalized = true)) // positive control: both user dictionaries
+        assertNull(voice(kit, personalized = false)) // an incognito field (password, no-learning flag, incognito mode or app)
+        Privacy.lock(ctx)
+        assertNull(voice(kit, personalized = true)) // locked, whatever the field was loaded with
+        Privacy.unlock(ctx)
+        assertEquals(listOf("quibble", "zork"), voice(kit, personalized = true))
+        assertNull(GlideFacilitatorKit(ctx, forSpellChecking = true).facilitator.userWordsForVoice(SettingsValuesForSuggestion(false, false, true)))
+    }
+
+    @Test fun voiceTextGetsNoUserWordsWhenADictionaryCannotHandOverAllOfThem() {
+        val kit = GlideFacilitatorKit(ctx)
+        kit.history.complete = false
+        assertNull(voice(kit, personalized = true)) // a part of the list could make an ambiguous match look like the only one
+        kit.history.complete = true
+        assertEquals(listOf("quibble", "zork"), voice(kit, personalized = true))
+    }
+
+    @Test fun aLockDuringTheReadOfTheUserWordsGivesNone() {
+        val kit = GlideFacilitatorKit(ctx)
+        assertEquals(listOf("quibble", "zork"), voice(kit, personalized = true)) // positive control: without the lock
+        var read = false
+        val locking = object : GlideFacilitatorKit.FakeUser(ctx, Dictionary.TYPE_USER_HISTORY, listOf("zork" to 120)) {
+            override fun forEachWord(listener: WordListener): Boolean { read = true; Privacy.lock(ctx); return super.forEachWord(listener) }
+        }
+        kit.facilitator.installDictionariesForTest(java.util.Locale.ENGLISH, kit.main, mapOf(Dictionary.TYPE_USER_HISTORY to locking, Dictionary.TYPE_USER to kit.personal))
+        assertNull(voice(kit, personalized = true))
+        assertTrue(read, "the interleaving happened")
+    }
+
+    @Test fun onlyAWordOfALoadedMainDictionaryCountsAsADictionaryWordForVoiceText() {
+        val kit = GlideFacilitatorKit(ctx)
+        assertTrue(kit.facilitator.isMainDictionaryWord("world"))
+        assertFalse(kit.facilitator.isMainDictionaryWord("zork")) // a learned word is not a main dictionary word
+        assertFalse(kit.facilitator.isMainDictionaryWord("quibble"))
+        // nothing loaded: unknown counts as a word, so voice text is left as it is
+        assertTrue(DictionaryFacilitatorImpl(GlideSuggester(background = { it() })).isMainDictionaryWord("zork"))
     }
 
     @Test fun theSpellCheckersFacilitatorNeverConsultsOrSuggestsUserWords() {

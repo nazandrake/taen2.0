@@ -22,6 +22,7 @@ import android.os.Bundle;
 import android.os.Debug;
 import android.os.Message;
 import android.os.Process;
+import android.text.InputType;
 import android.util.PrintWriterPrinter;
 import android.util.Printer;
 import android.view.KeyEvent;
@@ -1851,11 +1852,20 @@ public class LatinIME extends InputMethodService implements
     /**
      * text recognised from speech goes in as committed text (InputLogic.onTextInput) and the suggestions are NOT restarted on its last word:
      * that restart makes the word composing again, and the next separator would then learn it (performAdditionToUserHistoryDictionary) or autocorrect it.
-     * One space in front when the text before the cursor needs it (VoiceText).
+     * One space in front when the text before the cursor needs it (VoiceText). Before that the user's words and the capitals are applied
+     * (VoiceWords; the personal and learned words only where the field allows them as suggestions).
      */
     void commitVoiceText(@NonNull final String text) {
+        final SettingsValues settings = mSettings.getCurrent();
+        final EditorInfo editorInfo = getCurrentInputEditorInfo();
+        final int capsFlags = InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS | InputType.TYPE_TEXT_FLAG_CAP_WORDS | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES;
+        final boolean capsField = settings.mAutoCap && editorInfo != null && (editorInfo.inputType & capsFlags) != 0;
+        final VoiceWords.Casing casing = new VoiceWords.Casing(settings.mLocale,
+                getCurrentAutoCapsState() != Constants.TextUtils.CAP_MODE_OFF, capsField, settings.mSpacingAndPunctuations::isSentenceTerminator);
+        final String words = VoiceWords.INSTANCE.apply(text, casing,
+                VoiceWords.INSTANCE.source(mDictionaryFacilitator, settings.mSettingsValuesForSuggestion));
         final CharSequence before = mInputLogic.mConnection.getTextBeforeCursor(1, 0);
-        commitTextInput(helium314.keyboard.latin.voice.VoiceText.INSTANCE.forInsertion(before, text), false);
+        commitTextInput(helium314.keyboard.latin.voice.VoiceText.INSTANCE.forInsertion(before, words), false);
     }
 
     void showVoiceState(@NonNull final helium314.keyboard.latin.voice.VoiceSession.State state) {
