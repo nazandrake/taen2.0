@@ -36,7 +36,8 @@ A change to a rule, or to the check that guards it, follows `CONTRIBUTING.md`: p
   Only a failed authentication tag, a broken format or a permanently lost key (`VaultKeyException`) deletes a store; a transient
   Keystore or I/O error (`VaultUnavailableException`) never does: the store is unavailable until it works. While the device is locked
   any failure of the CE data key is `VaultLockedException` (`DataKeys` deviceLocked, asked before and after the vault call): no key is
-  deleted or created then (`DataKeysTest`, `LockedStartTest`). `Privacy.store` reuses cached `DataKeys` only for the same key file
+  deleted or created then (`DataKeysTest`, `LockedStartTest`). The DE key has no such rule (`deviceLocked` is always false for it): a
+  really lost DE key is replaced even by a locked start, and the DE settings store then starts with the restrictive values. `Privacy.store` reuses cached `DataKeys` only for the same key file
   (`StoreKeyBindingTest`). The credential-encrypted
   (CE) tier is empty and read-only while the user is locked. New user-data storage goes through `Privacy.kt`, never a platform file,
   preferences file or database. Guards: SourceRules (no `getSharedPreferences`, `PreferenceManager`, `SQLiteOpenHelper` or
