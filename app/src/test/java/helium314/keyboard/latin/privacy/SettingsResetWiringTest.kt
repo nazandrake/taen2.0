@@ -63,6 +63,7 @@ class SettingsResetWiringTest {
         assertFalse(v.mIncognitoModeEnabled)
         assertTrue(v.mUsePersonalizedDicts)
         assertTrue(v.mClipboardHistoryEnabled)
+        assertTrue(v.mShowsVoiceInputKey) // the voice key shows while loosened, so that "off" after the reset is a change and not the starting state
         assertEquals(OverlayMode.OFF, v.mOverlayMode)
         assertEquals(120 * 60_000L, ClipboardDao.limitsFrom(ctx).retentionMillis)
         Privacy.forgetCachedState()
@@ -71,6 +72,23 @@ class SettingsResetWiringTest {
         Privacy.forgetCachedState() // a new process: the restrictive values were written, not only held in memory
         assertTrue(file.exists())
         assertRestrictive(values())
+    }
+
+    @Test fun aResetThatCannotBeWrittenLeavesTheDamagedFileAndTheNextStartIsRestrictiveToo() {
+        loosened()
+        Privacy.forgetCachedState()
+        damage()
+        val damaged = file.readBytes()
+        val dir = file.parentFile!!
+        assertTrue(dir.setWritable(false)) // no new file can be created: the write of the restrictive snapshot fails
+        try {
+            assertRestrictive(values())
+            Privacy.forgetCachedState() // a new process before any edit
+            assertTrue(damaged.contentEquals(file.readBytes()), "the damaged file is still the one on disk")
+            assertRestrictive(values())
+        } finally {
+            dir.setWritable(true)
+        }
     }
 
     @Test fun theUserLoosensAResetStoreOnPurpose() {

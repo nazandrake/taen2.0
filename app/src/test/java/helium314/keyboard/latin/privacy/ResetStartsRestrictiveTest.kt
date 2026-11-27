@@ -26,7 +26,114 @@ class ResetStartsRestrictiveTest {
         assertEquals(5, p.getInt("retention", 60))
     }
 
+    @Test fun aFailedWriteOfTheResetLeavesTheDamagedFileSoTheNextStartResetsAgain() { // a restart before any edit, after a failed write
+        val dir = tempDir()
+        prefs(dir, fixedKey(1), emptyMap()).edit().putBoolean("incognito", false).putBoolean("learn", true).putInt("retention", 120).commit()
+        val failingWrite = object : StoreFiles {
+            override fun writeSynced(file: File, bytes: ByteArray) = throw java.io.IOException("disk full")
+            override fun replace(from: File, to: File) = DefaultStoreFiles.replace(from, to)
+        }
+        val first = EncryptedPrefs({ testStore(dir, "prefs", 1, fixedKey(2), failingWrite) }, directExecutor, directNotify, restrictive)
+        assertTrue(first.getBoolean("incognito", false)) // memory: restrictive
+        val restarted = prefs(dir, fixedKey(2)) // a restart before any edit
+        assertTrue(restarted.getBoolean("incognito", false))
+        assertFalse(restarted.getBoolean("learn", true))
+        assertEquals(5, restarted.getInt("retention", 60))
+    }
+
     // ---- pass 2 ----
+
+    /** A file system whose write of the replacement fails (or the process dies) at one step of write-new-then-rename. */
+    private enum class Step { WRITE_IO_ERROR, WRITE_DIES_HALF_WAY, VERIFY_MISMATCH, RENAME_REFUSED, RENAME_THROWS, DIES_BEFORE_RENAME }
+
+    private class Died : Error("the process died here")
+
+    private fun brokenAt(step: Step) = object : StoreFiles {
+        override fun writeSynced(file: File, bytes: ByteArray) {
+            when (step) {
+                Step.WRITE_IO_ERROR -> throw java.io.IOException("disk full")
+                Step.WRITE_DIES_HALF_WAY -> { file.writeBytes(bytes.copyOf(bytes.size / 2)); throw Died() }
+                else -> DefaultStoreFiles.writeSynced(file, bytes)
+            }
+        }
+        override fun read(file: File): ByteArray {
+            val bytes = file.readBytes()
+            return if (step == Step.VERIFY_MISMATCH && file.name.endsWith(".tmp")) bytes.also { it[it.size - 1] = (it[it.size - 1] + 1).toByte() } else bytes
+        }
+        override fun replace(from: File, to: File): Boolean = when (step) {
+            Step.RENAME_REFUSED -> false
+            Step.RENAME_THROWS -> throw java.io.IOException("rename failed")
+            Step.DIES_BEFORE_RENAME -> throw Died()
+            else -> DefaultStoreFiles.replace(from, to)
+        }
+    }
+
+    private fun assertRestrictiveAfterRestart(dir: File, key: ByteArray) {
+        val restarted = prefs(dir, key)
+        assertTrue(restarted.getBoolean("incognito", false))
+        assertFalse(restarted.getBoolean("learn", true))
+        assertEquals(5, restarted.getInt("retention", 60))
+        assertEquals(mapOf<String, Any?>("incognito" to true, "learn" to false, "retention" to 5), restarted.map()) // and the old values are not back
+    }
+
+    @Test fun aFailureOrDeathAtEveryStepOfTheReplacementStillStartsRestrictiveAfterARestart() {
+        for (step in Step.values()) {
+            val dir = tempDir()
+            everythingStored(dir)
+            val p = EncryptedPrefs({ testStore(dir, "prefs", 1, fixedKey(2), brokenAt(step)) }, directExecutor, directNotify, restrictive)
+            try { p.getBoolean("incognito", false) } catch (_: Died) { assertTrue(step == Step.WRITE_DIES_HALF_WAY || step == Step.DIES_BEFORE_RENAME, "$step") }
+            assertTrue(File(dir, "prefs.enc").exists(), "$step: the damaged file is not deleted first")
+            assertRestrictiveAfterRestart(dir, fixedKey(2))
+        }
+    }
+
+    @Test fun aFailedReplacementOfMalformedContentLeavesItSoTheNextStartResetsAgain() {
+        for (step in Step.values()) {
+            val dir = tempDir()
+            testStore(dir, "prefs").write(byteArrayOf(1, 2, 3)) // authenticates, but is not a preferences snapshot
+            val p = EncryptedPrefs({ testStore(dir, "prefs", 1, fixedKey(), brokenAt(step)) }, directExecutor, directNotify, restrictive)
+            try { p.getBoolean("incognito", false) } catch (_: Died) { }
+            assertTrue(File(dir, "prefs.enc").exists(), "$step")
+            assertRestrictiveAfterRestart(dir, fixedKey())
+        }
+    }
+
+    @Test fun theReplacementIsAtomicTheDamagedFileIsNeverMissingBeforeTheNewOneIsInPlace() {
+        val dir = tempDir()
+        everythingStored(dir)
+        val seen = ArrayList<Boolean>()
+        val watching = object : StoreFiles {
+            override fun writeSynced(file: File, bytes: ByteArray) = DefaultStoreFiles.writeSynced(file, bytes).also { seen.add(File(dir, "prefs.enc").exists()) }
+            override fun replace(from: File, to: File) = DefaultStoreFiles.replace(from, to)
+        }
+        EncryptedPrefs({ testStore(dir, "prefs", 1, fixedKey(2), watching) }, directExecutor, directNotify, restrictive).getBoolean("incognito", false)
+        assertEquals(listOf(true), seen) // positive control: the write was reached, and the damaged file was still there when it happened
+        assertRestrictiveAfterRestart(dir, fixedKey(2))
+    }
+
+    @Test fun aFreshInstallStillStartsWithTheDefaultsAfterARestart() { // positive control: nothing was damaged, so nothing is made restrictive
+        val dir = tempDir()
+        assertFalse(prefs(dir).getBoolean("incognito", false))
+        val again = prefs(dir)
+        assertFalse(again.getBoolean("incognito", false))
+        assertTrue(again.getBoolean("learn", true))
+        assertEquals(60, again.getInt("retention", 60))
+    }
+
+    @Test fun aLaterLockWritesTheResetValuesThatCouldNotBeWrittenAtFirst() {
+        val dir = tempDir()
+        everythingStored(dir)
+        var failing = true
+        val files = object : StoreFiles {
+            override fun writeSynced(file: File, bytes: ByteArray) { if (failing) throw java.io.IOException("disk full") else DefaultStoreFiles.writeSynced(file, bytes) }
+            override fun replace(from: File, to: File) = DefaultStoreFiles.replace(from, to)
+        }
+        val p = EncryptedPrefs({ testStore(dir, "prefs", 1, fixedKey(2), files) }, directExecutor, directNotify, restrictive)
+        assertTrue(p.getBoolean("incognito", false))
+        failing = false
+        assertTrue(p.flushAndEvict()) // the screen lock retries the write that failed
+        assertEquals(mapOf<String, Any?>("incognito" to true, "learn" to false, "retention" to 5), prefs(dir, fixedKey(2), emptyMap()).map())
+    }
 
     private fun everythingStored(dir: File, key: ByteArray = fixedKey(1)) =
         prefs(dir, key, emptyMap()).edit().putBoolean("incognito", false).putBoolean("learn", true).putInt("retention", 120).putString("other", "kept?").commit()

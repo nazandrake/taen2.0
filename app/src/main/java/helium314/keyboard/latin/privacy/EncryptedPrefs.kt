@@ -63,22 +63,26 @@ class EncryptedPrefs(
         if (map != null) return true
         val s = store() ?: return false
         var reset = false
-        val loaded = when (val content = s.read()) {
+        // A store with reset values is never deleted first: the damaged file stays until the restrictive snapshot replaces it (write-new-then-rename), so a
+        // failed write or a crash at any step leaves a file that is damaged again at the next start, never a missing one (a missing file means a fresh install).
+        val keepDamaged = afterReset.isNotEmpty()
+        val loaded = when (val content = s.read(deleteDamaged = !keepDamaged)) {
             is StoreContent.Missing -> HashMap<String, Any>()
             is StoreContent.Reset -> { reset = true; HashMap(afterReset) }
             is StoreContent.Unavailable -> return false
             is StoreContent.Data -> try {
                 PrefsCodec.decode(content.bytes)
             } catch (_: CorruptStoreException) {
-                s.delete() // authenticated but malformed: start empty (with the reset values), never keep partial data
+                if (!keepDamaged) s.delete() // authenticated but malformed: start empty (with the reset values), never keep partial data
                 reset = true
                 HashMap(afterReset)
             }
         }
         map = HashMap(loaded)
         openedStore = s
-        // A store that was lost or damaged is readable but empty, and an empty store means the permissive defaults. The reset values are written now,
-        // so they hold across a restart too; a failed write keeps them in memory and the next edit writes the complete snapshot.
+        // A store that was lost or damaged is readable but empty, and an empty store means the permissive defaults. The reset values replace the damaged file now,
+        // so they hold across a restart too; a failed write keeps them in memory (the damaged file stays, so the next start resets again) and the next edit
+        // or the screen lock writes the complete snapshot.
         if (reset && afterReset.isNotEmpty()) write(snapshot(), s, ++changeCount)
         return true
     }

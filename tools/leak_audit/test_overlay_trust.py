@@ -110,14 +110,16 @@ class UntrustedOverlayIsAwaited(unittest.TestCase):
 
 NEEDLE = "A window covers the keyboard"
 TOAST = "I/AuditHelper: a11y class=android.widget.Toast text=" + NEEDLE
+TYPED = "I/AuditHelper: a11y type=16 pkg=taen.audit.helper class=android.widget.EditText text=[a]"
 
 
 class OverlayPhone:
     """The helper's log as the checks read it: a tap on the keyboard adds a warning toast when `warns_without_overlay` is set (a control that must fail)
     or when an untrusted overlay window is up and `warns_with_overlay` is set."""
 
-    def __init__(self, untrusted_overlay_starts, warns_without_overlay=False, warns_with_overlay=True):
+    def __init__(self, untrusted_overlay_starts, warns_without_overlay=False, warns_with_overlay=True, taps_reach_keyboard=True):
         self.untrusted_overlay_starts = untrusted_overlay_starts
+        self.taps_reach_keyboard = taps_reach_keyboard
         self.warns_without_overlay = warns_without_overlay
         self.warns_with_overlay = warns_with_overlay
         self.overlay = False
@@ -128,6 +130,8 @@ class OverlayPhone:
         return ""
 
     def tap(self, x, y):
+        if self.taps_reach_keyboard:  # a key tap types a character into the helper's field: the accessibility service logs a text-changed event
+            self.lines.append(TYPED)
         if (self.overlay and self.warns_with_overlay) or (not self.overlay and self.warns_without_overlay):
             self.lines.append(TOAST)
 
@@ -158,6 +162,16 @@ class OverlayControlIsItsOwnRow(unittest.TestCase):
     def test_a_clean_control_with_no_untrusted_overlay_is_a_pass_row_beside_the_gap(self):  # positive control
         rows = overlay_rows(OverlayPhone(None))
         self.assertEqual((rows["D7o"].status, rows["D7o-c"].status), (GAP, PASS))
+
+    def test_taps_that_did_not_reach_the_keyboard_are_no_pass_for_the_control(self):  # the positive control of the PASS row
+        rows = overlay_rows(OverlayPhone(None, taps_reach_keyboard=False))
+        self.assertEqual(rows["D7o-c"].status, GAP)
+        self.assertIn("did not reach the keyboard", rows["D7o-c"].summary)
+        self.assertEqual(overlay_rows(OverlayPhone(None))["D7o-c"].status, PASS)  # the same phone with taps that reach it
+
+    def test_a_warning_still_fails_the_control_when_the_taps_were_not_seen(self):
+        rows = overlay_rows(OverlayPhone(None, warns_without_overlay=True, taps_reach_keyboard=False))
+        self.assertEqual(rows["D7o-c"].status, FAIL)
 
     def test_with_an_untrusted_overlay_the_control_stays_inside_d7o(self):
         rows = overlay_rows(OverlayPhone(2))

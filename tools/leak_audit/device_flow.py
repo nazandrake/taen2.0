@@ -443,14 +443,21 @@ def overlay_warning_checks(run, overlay_needle):
         time.sleep(1.5)
     time.sleep(3)
     none = toasts_since(run, mark4, overlay_needle)
+    typed = [l for l in helper_log(run)[mark4:] if "a11y type=16 " in l and "class=android.widget.EditText" in l]  # TYPE_VIEW_TEXT_CHANGED
     starts = add_untrusted_overlay(run)
     time.sleep(3)
     if starts is None:
         out.append(Result("D7o", "Overlay warning: a tap on a keyboard covered by another window shows the warning, a tap without an overlay does not", GAP,
                           "not run: Android marked the helper's overlay window trusted (or showed none) in all %d starts; a touch under a trusted window carries no obscured flag, so there is nothing to warn about" % OVERLAY_TRIES,
                           ["control (no overlay): %s" % none[:1]]))
-        out.append(verdict("D7o-c", "Overlay warning control: a tap on the keyboard with no overlay shows no warning", ["overlay warning without any overlay (control): %s" % none[:1]] if none else [],
-                           "three taps on the keyboard with no overlay window: no warning toast"))
+        title = "Overlay warning control: a tap on the keyboard with no overlay shows no warning"
+        if none:
+            out.append(verdict("D7o-c", title, ["overlay warning without any overlay (control): %s" % none[:1]], ""))
+        elif not typed:
+            # positive control: "no warning" says something only when the taps reached the keyboard (a key tap types into the helper's field)
+            out.append(Result("D7o-c", title, GAP, "no warning toast, but the three taps did not reach the keyboard (no text change in the helper's field), so the absence proves nothing", []))
+        else:
+            out.append(verdict("D7o-c", title, [], "three taps on the keyboard with no overlay window typed %d change(s) into the field: no warning toast" % len(typed)))
     else:
         mark5 = len(helper_log(run))
         for _ in range(3):
