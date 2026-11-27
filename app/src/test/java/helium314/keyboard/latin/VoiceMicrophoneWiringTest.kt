@@ -149,6 +149,56 @@ class VoiceMicrophoneWiringTest {
         assertTrue(ime.prefs().getBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, false), "positive control: the key switched incognito mode on")
     }
 
+    private fun restart(ime: LatinIME, editor: EditorInfo, restarting: Boolean = true) {
+        ShadowInputMethodService.currentInputType = editor.inputType // the settings are loaded from the service's current editor
+        ShadowInputMethodService.currentImeOptions = editor.imeOptions
+        ime.mHandler.onStartInput(editor, restarting)
+        ime.mHandler.onStartInputView(editor, restarting)
+        idle()
+    }
+
+    /** A restarted field (the same field, a new input type) that turns into a password or no-learning field closes the microphone. */
+    @Test fun aRestartedFieldThatBecomesAPasswordFieldClosesTheMicrophone() = closedBy { ime ->
+        restart(ime, EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD })
+        assertTrue(Settings.getValues().mPrivacy.passwordField, "positive control: the restarted field is a password field")
+    }
+
+    @Test fun aRestartedFieldThatBecomesNoLearningClosesTheMicrophone() = closedBy { ime ->
+        restart(ime, EditorInfo().apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        })
+        assertTrue(Settings.getValues().mPrivacy.incognito, "positive control: the restarted field is incognito")
+        assertFalse(Settings.getValues().mPrivacy.passwordField)
+    }
+
+    /** The negative control of the two above: a restart to another ordinary input type keeps the recording. */
+    @Test fun aRestartedFieldThatStaysOrdinaryKeepsTheMicrophoneOpen() = withKeyboard { ime, mic, _ ->
+        tap(ime)
+        assertTrue(mic.open)
+        restart(ime, EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS })
+        assertFalse(Settings.getValues().mPrivacy.incognito, "positive control: the restart was handled and the field is still ordinary")
+        Thread.sleep(300)
+        assertTrue(mic.open, "an ordinary restart does not end the recording")
+        tap(ime)
+        assertTrue(mic.closes())
+    }
+
+    /** Only a change into incognito closes it: a restart of a field that was already incognito (here no-learning, then a number type) keeps the recording. */
+    @Test fun aRestartedFieldThatWasAlreadyIncognitoKeepsTheMicrophoneOpen() = withKeyboard { ime, mic, _ ->
+        val noLearning = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        restart(ime, EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT; imeOptions = noLearning }, restarting = false)
+        assertTrue(Settings.getValues().mPrivacy.incognito, "positive control: the field is incognito before the restart")
+        tap(ime)
+        assertTrue(mic.open)
+        restart(ime, EditorInfo().apply { inputType = InputType.TYPE_CLASS_NUMBER; imeOptions = noLearning })
+        assertEquals(InputType.TYPE_CLASS_NUMBER, Settings.getValues().mInputAttributes.mInputType, "positive control: the restart was handled")
+        Thread.sleep(300)
+        assertTrue(mic.open, "the restart did not change the privacy decision")
+        tap(ime)
+        assertTrue(mic.closes())
+    }
+
     /** What LatinIME.onDestroy calls (the shadow cannot run the framework's own onDestroy, see NextWordTypingLifecycleTest). */
     @Test fun theEndOfTheServiceClosesTheMicrophone() = closedBy { it.mVoiceTyping.onDestroy() }
 

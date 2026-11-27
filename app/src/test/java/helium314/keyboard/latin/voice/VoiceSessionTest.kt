@@ -500,6 +500,61 @@ class VoiceSessionTest {
         assertEquals(emptyList(), rec.texts)
     }
 
+    /**
+     * The service ends (cancel, then the transcriber is shut down) while the reader is still releasing the microphone: the reader's last task
+     * is then rejected. The audio must still be zeroed, on the reader thread, nothing may be thrown and the session must end idle.
+     */
+    private class SlowReleaseCapture : AudioCapture {
+        val releasing = CountDownLatch(1)
+        val go = CountDownLatch(1)
+        @Volatile var buffer: ShortArray? = null
+        private var delivered = false
+        override fun start() {}
+        override fun read(buffer: ShortArray, offset: Int, length: Int): Int {
+            this.buffer = buffer
+            if (!delivered) {
+                delivered = true
+                buffer.fill(7000, offset, offset + VoiceSession.CHUNK)
+                return VoiceSession.CHUNK
+            }
+            return -1 // the device was aborted
+        }
+        override fun abort() {}
+        override fun release() { releasing.countDown(); go.await(5, TimeUnit.SECONDS) }
+    }
+
+    private fun shutDownBeforeTheReaderEnds(cancel: Boolean) {
+        val capture = SlowReleaseCapture()
+        val rec = Recorder()
+        val thrown = Collections.synchronizedList(ArrayList<Throwable>())
+        val readerDone = CountDownLatch(1)
+        val reader = Executor {
+            Thread {
+                try { it.run() } catch (t: Throwable) { thrown.add(t) } finally { readerDone.countDown() }
+            }.apply { isDaemon = true }.start()
+        }
+        val transcriber = Executors.newSingleThreadExecutor()
+        val session = VoiceSession({ capture }, { FakeEngine(ArrayList()) }, reader, transcriber, inline, rec)
+        assertTrue(session.start())
+        assertTrue(capture.releasing.await(5, TimeUnit.SECONDS), "positive control: the reader read the audio and is releasing the microphone")
+        val buffer = capture.buffer!!
+        assertEquals(7000, buffer[0].toInt(), "positive control: the buffer holds audio before the end")
+        if (cancel) session.cancel() // what VoiceTyping.onDestroy does ...
+        transcriber.shutdown() // ... before the reader has passed its last steps
+        capture.go.countDown()
+        assertTrue(readerDone.await(5, TimeUnit.SECONDS))
+        assertEquals(emptyList(), thrown)
+        assertTrue(buffer.all { it == 0.toShort() }, "the audio is zeroed")
+        assertEquals(VoiceSession.State.IDLE, rec.states.last())
+        assertEquals(emptyList(), rec.texts)
+    }
+
+    /** The reader's closing task is rejected. */
+    @Test fun aTranscriberShutDownBeforeTheReaderEndsStillLeavesTheAudioZeroedAndThrowsNothing() = shutDownBeforeTheReaderEnds(cancel = true)
+
+    /** The last phrase is rejected too (the cancel had not been seen yet when the reader checked it). */
+    @Test fun aTranscriberShutDownBeforeTheLastPhraseIsQueuedThrowsNothingAndLeavesTheAudioZeroed() = shutDownBeforeTheReaderEnds(cancel = false)
+
     @Test fun stopWithoutCancelDoesNotAbortTheDevice() {
         lateinit var session: VoiceSession
         val capture = FakeCapture(onRead = { if (it == 1) session.stop() })

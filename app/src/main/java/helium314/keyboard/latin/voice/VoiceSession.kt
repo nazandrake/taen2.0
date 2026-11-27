@@ -3,6 +3,7 @@ package helium314.keyboard.latin.voice
 
 import helium314.keyboard.latin.voice.engine.SpeechEngine
 import java.util.concurrent.Executor
+import java.util.concurrent.RejectedExecutionException
 
 /** A source of 16 kHz mono 16-bit samples (the microphone in the app, a fake in the tests). */
 interface AudioCapture {
@@ -138,18 +139,29 @@ class VoiceSession(
             post(State.TRANSCRIBING)
             if (length > phraseStart) transcribe(pcm, phraseStart, length) // the last phrase, whatever its levels
         } finally {
-            transcriber.execute { // after every phrase: the transcriber runs its tasks in order
+            val end = Runnable {
                 pcm.fill(0)
                 main.execute {
                     state = State.IDLE
                     listener.onState(State.IDLE)
                 }
             }
+            try {
+                transcriber.execute(end) // after every phrase: the transcriber runs its tasks in order
+            } catch (_: RejectedExecutionException) {
+                end.run() // the service ended and shut the transcriber down: the audio is zeroed here, and nothing is thrown
+            }
         }
     }
 
     /** Queues the phrase [from, to) of [pcm]: transcribed after the earlier ones, its audio cleared from [pcm] once copied. */
-    private fun transcribe(pcm: ShortArray, from: Int, to: Int) = transcriber.execute {
+    private fun transcribe(pcm: ShortArray, from: Int, to: Int) = try {
+        transcribePhrase(pcm, from, to)
+    } catch (_: RejectedExecutionException) { // the service ended: the transcriber is shut down, the phrase is dropped
+        pcm.fill(0, from, to)
+    }
+
+    private fun transcribePhrase(pcm: ShortArray, from: Int, to: Int) = transcriber.execute {
         if (cancelled || failed) {
             pcm.fill(0, from, to)
             return@execute

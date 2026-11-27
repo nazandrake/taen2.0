@@ -926,6 +926,7 @@ public class LatinIME extends InputMethodService implements
         SettingsValues currentSettingsValues = mSettings.getCurrent();
         boolean inputTypeChanged = !currentSettingsValues.isSameInputType(editorInfo);
         boolean isDifferentTextField = !restarting || inputTypeChanged;
+        final boolean wasIncognito = currentSettingsValues.mPrivacy.getIncognito();
 
         // we want to reload the settings before calling updateKeyboardTheme, because updateKeyboardTheme reads SettingsValues.mToolbarMode
         if (isDifferentTextField || !currentSettingsValues.hasSameOrientation(getResources().getConfiguration())) {
@@ -937,6 +938,8 @@ public class LatinIME extends InputMethodService implements
         switcher.updateKeyboardTheme(mDisplayContext);
         MainKeyboardView mainKeyboardView = switcher.getMainKeyboardView();
         currentSettingsValues = mSettings.getCurrent(); // settingsValues may have been reloaded
+        // a restarted field that turned into a password, no-learning or incognito field: the microphone closes like at a field change
+        if (restarting && !wasIncognito && currentSettingsValues.mPrivacy.getIncognito()) mVoiceTyping.onFieldChange();
         if (hasSuggestionStripView())
             mSuggestionStripView.updateFieldKeys(); // paste, select all and clear all on the strip of a number, phone or date field
 
