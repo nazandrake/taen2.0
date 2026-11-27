@@ -1,20 +1,24 @@
 # Changelog
 
-## Unreleased
+## 2.0.7
 
-- Voice typing uses your words: a word that is not in the dictionary becomes a word of your personal dictionary or one Taen has learned
-  when exactly one of them matches (the same letters, or one letter different), for example a name. Dictionary words are never changed, and
-  when two of your words match nothing is changed. Not in password, no-learning or incognito fields, and not while the phone is locked.
-  Dictated text is still not learned.
+- Voice typing uses your words: a word that is not in the dictionary becomes the word of your personal dictionary or of Taen's learned words
+  that matches it (the same letters, or one letter different), for example a name. Not in password, no-learning or incognito fields, and not
+  while the phone is locked.
 - Voice typing puts a capital at the start of a sentence where the field uses automatic capitals.
-- Voice typing types while you speak: after each short pause the phrase you just said is recognised and typed, while the microphone keeps
-  listening. Tap the voice key again (or release it when you hold it) to stop; the last phrase is typed then. The first phrase still waits
-  until the model has loaded, and a phrase is limited to 15 seconds and a recording to 60 seconds.
+- Voice typing types while you speak: after each short pause the phrase you just said is typed, while the microphone keeps listening. Tap the
+  voice key again (or release it when you hold it) to stop. A phrase is limited to 15 seconds and a recording to 60 seconds.
 - The microphone also closes when you switch incognito mode with the toolbar key, and whenever the field you dictate into turns into a
   password field.
 - Stricter when the list of incognito apps is lost: if the file that holds it is damaged or its key is lost, every app is incognito until you
   enter the list again or dismiss the notice that Settings > Privacy then shows. Before, the list was simply empty. A new install still starts
   with an empty list.
+
+Details:
+
+- Dictionary words are never changed by voice typing, and when two of your words match nothing is changed. Dictated text is still not learned.
+- The last phrase is typed when you stop. The first phrase still waits until the model has loaded.
+
 - When the keyboard starts while the phone is locked, an error of the key that needs an unlocked phone now always means "try again after the
   unlock": it never makes Taen start a new key or reset your settings, whatever error the phone reports. This covers only the key that needs an
   unlocked phone: if the other key (device-encrypted, used for the main settings) is really lost, Taen still starts a new one, also while the phone
