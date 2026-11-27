@@ -22,8 +22,8 @@ android {
         applicationId = "io.github.nazandrake.taen"
         minSdk = 30
         targetSdk = 37
-        versionCode = 15
-        versionName = "2.0.6"
+        versionCode = 16
+        versionName = "2.0.7"
         ndk {
             abiFilters.clear()
             // only 64-bit ARM (the Pixel 8 Pro and the reference test phone). ONNX Runtime adds 24 to 41 MB per ABI; a 32-bit or x86 build
