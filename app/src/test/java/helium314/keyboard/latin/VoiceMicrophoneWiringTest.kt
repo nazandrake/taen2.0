@@ -199,6 +199,31 @@ class VoiceMicrophoneWiringTest {
         assertTrue(mic.closes())
     }
 
+    /** A password field closes it whatever the field was before: here a no-learning field (already incognito) restarted as a password field. */
+    @Test fun anIncognitoFieldRestartedAsAPasswordFieldClosesTheMicrophone() = withKeyboard { ime, mic, _ ->
+        val noLearning = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+        restart(ime, EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT; imeOptions = noLearning }, restarting = false)
+        assertTrue(Settings.getValues().mPrivacy.incognito, "positive control: the field is incognito before the restart")
+        tap(ime)
+        assertTrue(mic.open, "the tap opened the microphone")
+        restart(ime, EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; imeOptions = noLearning })
+        assertTrue(Settings.getValues().mPrivacy.passwordField, "positive control: the restarted field is a password field")
+        assertTrue(mic.closes(), "the microphone was released")
+    }
+
+    /** The same from force-incognito into a number password (another of the four password variations). The control is the test above it that keeps the recording. */
+    @Test fun aForceIncognitoFieldRestartedAsANumberPasswordClosesTheMicrophone() = withKeyboard { ime, mic, _ ->
+        assertTrue(ime.prefs().edit().putBoolean(Settings.PREF_ALWAYS_INCOGNITO_MODE, true).commit())
+        restart(ime, EditorInfo().apply { inputType = InputType.TYPE_CLASS_TEXT }, restarting = false)
+        assertTrue(Settings.getValues().mPrivacy.incognito, "positive control: the field is incognito before the restart")
+        assertFalse(Settings.getValues().mPrivacy.passwordField)
+        tap(ime)
+        assertTrue(mic.open, "the tap opened the microphone")
+        restart(ime, EditorInfo().apply { inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_VARIATION_PASSWORD })
+        assertTrue(Settings.getValues().mPrivacy.passwordField, "positive control: the restarted field is a password field")
+        assertTrue(mic.closes(), "the microphone was released")
+    }
+
     /** What LatinIME.onDestroy calls (the shadow cannot run the framework's own onDestroy, see NextWordTypingLifecycleTest). */
     @Test fun theEndOfTheServiceClosesTheMicrophone() = closedBy { it.mVoiceTyping.onDestroy() }
 
